@@ -1,0 +1,87 @@
+{
+  "schema_version": 0,
+  "benchmark_id": "roverloom-bench",
+  "version": "1.0.0",
+  "model_version": "kinematic-0.2",
+  "scoring_version": "score-0.2",
+  "builder_version": "builder-0.1",
+  "seeds": [
+    101,
+    102,
+    103,
+    104,
+    105
+  ],
+  "leagues": {
+    "autonomy": {
+      "scenarios": [
+        "science_sprint",
+        "science_campaign",
+        "stress_blackout",
+        "boulder_gap",
+        "demo_traverse"
+      ],
+      "rovers": [
+        "pathfinder_6w"
+      ],
+      "agents": [
+        "stop",
+        "waypoint",
+        "reactive",
+        "replanner",
+        "mission-planner",
+        "cap-mock"
+      ]
+    },
+    "rover_design": {
+      "scenarios": [
+        "science_sprint",
+        "science_campaign",
+        "stress_blackout"
+      ],
+      "rovers": [
+        "scout_4w",
+        "pathfinder_6w",
+        "hauler_8w"
+      ],
+      "agents": [
+        "mission-planner"
+      ]
+    },
+    "full_mission": {
+      "scenarios": [
+        "science_sprint",
+        "science_campaign",
+        "stress_blackout"
+      ],
+      "rovers": [
+        "scout_4w",
+        "pathfinder_6w",
+        "hauler_8w"
+      ],
+      "agents": [
+        "reactive",
+        "mission-planner"
+      ]
+    }
+  },
+  "pins": {
+    "agent:cap-mock": "4be4b605425faa66c350dccecf26a499c73c2caeb4b73d5fb69306f0083d5743",
+    "agent:mission-planner": "4be4b605425faa66c350dccecf26a499c73c2caeb4b73d5fb69306f0083d5743",
+    "agent:reactive": "fde576a5e14455317dee54158385806bfdbbd95e126ffc414b5c38925fb3e94e",
+    "agent:replanner": "b616748d219b2e5f2817343efb612ff667bf85c7c8940978bbafc3fd8456fe40",
+    "agent:stop": "fde576a5e14455317dee54158385806bfdbbd95e126ffc414b5c38925fb3e94e",
+    "agent:waypoint": "fde576a5e14455317dee54158385806bfdbbd95e126ffc414b5c38925fb3e94e",
+    "rover:hauler_8w": "1018acd049447f80398df9cb5bef87987b5323435783cdd72925bff35fb52bf9",
+    "rover:pathfinder_6w": "c327bb96abfa4411ea2eb64f70ea9f442b21e3a4dad1deb677f80729ca85bda2",
+    "rover:scout_4w": "56247d276e1cfd694ae4f33468c552e63aafe84ca4a3c5fe67c037a7a1f719ff",
+    "scenario:boulder_gap": "1c884aea96bb88f461553d54729a42cd711cb3e453d9832963fa224b17c73db7",
+    "scenario:demo_traverse": "a2ad93cdcf4ade5c5782e9e5bf7eeaed3be13619ac1ce6e2c33cc2d73dc6712a",
+    "scenario:science_campaign": "24057cb490e93a07316479e15cb3c555a7b7c2340753acdc67f9151a1b34cc49",
+    "scenario:science_sprint": "2154678481f46c4d1681cc40f8c6ef06786ae02b07a76979bd4d38c391ba5a43",
+    "scenario:stress_blackout": "0654a9bde5a660526c73b75fa1aed5d00ff9cba9d14bf23d320547ddf2d80d74",
+    "terrain:flat_test": "dcd75f0bdf7709b1c5cc5c1821e75e94f0506f2a41930dd9b1894d88c9aa7e2e",
+    "terrain:practice_boulder_wall": "8369615d112d0ac341e8f7e84478cb11102f9d0896f23846acaa5624e8ba0fd3",
+    "terrain:practice_highlands": "e8c1988bad51e6c13d1a8b9076426735f3804d20e356cb16c44d82add02d43a1"
+  }
+}

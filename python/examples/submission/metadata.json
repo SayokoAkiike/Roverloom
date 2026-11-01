@@ -1,0 +1,9 @@
+{
+  "schema_version": 0,
+  "name": "Example cautious agent",
+  "authors": [
+    "Roverloom project"
+  ],
+  "agent_class": "Agent",
+  "league": "autonomy"
+}

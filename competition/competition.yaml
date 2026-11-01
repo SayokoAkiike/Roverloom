@@ -1,0 +1,21 @@
+# DRAFT. Never uploaded to Codabench, and its field names need checking against
+# https://docs.codabench.org/dev/Organizers/Benchmark_Creation/Yaml-Structure/ before use.
+version: 2
+title: Roverloom Autonomy League (draft)
+description: Offline draft. Requires an isolated runner image, which does not exist yet.
+tasks:
+  - index: 0
+    name: Public practice
+    scoring_program: scoring_program/
+    ingestion_program: ingestion_program/
+    reference_data: reference_data/
+leaderboards:
+  - title: Results
+    key: main
+    columns:
+      - { title: Mean score, key: mean_score, index: 0, sorting: desc }
+      - { title: Success rate, key: success_rate, index: 1, sorting: desc }
+      - { title: Science value, key: mean_science_value, index: 2, sorting: desc }
+      - { title: Time (s), key: mean_time_s, index: 3, sorting: asc }
+      - { title: Energy (Wh), key: mean_energy_wh, index: 4, sorting: asc }
+      - { title: Collisions, key: mean_collisions, index: 5, sorting: asc }

@@ -7,6 +7,7 @@ lightweight backend. See docs/unreal-integration.md.
 import contextlib
 import ipaddress
 import socket
+import sys
 from typing import Protocol
 
 from roverloom.api import Action, MissionBrief, Observation
@@ -107,6 +108,15 @@ class RemoteAgent:
         self._listener.close()
 
 
+def main() -> int:
+    """Run one agent as a separate process: python -m roverloom.bridge FILE:CLASS PORT."""
+    from roverloom.agents import create_agent
+
+    spec, port = sys.argv[1], int(sys.argv[2])
+    run_client(create_agent(spec), port)
+    return 0
+
+
 def run_client(
     agent: _Agent, port: int, host: str = "127.0.0.1", timeout_s: float = DEFAULT_TIMEOUT_S
 ) -> int:
@@ -129,3 +139,7 @@ def run_client(
             actions += 1
     finally:
         channel.close()
+
+
+if __name__ == "__main__":
+    sys.exit(main())

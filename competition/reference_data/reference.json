@@ -1,0 +1,11 @@
+{
+  "scenarios": [
+    "science_sprint",
+    "stress_blackout"
+  ],
+  "seeds": [
+    1,
+    2
+  ],
+  "rover": "pathfinder_6w"
+}
