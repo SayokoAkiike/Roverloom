@@ -1,6 +1,7 @@
 # Architecture
 
-Status: initial design. Only the data contracts and their tests exist today.
+Status: the lightweight backend, evaluator, and sample agents exist and are tested. The Unreal
+backend does not exist yet.
 
 ## Goals
 
@@ -19,8 +20,8 @@ Status: initial design. Only the data contracts and their tests exist today.
       faults  +---------+        +-----------+
               | Backend | <----> |   Agent   |  python/ or human driver
               +---------+        +-----------+
-              Lightweight sim (planned, Python)
-              Unreal Engine   (planned, unreal/)
+              Lightweight model (python/, working)
+              Unreal Engine     (unreal/, planned)
                    |
                    | Telemetry (JSON Lines)
                    v
@@ -33,11 +34,14 @@ Status: initial design. Only the data contracts and their tests exist today.
 
 | Path | Responsibility | State |
 | --- | --- | --- |
-| `schemas/` | Action, Observation, Telemetry, Mission, Scenario | Draft v0 |
-| `scenarios/` | Declarative missions, environment, and faults | One example |
-| `python/` | Agent SDK, planners, lightweight simulator, evaluator | Contract tests only |
-| `unreal/` | Terrain, physics, rendering, manual driving | Not started |
-| `scripts/` | Automation and repository checks | Hygiene check |
+| `schemas/` | Messages, logs, scenario, terrain, rover, and plan contracts | Draft v0 |
+| `scenarios/`, `rovers/` | Declarative missions, terrain, faults, and rover parameters | Practice set |
+| `python/` | Mission core, agents, evaluator, bridge, 2D preview | Working; see [models](lightweight-models.md) |
+| `unreal/` | Terrain, physics, rendering, manual driving | Not started; see [plan](unreal-production-plan.md) |
+| `scripts/` | Repository checks and preview capture | Working |
+
+The 2D preview is a development tool. It reads the same logs and scenario files as other tools, and
+nothing depends on it. It is not an early version of the Unreal renderer.
 
 ## The shared contract
 

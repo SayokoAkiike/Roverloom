@@ -1,6 +1,8 @@
 # Vertical slice plan
 
-Status: plan, nothing implemented. Reviewed 2026-11-02. Numbers are design targets to test,
+Status: plan for the Unreal slice. Not implemented, though the Python client, logs, and replay of
+milestone 0 now exist on the lightweight backend. Production detail is in
+[unreal-production-plan.md](unreal-production-plan.md). Reviewed 2026-11-02. Numbers are design targets to test,
 not measured results. Mars values below are widely cited approximations to confirm against
 references during implementation.
 

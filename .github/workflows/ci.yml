@@ -10,7 +10,11 @@ permissions:
 
 jobs:
   checks:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     defaults:
       run:
         working-directory: python
@@ -19,5 +23,16 @@ jobs:
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       - run: uv sync --locked
       - run: uv run ruff check . ../scripts
+      - run: uv run ruff format --check . ../scripts
+      - run: uv run mypy
       - run: uv run pytest
       - run: uv run python ../scripts/check_repo.py
+      - name: Quick start from the README
+        run: uv run roverloom demo
+      - name: Report and logs were written
+        shell: bash
+        run: |
+          test -s ../runs/demo/report.html
+          uv run roverloom score ../runs/demo/demo_traverse/replanner/seed-1
+          uv run roverloom replay ../runs/demo/demo_traverse/replanner/seed-1 --at 100
+      - run: uv run roverloom benchmark

@@ -32,11 +32,23 @@ Run from `python/`:
 ```shell
 uv sync
 uv run pytest
-uv run ruff check .
+uv run ruff check . ../scripts
+uv run ruff format --check . ../scripts
+uv run mypy
 uv run python ../scripts/check_repo.py
 ```
 
-Run all of these before committing.
+Run all of these before committing. After changing the preview, also run
+`uv run python ../scripts/capture_preview.py` and look at the screenshots.
+
+## Mission core rules
+
+- Agents receive only `MissionBrief` and `Observation`. Never pass scenarios or `RoverState`.
+- Any change to simulated behavior must increase `MODEL_VERSION`.
+- Scoring changes must increase `SCORING_VERSION`.
+- Models are approximations. Never describe them as validated, and report only measured numbers.
+- Never add `eval`, `exec`, or LLM-generated code execution to the agent or skill path.
+- Never commit evaluation scenarios.
 
 ## Unreal Engine
 

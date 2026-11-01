@@ -1,6 +1,6 @@
 # Roadmap
 
-All items below are plans. Only Phase 0 has work in the repository.
+Checked items exist and are tested on the lightweight backend. Everything else is a plan.
 
 ## Phase 0: Foundation (in progress)
 
@@ -9,12 +9,21 @@ All items below are plans. Only Phase 0 has work in the repository.
 - [ ] Unreal Engine 5.8 and C++ toolchain installed
 - [ ] Unreal MCP verified with a read-only call
 
-## Phase 1: Vertical slice
+## Lightweight vertical slice (done)
 
-Goal: a real Martian site you can drive a six-wheeled rover across. Details and
-completion criteria are in [vertical-slice-plan.md](vertical-slice-plan.md).
+- [x] Mission core: fixed-step model, faults, delay, loss, noise, mission rules
+- [x] Common command path for manual driving and agents
+- [x] Logs, kinematic replay, file-based scoring, reproducibility tests
+- [x] Sample agents, custom agent loading, skill plans as data
+- [x] Lightweight browser preview, separate from the Unreal renderer
+- [x] Loopback bridge protocol, on the lightweight backend
 
-- [ ] Python client, log, and replay tools, tested without Unreal
+## Phase 1: Unreal vertical slice
+
+Goal: a real Martian site you can drive a six-wheeled rover across. Details are in
+[vertical-slice-plan.md](vertical-slice-plan.md) and
+[unreal-production-plan.md](unreal-production-plan.md).
+
 - [ ] Create the UE 5.8 C++ project in `unreal/`, confirm a clean clone opens
 - [ ] Measure baseline frame rate on the target machines
 - [ ] Rover: physics spike, six wheels, rocker-bogie, plausibility tests
@@ -25,19 +34,18 @@ completion criteria are in [vertical-slice-plan.md](vertical-slice-plan.md).
 
 ## Phase 2: Shared mission loop
 
-- [ ] Lightweight Python simulator running scenarios
-- [ ] Evaluator scoring telemetry logs, same code for both backends
+- [ ] Evaluator scoring Unreal logs, proving the same code works for both backends
 - [ ] Mission logic in Unreal consuming the same scenario files
 
 ## Phase 3: Autonomous agents
 
-- [ ] Python agent SDK and a baseline planner
-- [ ] Decide and implement the Unreal agent transport
-- [ ] Deterministic stepping and reproducibility checks
+- [ ] Unreal agent transport, using the bridge protocol
+- [ ] Deterministic stepping in Unreal, and reproducibility checks
+- [ ] Sandboxed planner interface, before any code-as-policy agent
 
 ## Phase 4: Depth
 
-- [ ] Fault injection: wheel failures, power, sensor degradation
+- [ ] More faults: power and sensor degradation
 - [ ] Environment: dust, terrain properties, day and night
 - [ ] Rover design: configurable chassis and components
 

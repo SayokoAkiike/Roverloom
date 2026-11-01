@@ -25,7 +25,9 @@ git lfs install --local
 cd python
 uv sync
 uv run pytest
-uv run ruff check .
+uv run ruff check . ../scripts
+uv run ruff format --check . ../scripts
+uv run mypy
 uv run python ../scripts/check_repo.py
 ```
 

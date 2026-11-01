@@ -28,13 +28,23 @@ reliable in a packaged build, reconsider before writing more than the first comm
 
 ## Bridge protocol v0
 
-- Listens on `127.0.0.1` only. Default port `8765`. No authentication, so never bind it
-  more widely. A future networked competition needs a separate, sandboxed design.
-- UTF-8 JSON, one document per line. Maximum line length is enforced, and invalid input
-  closes the connection with an error.
-- Client sends [Action](../schemas/action.schema.json) messages. Server sends
-  [Observation](../schemas/observation.schema.json) messages at a fixed rate.
-- Real-time only in the slice. Deterministic stepping is for Phase 3.
+This protocol is implemented and tested in `python/src/roverloom/bridge.py` against the lightweight
+backend, where it runs in lockstep. **No Unreal side exists yet.**
+
+- Listens on `127.0.0.1` only. No authentication, so never bind it more widely. A future
+  networked competition needs a separate, sandboxed design.
+- UTF-8 JSON, one document per line, 1 MiB maximum. Invalid input ends the mission as `agent_error`.
+- Each line is `{"type": ..., "body": ...}`:
+
+| Type | Direction | Body |
+| --- | --- | --- |
+| `start` | Simulator to agent | `{"seed": n, "brief": MissionBrief}` |
+| `observation` | Simulator to agent | [Observation](../schemas/observation.schema.json) |
+| `action` | Agent to simulator | [Action](../schemas/action.schema.json) |
+| `end` | Simulator to agent | `{}` |
+
+- Lockstep on the lightweight backend. Unreal starts in real time, in which case an action
+  applies when it arrives. Deterministic stepping in Unreal is for Phase 3.
 - Socket work stays off the game thread. Latest action passes through a thread-safe slot,
   and is read at the start of a physics step.
 
@@ -52,7 +62,7 @@ Keyboard ------------------------------Action---------> (one selected at a time)
 1. Keyboard and Python both produce the same `Action`. There is one rover input path.
 2. The active source is explicit: `Manual` or `External`. A key toggles it; the HUD shows
    it. External commands in `Manual` mode are ignored and logged.
-3. Watchdog: if `External` receives no Action for 0.5 s, the rover commands zero velocity.
+3. Watchdog: if the active source sends no Action for 2 s, the rover commands zero velocity.
 4. Disconnecting never crashes the simulation, and never leaves motors running.
 5. Commands are clamped to rover limits, and clamping is logged.
 
