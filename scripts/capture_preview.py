@@ -23,6 +23,8 @@ BROWSERS = (
     r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
     r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
     r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
     "google-chrome",
     "chromium",
     "microsoft-edge",
@@ -67,6 +69,14 @@ def capture_report(browser: str, out: Path, work: Path) -> None:
     screenshot(browser, url, out / "replay-demo-traverse.png", 4000)
     url = report.as_uri() + "?find=boulder_gap/replanner&at=1"
     screenshot(browser, url, out / "replay-boulder-gap.png", 4000)
+    science = compare_agents(["science_campaign"], ["mission-planner"], [1], work / "science")
+    item = next(iter(science.results.items()))
+    page = write_report(
+        science.rows,
+        [(item[0], load_run(item[1].directory, trusted=True))],
+        work / "science.html",
+    )
+    screenshot(browser, page.as_uri() + "?at=0.6", out / "replay-science-campaign.png", 4000)
 
 
 def capture_live(browser: str, out: Path, work: Path) -> None:
@@ -89,9 +99,39 @@ def capture_live(browser: str, out: Path, work: Path) -> None:
         server.shutdown()
         server.server_close()
         mission.stop()
+    capture_mission_control(browser, out, work)
     print(f"Live page: commands={state['commands']} x={state['x']} y={state['y']} t={state['t']}")
     if state["source"] != "manual" or state["commands"] < 5 or abs(state["x"]) < 2:
         sys.exit("Key presses in the page did not drive the rover.")
+
+
+def capture_mission_control(browser: str, out: Path, work: Path) -> None:
+    """Check a real click: switch to the agent, and confirm that it runs the science mission."""
+    mission = LiveMission(
+        load_scenario("science_sprint"), "mission-planner", 1, work / "control", speed=50.0
+    )
+    server = make_server(mission, 0)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    mission.start()
+    port = server.server_address[1]
+    try:
+        screenshot(
+            browser,
+            f"http://127.0.0.1:{port}/?click=modeButton:300",
+            out / "mission-control.png",
+            25000,
+        )
+        state = mission.snapshot()["control"]
+    finally:
+        server.shutdown()
+        server.server_close()
+        mission.stop()
+    print(
+        f"Mission Control: driver={state['driver']} time={state['time_s']} "
+        f"inspected={state['mission']['inspected']} decisions={len(state['decisions'])}"
+    )
+    if state["driver"] != "agent" or not state["decisions"]:
+        sys.exit("The driver switch in the page did not start the agent.")
 
 
 def main() -> None:

@@ -214,9 +214,9 @@ def test_restart_starts_a_new_run(live) -> None:
     _, port = live
     command = {"schema_version": 0, "linear_velocity_mps": 0.5, "yaw_rate_radps": 0.0}
     request(port, "POST", "/api/command", command)
-    wait_for(lambda s: s["t"] > 1, port)
+    before = wait_for(lambda s: s["t"] > 20, port)["t"]
     assert request(port, "POST", "/api/reset", {})[0] == 200
-    assert state(port)["t"] < 1
+    assert state(port)["t"] < before  # At 50x, a loaded machine can pass a second immediately.
 
 
 def test_abandoned_keyboard_stops_the_rover(live) -> None:

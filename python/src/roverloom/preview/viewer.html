@@ -32,12 +32,19 @@ table { border-collapse:collapse; width:100%; font-variant-numeric:tabular-nums;
 th,td { padding:4px 9px; border-bottom:1px solid var(--line); text-align:right; white-space:nowrap; }
 th:nth-child(-n+2),td:nth-child(-n+2) { text-align:left; } th { color:var(--muted); font-weight:600; }
 .outcome-success { color:var(--good); } .outcome-fail { color:var(--bad); }
+.status-row { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
+.pill { font-size:12px; padding:2px 8px; border-radius:999px; border:1px solid var(--line); background:#2c221c; }
+.pill.ok { border-color:var(--good); color:var(--good); } .pill.bad { border-color:var(--bad); color:var(--bad); } .pill.warn { border-color:var(--warn); color:var(--warn); }
+.meter { height:8px; background:#120d0a; border-radius:4px; overflow:hidden; margin:2px 0 6px; } .meter div { height:100%; background:var(--good); }
+#decisions { max-height:170px; overflow:auto; font-size:12px; color:var(--muted); } #decisions div { padding:1px 0; border-bottom:1px solid #2e241d; }
+#objectives { font-size:13px; } #objectives div { padding:1px 0; } #objectives .done { color:var(--good); }
+label { color:var(--muted); font-size:12.5px; }
 footer { padding:0 16px 16px; color:var(--muted); font-size:12.5px; }
 </style>
 </head>
 <body>
 <header>
-  <h1>Roverloom Preview</h1>
+  <h1>Roverloom Mission Control</h1>
   <span class="notice">Lightweight 2D preview, not the Unreal renderer. The model is an unvalidated approximation.</span>
 </header>
 <div class="table-wrap" id="tableWrap" hidden><table id="table"></table></div>
@@ -49,18 +56,40 @@ footer { padding:0 16px 16px; color:var(--muted); font-size:12.5px; }
       <select id="runSelect"></select>
       <button id="play" type="button">Play</button>
       <input id="time" type="range" min="0" max="1" step="0.1" value="0" aria-label="Replay time">
+      <label>Speed <select id="replaySpeed"><option>1</option><option>4</option><option selected>8</option><option>16</option><option>32</option></select></label>
       <span id="timeLabel"></span>
+    </div>
+    <div class="controls" id="setupControls" hidden>
+      <label>Scenario <select id="scenarioSelect"></select></label>
+      <label>Rover <select id="roverSelect"></select></label>
+      <label>Agent <select id="agentSelect"></select></label>
+      <label>Sim speed <select id="speedSelect"><option>1</option><option>2</option><option>4</option><option>8</option><option>16</option><option>32</option></select></label>
+      <button id="startButton" type="button">Start mission</button>
     </div>
     <div class="controls" id="liveControls" hidden>
       <button id="modeButton" type="button"></button>
+      <button id="stopButton" type="button">Stop mission</button>
       <button id="resetButton" type="button">Restart</button>
+      <a id="replayLink" href="/replay" target="_blank" rel="noopener" hidden><button type="button">Open replay</button></a>
+      <span id="approval" hidden><button id="approveButton" type="button">Approve</button><button id="declineButton" type="button">Decline</button></span>
+    </div>
+    <div class="controls" id="taskControls" hidden>
+      <label>Manual tasks <select id="taskTarget"></select></label>
+      <button data-task="inspect" type="button">Inspect</button>
+      <button data-task="collect" type="button">Collect</button>
+      <button data-task="transmit" type="button">Transmit</button>
+      <button data-task="end_mission" type="button">End mission</button>
+    </div>
+    <div class="controls" id="keyHelp" hidden>
       <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or arrows drive, <kbd>Space</kbd> stop, <kbd>M</kbd> switch driver, <kbd>R</kbd> restart</span>
     </div>
   </section>
   <aside>
-    <div class="panel"><h2>Rover (ground truth)</h2><dl class="stats" id="stats"></dl></div>
+    <div class="panel"><h2>Mission objectives</h2><div id="objectives"></div></div>
+    <div class="panel"><h2>Rover (ground truth)</h2><div class="status-row" id="pills"></div><div class="meter" aria-label="Battery"><div id="battery"></div></div><dl class="stats" id="stats"></dl></div>
     <div class="panel" id="metricsPanel" hidden><h2>Result</h2><dl class="stats" id="metrics"></dl></div>
     <div class="panel"><h2>Event and fault history</h2><div id="events"></div></div>
+    <div class="panel"><h2>Agent decisions (its own account)</h2><div id="decisions"></div></div>
   </aside>
 </main>
 <footer id="footer"></footer>
@@ -70,7 +99,35 @@ const DATA = /*ROVERLOOM_DATA*/null;
 const params = new URLSearchParams(location.search);
 const $ = (id) => document.getElementById(id);
 const canvas = $("map"), ctx = canvas.getContext("2d");
-let world = null, terrainImage = null;
+let world = null, terrainImage = null, scienceState = {};
+
+function setObjectives(reached, science) {
+  const box = $("objectives"); box.innerHTML = "";
+  const add = (text, done) => { const row = document.createElement("div"); row.textContent = `${done ? "[x]" : "[ ]"} ${text}`; if (done) row.className = "done"; box.append(row); };
+  world.targets.forEach((_, i) => add(`Reach waypoint ${i + 1}`, i < reached));
+  if (world.science) {
+    const inspected = science.inspected || {}, collected = science.collected || [];
+    for (const site of world.science.targets) {
+      const found = site.id in inspected ? `, value ${inspected[site.id]}` : `, expected ~${site.prior}`;
+      add(`${site.id}: inspect${found}`, site.id in inspected);
+      add(`${site.id}: collect sample`, collected.includes(site.id));
+    }
+    add(`Send science value ${world.science.success_value} (sent ${(science.value ?? 0).toFixed(1)}, stored ${(science.stored ?? 0).toFixed(1)})`, (science.value ?? 0) >= world.science.success_value);
+    if (world.science.base) add(`Return to base${world.science.base.required ? " (required)" : " (optional)"}`, !!science.atBase);
+  }
+}
+
+function setPills(items) {
+  const box = $("pills"); box.innerHTML = "";
+  for (const [text, kind] of items) { const pill = document.createElement("span"); pill.className = `pill ${kind}`; pill.textContent = text; box.append(pill); }
+}
+
+function setDecisions(items) {
+  const box = $("decisions"); box.innerHTML = "";
+  if (!items.length) { box.textContent = "This driver reports no decisions."; return; }
+  for (const item of items.slice(-30)) { const row = document.createElement("div"); row.textContent = `${(item.t ?? item.time_s).toFixed(1)} s  ${item.text}`; box.append(row); }
+  box.scrollTop = box.scrollHeight;
+}
 
 function setWorld(next) {
   if (world === next) return;
@@ -123,6 +180,22 @@ function drawWorld(reached) {
     ctx.fillStyle = "#35261f"; ctx.beginPath(); ctx.arc(a, b, Math.max(r * s, 1.5), 0, 7); ctx.fill();
     ctx.fillStyle = "rgba(205,170,140,.4)"; ctx.beginPath(); ctx.arc(a - r * s * .25, b - r * s * .25, Math.max(r * s * .45, .6), 0, 7); ctx.fill();
   }
+  if (world.science) {
+    const base = world.science.base;
+    if (base) {
+      const [a, b] = toScreen(base.position_m[0], base.position_m[1]);
+      ctx.strokeStyle = "#9fd0ff"; ctx.lineWidth = 2; ctx.strokeRect(a - 9, b - 9, 18, 18);
+      ctx.fillStyle = "#9fd0ff"; ctx.font = "bold 12px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("B", a, b);
+    }
+    for (const site of world.science.targets) {
+      const [a, b] = toScreen(site.x, site.y);
+      const sampled = (scienceState.collected || []).includes(site.id), seen = site.id in (scienceState.inspected || {});
+      ctx.strokeStyle = sampled ? "#7fce8f" : seen ? "#67d4ff" : "#ffe08a"; ctx.fillStyle = ctx.strokeStyle; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.moveTo(a, b - 10); ctx.lineTo(a + 10, b); ctx.lineTo(a, b + 10); ctx.lineTo(a - 10, b); ctx.closePath(); ctx.stroke();
+      ctx.font = "bold 12px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+      ctx.fillText(`${site.id} ~${site.prior}`, a, b - 12);
+    }
+  }
   world.targets.forEach(([x, y, r], index) => {
     const [a, b] = toScreen(x, y), done = index < reached;
     ctx.strokeStyle = done ? "#7fce8f" : "#ffe08a"; ctx.lineWidth = 2.5;
@@ -169,7 +242,7 @@ function setMetrics(metrics) {
   $("metricsPanel").hidden = !metrics;
   if (!metrics) return;
   $("metrics").innerHTML = "";
-  for (const key of ["outcome", "score", "targets_reached", "mission_time_s", "distance_m", "energy_used_wh", "collisions", "faults", "faults_recovered", "mean_recovery_time_s"]) {
+  for (const key of ["outcome", "score", "science_value", "returned_to_base", "targets_reached", "mission_time_s", "distance_m", "energy_used_wh", "collisions", "faults", "faults_recovered", "mean_recovery_time_s"]) {
     const dt = document.createElement("dt"), dd = document.createElement("dd");
     dt.textContent = key.replaceAll("_", " ");
     dd.textContent = metrics[key] === null ? "-" : metrics[key];
@@ -187,6 +260,7 @@ function describeEvent(event) {
   if (event.type === "mission_ended") return `mission ended: ${data.outcome}`;
   if (event.type === "source_changed") return `driver: ${data.source}`;
   if (event.type === "agent_error") return `agent error: ${data.error}`;
+  if (/^task_/.test(event.type)) return `${event.type.slice(5)}: ${data.task}${data.target_id ? " " + data.target_id : ""}${data.reason ? " (" + data.reason + ")" : ""}`;
   return event.type.replaceAll("_", " ");
 }
 
@@ -196,8 +270,8 @@ function setEvents(events, now) {
     const row = document.createElement("div");
     const time = event.t ?? event.time_s;
     row.textContent = `${time.toFixed(1).padStart(6, " ")} s  ${describeEvent(event)}`;
-    if (/fault_started|collision|agent_error|watchdog_stop/.test(event.type)) row.className = "fault";
-    if (/target_reached|mission_ended/.test(event.type)) row.className = "good";
+    if (/fault_started|collision|agent_error|watchdog_stop|task_rejected|task_failed/.test(event.type)) row.className = "fault";
+    if (/target_reached|mission_ended|task_completed/.test(event.type)) row.className = "good";
     if (now !== undefined && time > now) row.classList.add("future");
     box.append(row);
   }
@@ -217,7 +291,7 @@ function startReport() {
   DATA.runs.forEach((run, index) => {
     const option = document.createElement("option");
     option.value = index;
-    option.textContent = `${run.scenario} / ${run.agent} / seed ${run.seed} / ${run.metrics.outcome}`;
+    option.textContent = `${run.scenario} / ${run.rover || ""} / ${run.agent} / seed ${run.seed} / ${run.metrics.outcome}`;
     $("runSelect").append(option);
   });
   let run = null, playing = false, time = 0, last = 0;
@@ -240,7 +314,7 @@ function startReport() {
     let dyaw = b[3] - a[3];
     while (dyaw > Math.PI) dyaw -= 2 * Math.PI;
     while (dyaw < -Math.PI) dyaw += 2 * Math.PI;
-    return { index: low, x: a[1] + (b[1] - a[1]) * f, y: a[2] + (b[2] - a[2]) * f, yaw: a[3] + dyaw * f, speed: a[4], battery: a[5], energy: a[6], slip: a[7] };
+    return { index: low, x: a[1] + (b[1] - a[1]) * f, y: a[2] + (b[2] - a[2]) * f, yaw: a[3] + dyaw * f, speed: a[4], battery: a[5], energy: a[6], slip: a[7], value: a[8], stored: a[9], power: a[10], window: a[11] };
   }
   function render() {
     if (!run.samples.length) return;
@@ -248,19 +322,37 @@ function startReport() {
     const shown = run.events.filter((e) => e.t <= time);
     const reached = shown.filter((e) => e.type === "target_reached").length;
     const failed = shown.filter((e) => e.type === "fault_started" && e.data.wheel).map((e) => e.data.wheel);
+    const inspected = {}, collected = [];
+    let ended = null;
+    for (const e of shown) {
+      if (e.type === "task_completed" && e.data.task === "inspect") inspected[e.data.target_id] = "found";
+      if (e.type === "task_completed" && e.data.task === "collect") collected.push(e.data.target_id);
+      if (e.type === "mission_ended") ended = e.data;
+    }
+    scienceState = { inspected, collected, value: now.value, stored: now.stored, atBase: ended?.at_base };
+    setObjectives(reached, scienceState);
+    const active = new Set();
+    for (const e of shown) {
+      if (e.type === "fault_started" && e.data.duration_s) active.add(e.data.fault);
+      if (e.type === "fault_ended") active.delete(e.data.fault);
+    }
+    const linkDown = active.has("comm_blackout");
+    setPills([[linkDown ? "Command link down" : "Command link up", linkDown ? "bad" : "ok"], [now.window ? "Data window open" : "Data window closed", now.window ? "ok" : "warn"], ...[...active].map((f) => [f, "bad"]), [`Driver: ${run.agent}`, ""]]);
+    $("battery").style.width = `${now.battery * 100}%`;
+    setDecisions(run.decisions.filter((d) => d.t <= time));
     drawWorld(reached);
     const points = run.samples.slice(0, now.index + 1).map((s) => [s[1], s[2]]);
     points.push([now.x, now.y]);
     drawTrail(points, "#67d4ff");
     drawRover(now.x, now.y, now.yaw, failed);
-    setStats([["time", `${time.toFixed(1)} s`], ["position", `${now.x.toFixed(1)}, ${now.y.toFixed(1)} m`], ["speed", `${now.speed.toFixed(2)} m/s`], ["slip", `${(now.slip * 100).toFixed(0)} %`], ["battery", `${(now.battery * 100).toFixed(1)} %`], ["energy used", `${now.energy.toFixed(1)} Wh`], ["targets", `${reached} / ${world.targets.length}`], ["failed wheels", failed.join(", ") || "none"], ["model", run.model]]);
+    setStats([["time", `${time.toFixed(1)} s`], ["position", `${now.x.toFixed(1)}, ${now.y.toFixed(1)} m`], ["speed", `${now.speed.toFixed(2)} m/s`], ["slip", `${(now.slip * 100).toFixed(0)} %`], ["battery", `${(now.battery * 100).toFixed(1)} %`], ["energy used", `${now.energy.toFixed(1)} Wh`], ["power generation", `${now.power.toFixed(0)} W`], ["science sent", now.value.toFixed(2)], ["failed wheels", failed.join(", ") || "none"], ["rover", run.rover || ""], ["model", run.model]]);
     setEvents(run.events, time);
     $("time").value = time;
     $("timeLabel").textContent = `${time.toFixed(0)} / ${Number($("time").max).toFixed(0)} s`;
   }
   function frame(stamp) {
     if (playing) {
-      time += Math.min(stamp - last, 100) / 1000 * 8;
+      time += Math.min(stamp - last, 100) / 1000 * Number($("replaySpeed").value);
       if (time >= Number($("time").max)) { time = Number($("time").max); playing = false; $("play").textContent = "Play"; }
       render();
     }
@@ -289,20 +381,53 @@ function startReport() {
 
 function startLive() {
   setWorld(DATA.world);
-  $("liveControls").hidden = false;
+  for (const id of ["liveControls", "setupControls", "taskControls", "keyHelp"]) $(id).hidden = false;
+  $("keyHelp").innerHTML = "<span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or arrows drive, <kbd>Space</kbd> stop, <kbd>M</kbd> switch driver, <kbd>R</kbd> restart</span>";
   const keys = new Set();
-  let source = "manual";
+  let source = "manual", savedShown = null;
   const post = (path, body) => fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
+  function fill(select, names, current) {
+    select.innerHTML = "";
+    for (const name of names) { const option = document.createElement("option"); option.textContent = name; select.append(option); }
+    select.value = current;
+  }
+  function refillTargets() {
+    const sites = world.science ? world.science.targets.map((s) => s.id) : [];
+    fill($("taskTarget"), sites, sites[0]);
+  }
+  async function loadOptions() {
+    const options = await (await fetch("/api/options")).json();
+    fill($("scenarioSelect"), options.scenarios, options.current.scenario);
+    fill($("roverSelect"), options.rovers, options.current.rover);
+    fill($("agentSelect"), options.agents, options.current.agent);
+    const speed = String(options.current.speed), speeds = $("speedSelect");
+    if (![...speeds.options].some((o) => o.textContent === speed)) { const o = document.createElement("option"); o.textContent = speed; speeds.append(o); }
+    speeds.value = speed;
+    refillTargets();
+  }
+  $("startButton").addEventListener("click", async () => {
+    const response = await post("/api/configure", { scenario: $("scenarioSelect").value, rover: $("roverSelect").value, agent: $("agentSelect").value, speed: Number($("speedSelect").value) });
+    if (!response.ok) { $("footer").textContent = (await response.json()).error; return; }
+    setWorld(await (await fetch("/api/world")).json());
+    refillTargets();
+  });
+  for (const button of document.querySelectorAll("[data-task]")) {
+    button.addEventListener("click", () => {
+      const type = button.dataset.task;
+      post("/api/task", /inspect|collect/.test(type) ? { type, target_id: $("taskTarget").value } : { type });
+    });
+  }
   function sendCommand() {
     if (source !== "manual") return;
     const forward = (keys.has("KeyW") || keys.has("ArrowUp") ? 1 : 0) - (keys.has("KeyS") || keys.has("ArrowDown") ? 1 : 0);
     const turn = (keys.has("KeyA") || keys.has("ArrowLeft") ? 1 : 0) - (keys.has("KeyD") || keys.has("ArrowRight") ? 1 : 0);
-    post("/api/command", { schema_version: 0, linear_velocity_mps: forward * DATA.world.max_speed, yaw_rate_radps: turn * DATA.world.max_yaw }).catch(() => {});
+    post("/api/command", { schema_version: 0, linear_velocity_mps: forward * world.max_speed, yaw_rate_radps: turn * world.max_yaw }).catch(() => {});
   }
   const toggle = () => post("/api/mode", { source: source === "manual" ? "agent" : "manual" });
   const restart = () => post("/api/reset", {});
   window.addEventListener("keydown", (e) => {
+    if (/SELECT|INPUT/.test(e.target.tagName || "")) return;
     if (/^(Key[WASD]|Arrow|Space)/.test(e.code)) e.preventDefault();
     if (e.repeat) return;
     if (e.code === "KeyM") toggle();
@@ -314,25 +439,38 @@ function startLive() {
   window.addEventListener("blur", () => keys.clear());
   $("modeButton").addEventListener("click", toggle);
   $("resetButton").addEventListener("click", restart);
+  $("stopButton").addEventListener("click", () => post("/api/stop", {}));
+  $("approveButton").addEventListener("click", () => post("/api/approve", { approved: true }));
+  $("declineButton").addEventListener("click", () => post("/api/approve", { approved: false }));
   setInterval(sendCommand, 100);
 
   async function poll() {
     try {
-      const s = await (await fetch("/api/state")).json();
-      source = s.source;
-      $("modeButton").textContent = source === "manual" ? `Driver: you (switch to ${DATA.agent})` : `Driver: ${DATA.agent} (switch to you)`;
-      drawWorld(s.targets_reached);
-      drawTrail(s.trail.concat([[s.x, s.y]]), source === "manual" ? "#ffe08a" : "#67d4ff");
-      drawRover(s.x, s.y, s.yaw, s.failed_wheels);
-      setStats([["time", `${s.t.toFixed(1)} s (${DATA.speed}x)`], ["mission", s.outcome], ["position", `${s.x.toFixed(1)}, ${s.y.toFixed(1)} m`], ["speed", `${s.speed.toFixed(2)} m/s`], ["slip", `${(s.slip * 100).toFixed(0)} %`], ["battery", `${(s.battery * 100).toFixed(1)} %`], ["energy used", `${s.energy.toFixed(1)} Wh`], ["targets", `${s.targets_reached} / ${DATA.world.targets.length}`], ["active faults", s.active_faults.join(", ") || "none"], ["failed wheels", s.failed_wheels.join(", ") || "none"], ["commands received", s.commands]]);
-      setEvents(s.events);
-      setMetrics(s.metrics);
-      $("footer").textContent = s.saved_to ? `Run saved: ${s.saved_to}` : `Scenario ${DATA.world.scenario_id}: ${DATA.world.terrain_note}`;
+      const c = (await (await fetch("/api/state")).json()).control;
+      const r = c.rover, m = c.mission;
+      source = c.driver;
+      $("modeButton").textContent = source === "manual" ? `Driver: you (switch to ${c.agent})` : `Driver: ${c.agent} (switch to you)`;
+      scienceState = { inspected: m.inspected, collected: m.collected, value: m.science_value, stored: m.stored_value, atBase: c.metrics?.returned_to_base };
+      setObjectives(m.targets_reached, scienceState);
+      drawWorld(m.targets_reached);
+      drawTrail(c.trail.concat([[r.x_m, r.y_m]]), source === "manual" ? "#ffe08a" : "#67d4ff");
+      drawRover(r.x_m, r.y_m, r.yaw_rad, r.failed_wheels);
+      setPills([[c.comms.command_link_up ? "Command link up" : "Command link down", c.comms.command_link_up ? "ok" : "bad"], [c.comms.data_window_open ? "Data window open" : "Data window closed", c.comms.data_window_open ? "ok" : "warn"], [`Latency ${c.comms.latency_s} s`, ""], ...c.active_faults.map((f) => [f, "bad"]), [m.outcome, m.outcome === "success" ? "ok" : m.outcome === "running" ? "" : "bad"]]);
+      $("battery").style.width = `${r.battery_fraction * 100}%`;
+      setStats([["time", `${c.time_s.toFixed(1)} / ${m.time_limit_s} s`], ["rover", r.rover_id], ["position", `${r.x_m.toFixed(1)}, ${r.y_m.toFixed(1)} m`], ["speed", `${r.speed_mps.toFixed(2)} m/s`], ["slip", `${(r.slip_fraction * 100).toFixed(0)} %`], ["battery", `${(r.battery_fraction * 100).toFixed(1)} %`], ["energy used", `${r.energy_used_wh.toFixed(1)} Wh`], ["power generation", `${r.power_generation_w.toFixed(0)} W`], ["task", r.active_task ? `${r.active_task} ${(r.task_progress * 100).toFixed(0)}%` : "none"], ["failed wheels", r.failed_wheels.join(", ") || "none"], ["commands received", c.comms.commands_received]]);
+      setEvents(c.events);
+      setDecisions(c.decisions);
+      setMetrics(c.metrics);
+      $("approval").hidden = !c.pending_approval;
+      if (c.pending_approval) $("approveButton").textContent = `Approve ${c.pending_approval}`;
+      $("replayLink").hidden = !c.saved_to;
+      if (c.saved_to !== savedShown) { savedShown = c.saved_to; $("footer").textContent = c.saved_to ? `Run saved: ${c.saved_to}` : `Scenario ${world.scenario_id}: ${world.terrain_note}`; }
     } catch (error) { $("footer").textContent = "The preview server is not responding."; }
-    setTimeout(poll, 120);
+    setTimeout(poll, 150);
   }
+  loadOptions();
   poll();
-  // ?keys=KeyW:4000,KeyA:1000 presses real key events, for checking the page end to end.
+  // Testing hooks: ?keys=KeyW:4000 presses keys, and ?click=id:ms clicks a control at a time.
   if (params.has("keys")) {
     let delay = 300;
     for (const item of params.get("keys").split(",")) {
@@ -341,6 +479,10 @@ function startLive() {
       setTimeout(() => window.dispatchEvent(new KeyboardEvent("keyup", { code })), delay + Number(ms));
       delay += Number(ms) + 100;
     }
+  }
+  for (const item of (params.get("click") || "").split(",").filter(Boolean)) {
+    const [id, ms] = item.split(":");
+    setTimeout(() => $(id).click(), Number(ms));
   }
 }
 
