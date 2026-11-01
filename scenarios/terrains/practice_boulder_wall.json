@@ -1,0 +1,28 @@
+{
+  "schema_version": 0,
+  "terrain_id": "practice_boulder_wall",
+  "source": { "kind": "procedural", "note": "Hand-placed boulder wall with one gap, to require replanning. Not a real location." },
+  "extent_m": { "min_xy": [-20, -45], "max_xy": [100, 45] },
+  "grid_spacing_m": 2,
+  "height": { "seed": 77, "amplitude_m": 1.5, "feature_size_m": 40, "octaves": 2 },
+  "rocks": {
+    "explicit": [
+      { "center_xy": [40, -2], "radius_m": 3 },
+      { "center_xy": [40, 3], "radius_m": 3 },
+      { "center_xy": [40, 8], "radius_m": 3 },
+      { "center_xy": [40, 13], "radius_m": 3 },
+      { "center_xy": [40, 18], "radius_m": 3 },
+      { "center_xy": [40, 23], "radius_m": 3 },
+      { "center_xy": [40, -7], "radius_m": 3 },
+      { "center_xy": [40, -12], "radius_m": 3 },
+      { "center_xy": [40, -17], "radius_m": 3 },
+      { "center_xy": [40, -22], "radius_m": 3 },
+      { "center_xy": [40, 38], "radius_m": 3 },
+      { "center_xy": [40, 43], "radius_m": 3 },
+      { "center_xy": [40, -27], "radius_m": 3 },
+      { "center_xy": [40, -32], "radius_m": 3 },
+      { "center_xy": [40, -37], "radius_m": 3 },
+      { "center_xy": [40, -42], "radius_m": 3 }
+    ]
+  }
+}

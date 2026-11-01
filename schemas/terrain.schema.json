@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://roverloom.invalid/schemas/terrain.schema.json",
+  "title": "Terrain",
+  "description": "Terrain for the lightweight backend. Other backends map the same terrain_id to their own assets.",
+  "type": "object",
+  "properties": {
+    "schema_version": { "$ref": "common.schema.json#/$defs/schema_version" },
+    "terrain_id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+    "source": {
+      "description": "Where the terrain came from. Procedural terrain is not a real location.",
+      "type": "object",
+      "properties": {
+        "kind": { "enum": ["procedural", "dataset"] },
+        "note": { "type": "string" }
+      },
+      "required": ["kind", "note"],
+      "additionalProperties": false
+    },
+    "extent_m": {
+      "type": "object",
+      "properties": {
+        "min_xy": { "$ref": "#/$defs/xy" },
+        "max_xy": { "$ref": "#/$defs/xy" }
+      },
+      "required": ["min_xy", "max_xy"],
+      "additionalProperties": false
+    },
+    "grid_spacing_m": { "type": "number", "exclusiveMinimum": 0 },
+    "height": {
+      "type": "object",
+      "properties": {
+        "seed": { "type": "integer", "minimum": 0 },
+        "amplitude_m": { "type": "number", "minimum": 0 },
+        "feature_size_m": { "type": "number", "exclusiveMinimum": 0 },
+        "octaves": { "type": "integer", "minimum": 1, "maximum": 6 }
+      },
+      "required": ["seed", "amplitude_m", "feature_size_m", "octaves"],
+      "additionalProperties": false
+    },
+    "rocks": {
+      "description": "Fixed rocks plus an optional generated field that avoids keep_clear areas.",
+      "type": "object",
+      "properties": {
+        "explicit": { "type": "array", "items": { "$ref": "#/$defs/circle" } },
+        "generated": {
+          "type": "object",
+          "properties": {
+            "seed": { "type": "integer", "minimum": 0 },
+            "count": { "type": "integer", "minimum": 0 },
+            "min_radius_m": { "type": "number", "exclusiveMinimum": 0 },
+            "max_radius_m": { "type": "number", "exclusiveMinimum": 0 }
+          },
+          "required": ["seed", "count", "min_radius_m", "max_radius_m"],
+          "additionalProperties": false
+        },
+        "keep_clear": { "type": "array", "items": { "$ref": "#/$defs/circle" } }
+      },
+      "additionalProperties": false
+    },
+    "soft_soil": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "center_xy": { "$ref": "#/$defs/xy" },
+          "radius_m": { "type": "number", "exclusiveMinimum": 0 },
+          "slip_fraction": { "type": "number", "minimum": 0, "maximum": 0.95 }
+        },
+        "required": ["center_xy", "radius_m", "slip_fraction"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["schema_version", "terrain_id", "source", "extent_m", "grid_spacing_m", "height"],
+  "additionalProperties": false,
+  "$defs": {
+    "xy": {
+      "type": "array",
+      "items": { "type": "number" },
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "circle": {
+      "type": "object",
+      "properties": {
+        "center_xy": { "$ref": "#/$defs/xy" },
+        "radius_m": { "type": "number", "exclusiveMinimum": 0 }
+      },
+      "required": ["center_xy", "radius_m"],
+      "additionalProperties": false
+    }
+  }
+}

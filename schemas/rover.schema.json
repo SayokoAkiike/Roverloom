@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://roverloom.invalid/schemas/rover.schema.json",
+  "title": "Rover",
+  "description": "Rover parameters used by the lightweight model. Exactly six wheels in schema version 0.",
+  "type": "object",
+  "properties": {
+    "schema_version": { "$ref": "common.schema.json#/$defs/schema_version" },
+    "rover_id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+    "description": { "type": "string" },
+    "mass_kg": { "type": "number", "exclusiveMinimum": 0 },
+    "body_radius_m": { "type": "number", "exclusiveMinimum": 0 },
+    "wheel_radius_m": { "type": "number", "exclusiveMinimum": 0 },
+    "max_speed_mps": { "type": "number", "exclusiveMinimum": 0 },
+    "max_yaw_rate_radps": { "type": "number", "exclusiveMinimum": 0 },
+    "max_accel_mps2": { "type": "number", "exclusiveMinimum": 0 },
+    "max_yaw_accel_radps2": { "type": "number", "exclusiveMinimum": 0 },
+    "max_climb_slope": { "type": "number", "exclusiveMinimum": 0 },
+    "battery_capacity_wh": { "type": "number", "exclusiveMinimum": 0 },
+    "idle_power_w": { "type": "number", "minimum": 0 },
+    "rolling_resistance": { "type": "number", "minimum": 0 },
+    "drive_efficiency": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+    "turn_power_w_per_radps": { "type": "number", "minimum": 0 },
+    "base_slip_fraction": { "type": "number", "minimum": 0, "maximum": 0.95 },
+    "slope_slip_factor": { "type": "number", "minimum": 0 },
+    "slip_noise": { "type": "number", "minimum": 0 },
+    "failed_wheel_yaw_bias_radps": { "type": "number", "minimum": 0 },
+    "range_sensor": {
+      "type": "object",
+      "properties": {
+        "max_range_m": { "type": "number", "exclusiveMinimum": 0 },
+        "bearings_rad": {
+          "type": "array",
+          "items": { "type": "number" },
+          "minItems": 1
+        }
+      },
+      "required": ["max_range_m", "bearings_rad"],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schema_version",
+    "rover_id",
+    "description",
+    "mass_kg",
+    "body_radius_m",
+    "wheel_radius_m",
+    "max_speed_mps",
+    "max_yaw_rate_radps",
+    "max_accel_mps2",
+    "max_yaw_accel_radps2",
+    "max_climb_slope",
+    "battery_capacity_wh",
+    "idle_power_w",
+    "rolling_resistance",
+    "drive_efficiency",
+    "turn_power_w_per_radps",
+    "base_slip_fraction",
+    "slope_slip_factor",
+    "slip_noise",
+    "failed_wheel_yaw_bias_radps",
+    "range_sensor"
+  ],
+  "additionalProperties": false
+}

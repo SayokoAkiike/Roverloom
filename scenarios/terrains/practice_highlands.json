@@ -1,0 +1,21 @@
+{
+  "schema_version": 0,
+  "terrain_id": "practice_highlands",
+  "source": { "kind": "procedural", "note": "Generated Mars-like practice terrain. Not a real location and not derived from orbital data." },
+  "extent_m": { "min_xy": [-20, -60], "max_xy": [180, 60] },
+  "grid_spacing_m": 2,
+  "height": { "seed": 1307, "amplitude_m": 5, "feature_size_m": 60, "octaves": 3 },
+  "rocks": {
+    "generated": { "seed": 411, "count": 110, "min_radius_m": 0.5, "max_radius_m": 2.2 },
+    "keep_clear": [
+      { "center_xy": [0, 0], "radius_m": 8 },
+      { "center_xy": [50, 18], "radius_m": 6 },
+      { "center_xy": [105, -15], "radius_m": 6 },
+      { "center_xy": [155, 10], "radius_m": 6 }
+    ]
+  },
+  "soft_soil": [
+    { "center_xy": [78, 5], "radius_m": 16, "slip_fraction": 0.35 },
+    { "center_xy": [130, -5], "radius_m": 12, "slip_fraction": 0.5 }
+  ]
+}

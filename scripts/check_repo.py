@@ -28,11 +28,7 @@ def git(root: Path, *args: str) -> str:
 
 def lfs_paths(root: Path, paths: list[str]) -> set[str]:
     output = git(root, "check-attr", "filter", "--", *paths)
-    return {
-        line.split(": ")[0]
-        for line in output.splitlines()
-        if line.endswith(": filter: lfs")
-    }
+    return {line.split(": ")[0] for line in output.splitlines() if line.endswith(": filter: lfs")}
 
 
 def find_problems(root: Path) -> list[str]:

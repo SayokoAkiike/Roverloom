@@ -8,7 +8,25 @@
     "schema_version": { "$ref": "common.schema.json#/$defs/schema_version" },
     "time_s": { "type": "number", "minimum": 0 },
     "estimated_pose": { "$ref": "common.schema.json#/$defs/pose" },
-    "battery_fraction": { "type": "number", "minimum": 0, "maximum": 1 }
+    "battery_fraction": { "type": "number", "minimum": 0, "maximum": 1 },
+    "estimated_speed_mps": {
+      "description": "Wheel odometry speed. Does not reveal slip.",
+      "type": "number"
+    },
+    "targets_reached": { "type": "integer", "minimum": 0 },
+    "range_scan": {
+      "description": "Forward range sensor. range_m is null when nothing was returned.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "bearing_rad": { "type": "number" },
+          "range_m": { "type": ["number", "null"], "minimum": 0 }
+        },
+        "required": ["bearing_rad", "range_m"],
+        "additionalProperties": false
+      }
+    }
   },
   "required": ["schema_version", "time_s", "estimated_pose", "battery_fraction"],
   "additionalProperties": false

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://roverloom.invalid/schemas/mission.schema.json",
   "title": "Mission",
-  "description": "Objectives and limits, independent of the simulation backend.",
+  "description": "Objectives and limits, independent of the simulation backend. Objectives are completed in order.",
   "type": "object",
   "properties": {
     "schema_version": { "$ref": "common.schema.json#/$defs/schema_version" },
@@ -10,6 +10,11 @@
     "terrain_id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
     "start_pose": { "$ref": "common.schema.json#/$defs/pose" },
     "time_limit_s": { "type": "number", "exclusiveMinimum": 0 },
+    "energy_limit_wh": {
+      "description": "Optional energy budget. Exceeding it ends the mission.",
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
     "objectives": {
       "type": "array",
       "minItems": 1,

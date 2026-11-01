@@ -80,6 +80,9 @@ __pycache__/
 /python/build/
 /python/dist/
 
+# Hidden competition data must never enter this repository
+/scenarios/private/
+
 # Simulation and evaluation output
 /runs/
 *.telemetry.jsonl

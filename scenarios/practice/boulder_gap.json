@@ -1,0 +1,21 @@
+{
+  "schema_version": 0,
+  "scenario_id": "boulder_gap",
+  "tier": "practice",
+  "seed": 11,
+  "rover_id": "standard_6w",
+  "mission": {
+    "schema_version": 0,
+    "mission_id": "cross_the_wall",
+    "terrain_id": "practice_boulder_wall",
+    "start_pose": { "position_m": [0, 0, 0], "orientation_xyzw": [0, 0, 0, 1] },
+    "time_limit_s": 600,
+    "objectives": [
+      { "type": "reach_position", "position_m": [80, 0, 0], "radius_m": 3 }
+    ]
+  },
+  "environment": { "gravity_mps2": 3.71 },
+  "faults": [],
+  "comms": { "latency_s": 0.2, "loss_probability": 0 },
+  "sensors": { "pose_noise_m": 0.05, "yaw_noise_rad": 0.005, "speed_noise_mps": 0.01, "range_noise_m": 0.02 }
+}

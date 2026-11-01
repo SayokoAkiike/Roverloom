@@ -1,0 +1,30 @@
+{
+  "schema_version": 0,
+  "scenario_id": "demo_traverse",
+  "tier": "practice",
+  "seed": 7,
+  "rover_id": "standard_6w",
+  "mission": {
+    "schema_version": 0,
+    "mission_id": "three_site_traverse",
+    "terrain_id": "practice_highlands",
+    "start_pose": { "position_m": [0, 0, 0], "orientation_xyzw": [0, 0, 0, 1] },
+    "time_limit_s": 1200,
+    "objectives": [
+      { "type": "reach_position", "position_m": [50, 18, 0], "radius_m": 3 },
+      { "type": "reach_position", "position_m": [105, -15, 0], "radius_m": 3 },
+      { "type": "reach_position", "position_m": [155, 10, 0], "radius_m": 3 }
+    ]
+  },
+  "environment": { "gravity_mps2": 3.71 },
+  "faults": [
+    { "type": "wheel_drive_failure", "wheel": "middle_left", "start_time_s": 150 },
+    { "type": "comm_blackout", "start_time_s": 240, "duration_s": 25 },
+    { "type": "sensor_dropout", "start_time_s": 330, "duration_s": 20 }
+  ],
+  "fault_generators": [
+    { "type": "comm_blackout", "rate_per_hour": 6, "duration_s": 10, "max_count": 2 }
+  ],
+  "comms": { "latency_s": 0.5, "loss_probability": 0.02 },
+  "sensors": { "pose_noise_m": 0.15, "yaw_noise_rad": 0.01, "speed_noise_mps": 0.01, "range_noise_m": 0.05 }
+}

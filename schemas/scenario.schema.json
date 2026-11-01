@@ -2,12 +2,43 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://roverloom.invalid/schemas/scenario.schema.json",
   "title": "Scenario",
-  "description": "A mission plus the environment and faults it runs under.",
+  "description": "A mission plus the environment, faults, communications, and sensors it runs under. Never given to agents.",
   "type": "object",
+  "$defs": {
+    "fault": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": { "const": "wheel_drive_failure" },
+            "wheel": { "$ref": "common.schema.json#/$defs/wheel_id" },
+            "start_time_s": { "type": "number", "minimum": 0 }
+          },
+          "required": ["type", "wheel", "start_time_s"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "enum": ["comm_blackout", "sensor_dropout"] },
+            "start_time_s": { "type": "number", "minimum": 0 },
+            "duration_s": { "type": "number", "exclusiveMinimum": 0 }
+          },
+          "required": ["type", "start_time_s", "duration_s"],
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
   "properties": {
     "schema_version": { "$ref": "common.schema.json#/$defs/schema_version" },
     "scenario_id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+    "tier": {
+      "description": "practice scenarios are public. evaluation scenarios must stay outside this repository.",
+      "enum": ["practice", "evaluation"]
+    },
     "seed": { "type": "integer", "minimum": 0 },
+    "rover_id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
     "mission": { "$ref": "mission.schema.json" },
     "environment": {
       "type": "object",
@@ -19,16 +50,42 @@
     },
     "faults": {
       "type": "array",
+      "items": { "$ref": "#/$defs/fault" }
+    },
+    "fault_generators": {
+      "description": "Random faults, drawn from the seed before the mission starts.",
+      "type": "array",
       "items": {
         "type": "object",
         "properties": {
-          "type": { "const": "wheel_drive_failure" },
-          "wheel": { "$ref": "common.schema.json#/$defs/wheel_id" },
-          "start_time_s": { "type": "number", "minimum": 0 }
+          "type": { "enum": ["wheel_drive_failure", "comm_blackout", "sensor_dropout"] },
+          "rate_per_hour": { "type": "number", "exclusiveMinimum": 0 },
+          "duration_s": { "type": "number", "exclusiveMinimum": 0 },
+          "max_count": { "type": "integer", "minimum": 1 }
         },
-        "required": ["type", "wheel", "start_time_s"],
+        "required": ["type", "rate_per_hour"],
         "additionalProperties": false
       }
+    },
+    "comms": {
+      "type": "object",
+      "properties": {
+        "latency_s": { "type": "number", "minimum": 0 },
+        "loss_probability": { "type": "number", "minimum": 0, "maximum": 1 }
+      },
+      "required": ["latency_s", "loss_probability"],
+      "additionalProperties": false
+    },
+    "sensors": {
+      "type": "object",
+      "properties": {
+        "pose_noise_m": { "type": "number", "minimum": 0 },
+        "yaw_noise_rad": { "type": "number", "minimum": 0 },
+        "speed_noise_mps": { "type": "number", "minimum": 0 },
+        "range_noise_m": { "type": "number", "minimum": 0 }
+      },
+      "required": ["pose_noise_m", "yaw_noise_rad", "speed_noise_mps", "range_noise_m"],
+      "additionalProperties": false
     }
   },
   "required": [

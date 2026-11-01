@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://roverloom.invalid/schemas/command_record.schema.json",
+  "title": "Command record",
+  "description": "One command as received by the rover, whether applied or rejected.",
+  "type": "object",
+  "properties": {
+    "schema_version": { "$ref": "common.schema.json#/$defs/schema_version" },
+    "time_s": { "type": "number", "minimum": 0 },
+    "source": { "type": "string", "minLength": 1 },
+    "requested": { "$ref": "action.schema.json" },
+    "applied": {
+      "oneOf": [{ "$ref": "action.schema.json" }, { "type": "null" }]
+    },
+    "clamped": { "type": "boolean" },
+    "rejected_reason": { "type": ["string", "null"] }
+  },
+  "required": ["schema_version", "time_s", "source", "requested", "applied", "clamped", "rejected_reason"],
+  "additionalProperties": false
+}

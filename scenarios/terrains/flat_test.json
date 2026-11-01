@@ -1,0 +1,8 @@
+{
+  "schema_version": 0,
+  "terrain_id": "flat_test",
+  "source": { "kind": "procedural", "note": "Flat test plane with no obstacles. Not a real location." },
+  "extent_m": { "min_xy": [-30, -40], "max_xy": [130, 40] },
+  "grid_spacing_m": 10,
+  "height": { "seed": 0, "amplitude_m": 0, "feature_size_m": 50, "octaves": 1 }
+}

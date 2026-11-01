@@ -1,19 +1,33 @@
 [project]
 name = "roverloom"
-version = "0.0.0"
-description = "Python tooling for Roverloom. Currently contract tests only."
+version = "0.1.0"
+description = "Mission core, agents, and lightweight preview for Roverloom."
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = ["jsonschema>=4.23"]
+
+[project.scripts]
+roverloom = "roverloom.cli:main"
 
 [dependency-groups]
-dev = ["jsonschema>=4.23", "pytest>=8", "ruff>=0.8"]
+dev = ["mypy>=1.13", "pytest>=8", "ruff>=0.8", "types-jsonschema>=4.23"]
 
-[tool.uv]
-package = false
+[build-system]
+requires = ["uv_build>=0.12,<0.13"]
+build-backend = "uv_build"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E501"]
+
+[tool.mypy]
+strict = true
+files = ["src"]

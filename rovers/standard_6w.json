@@ -1,0 +1,26 @@
+{
+  "schema_version": 0,
+  "rover_id": "standard_6w",
+  "description": "Original six-wheeled rover for Roverloom. Not a replica of any real vehicle. Parameters are game values chosen for usability.",
+  "mass_kg": 1000,
+  "body_radius_m": 1.2,
+  "wheel_radius_m": 0.25,
+  "max_speed_mps": 0.5,
+  "max_yaw_rate_radps": 0.5,
+  "max_accel_mps2": 0.25,
+  "max_yaw_accel_radps2": 0.5,
+  "max_climb_slope": 0.6,
+  "battery_capacity_wh": 600,
+  "idle_power_w": 300,
+  "rolling_resistance": 0.15,
+  "drive_efficiency": 0.6,
+  "turn_power_w_per_radps": 200,
+  "base_slip_fraction": 0.03,
+  "slope_slip_factor": 0.5,
+  "slip_noise": 0.01,
+  "failed_wheel_yaw_bias_radps": 0.08,
+  "range_sensor": {
+    "max_range_m": 12,
+    "bearings_rad": [-1.2, -0.8, -0.4, -0.15, 0.15, 0.4, 0.8, 1.2]
+  }
+}
