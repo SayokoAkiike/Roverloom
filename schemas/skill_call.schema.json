@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://roverloom.invalid/schemas/skill_call.schema.json",
+  "title": "Skill call",
+  "description": "One typed call to a skill from the fixed list. Plain data, never code.",
+  "type": "object",
+  "properties": {
+    "skill": {
+      "type": "string",
+      "pattern": "^[a-z_]+$",
+      "maxLength": 64
+    },
+    "args": {
+      "type": "object"
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 500
+    }
+  },
+  "required": [
+    "skill",
+    "args"
+  ],
+  "additionalProperties": false
+}

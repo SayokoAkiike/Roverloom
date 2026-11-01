@@ -1,0 +1,180 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://roverloom.invalid/schemas/rover_design.schema.json",
+  "title": "Rover design",
+  "description": "Parts and sizes that the builder compiles into rover parameters. A simplified game model.",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "$ref": "common.schema.json#/$defs/schema_version"
+    },
+    "design_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "description": {
+      "type": "string"
+    },
+    "provenance": {
+      "$ref": "provenance.schema.json"
+    },
+    "chassis_kg": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "wheels": {
+      "type": "object",
+      "properties": {
+        "count": {
+          "enum": [
+            4,
+            6,
+            8
+          ]
+        },
+        "radius_m": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "width_m": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "motor_w": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      },
+      "required": [
+        "count",
+        "radius_m",
+        "width_m",
+        "motor_w"
+      ],
+      "additionalProperties": false
+    },
+    "battery_wh": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "power": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "solar"
+            },
+            "panel_m2": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "required": [
+            "kind",
+            "panel_m2"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "rtg"
+            },
+            "output_w": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "required": [
+            "kind",
+            "output_w"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "battery_only"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "sensors": {
+      "type": "object",
+      "properties": {
+        "range_max_m": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "range_beams": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "range_fov_rad": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "pose_grade": {
+          "enum": [
+            "basic",
+            "standard",
+            "precise"
+          ]
+        }
+      },
+      "required": [
+        "range_max_m",
+        "range_beams",
+        "range_fov_rad",
+        "pose_grade"
+      ],
+      "additionalProperties": false
+    },
+    "compute": {
+      "enum": [
+        "low",
+        "standard",
+        "high"
+      ]
+    },
+    "tools": {
+      "type": "object",
+      "properties": {
+        "sample_arm": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "sample_arm"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schema_version",
+    "design_id",
+    "version",
+    "description",
+    "provenance",
+    "chassis_kg",
+    "wheels",
+    "battery_wh",
+    "power",
+    "sensors",
+    "compute",
+    "tools"
+  ],
+  "additionalProperties": false
+}

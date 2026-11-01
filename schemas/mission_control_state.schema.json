@@ -1,0 +1,211 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://roverloom.invalid/schemas/mission_control_state.schema.json",
+  "title": "Mission Control state",
+  "description": "The snapshot a Mission Control display needs. The contract for the 2D preview and any future Unreal HUD.",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "$ref": "common.schema.json#/$defs/schema_version"
+    },
+    "time_s": {
+      "type": "number",
+      "minimum": 0
+    },
+    "rover": {
+      "type": "object",
+      "properties": {
+        "rover_id": {
+          "type": "string"
+        },
+        "x_m": {
+          "type": "number"
+        },
+        "y_m": {
+          "type": "number"
+        },
+        "yaw_rad": {
+          "type": "number"
+        },
+        "speed_mps": {
+          "type": "number"
+        },
+        "slip_fraction": {
+          "type": "number"
+        },
+        "battery_fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "energy_used_wh": {
+          "type": "number"
+        },
+        "power_generation_w": {
+          "type": "number"
+        },
+        "failed_wheels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "active_task": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "task_progress": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "rover_id",
+        "x_m",
+        "y_m",
+        "yaw_rad",
+        "speed_mps",
+        "slip_fraction",
+        "battery_fraction",
+        "energy_used_wh",
+        "power_generation_w",
+        "failed_wheels",
+        "active_task",
+        "task_progress"
+      ],
+      "additionalProperties": false
+    },
+    "comms": {
+      "type": "object",
+      "properties": {
+        "command_link_up": {
+          "type": "boolean"
+        },
+        "data_window_open": {
+          "type": "boolean"
+        },
+        "latency_s": {
+          "type": "number"
+        },
+        "commands_received": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "command_link_up",
+        "data_window_open",
+        "latency_s",
+        "commands_received"
+      ],
+      "additionalProperties": false
+    },
+    "mission": {
+      "type": "object",
+      "properties": {
+        "scenario_id": {
+          "type": "string"
+        },
+        "outcome": {
+          "type": "string"
+        },
+        "targets_reached": {
+          "type": "integer"
+        },
+        "targets_total": {
+          "type": "integer"
+        },
+        "science_value": {
+          "type": "number"
+        },
+        "stored_value": {
+          "type": "number"
+        },
+        "success_value": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "time_limit_s": {
+          "type": "number"
+        },
+        "inspected": {
+          "type": "object"
+        },
+        "collected": {
+          "type": "array"
+        }
+      },
+      "required": [
+        "scenario_id",
+        "outcome",
+        "targets_reached",
+        "targets_total",
+        "science_value",
+        "stored_value",
+        "success_value",
+        "time_limit_s",
+        "inspected",
+        "collected"
+      ],
+      "additionalProperties": false
+    },
+    "driver": {
+      "type": "string"
+    },
+    "agent": {
+      "type": "string"
+    },
+    "active_faults": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "events": {
+      "type": "array"
+    },
+    "decisions": {
+      "type": "array"
+    },
+    "trail": {
+      "type": "array"
+    },
+    "pending_approval": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "metrics": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "saved_to": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "schema_version",
+    "time_s",
+    "rover",
+    "comms",
+    "mission",
+    "driver",
+    "agent",
+    "active_faults",
+    "events",
+    "decisions",
+    "trail",
+    "pending_approval",
+    "metrics",
+    "saved_to"
+  ],
+  "additionalProperties": false
+}

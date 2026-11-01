@@ -3,5 +3,5 @@
 __version__ = "0.1.0"
 BACKEND_NAME = "lightweight-2.5d"
 # Increase when simulation behavior changes, because old logs will no longer reproduce.
-MODEL_VERSION = "kinematic-0.1"
-SCORING_VERSION = "score-0.1"
+MODEL_VERSION = "kinematic-0.2"
+SCORING_VERSION = "score-0.2"

@@ -5,50 +5,151 @@
   "description": "Everything needed to identify and reproduce a run. logs_sha256 covers the log files.",
   "type": "object",
   "properties": {
-    "schema_version": { "$ref": "common.schema.json#/$defs/schema_version" },
-    "backend": { "type": "string" },
-    "model_version": { "type": "string" },
-    "scoring_version": { "type": "string" },
-    "scenario_id": { "type": "string" },
-    "seed": { "type": "integer", "minimum": 0 },
-    "agent": { "type": "string" },
-    "sim_step_s": { "type": "number", "exclusiveMinimum": 0 },
-    "steps": { "type": "integer", "minimum": 0 },
+    "schema_version": {
+      "$ref": "common.schema.json#/$defs/schema_version"
+    },
+    "backend": {
+      "type": "string"
+    },
+    "model_version": {
+      "type": "string"
+    },
+    "scoring_version": {
+      "type": "string"
+    },
+    "scenario_id": {
+      "type": "string"
+    },
+    "seed": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "agent": {
+      "type": "string"
+    },
+    "sim_step_s": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "steps": {
+      "type": "integer",
+      "minimum": 0
+    },
     "inputs_sha256": {
       "type": "object",
       "properties": {
-        "scenario": { "$ref": "#/$defs/sha256" },
-        "terrain": { "$ref": "#/$defs/sha256" },
-        "rover": { "$ref": "#/$defs/sha256" }
+        "scenario": {
+          "$ref": "#/$defs/sha256"
+        },
+        "terrain": {
+          "$ref": "#/$defs/sha256"
+        },
+        "rover": {
+          "$ref": "#/$defs/sha256"
+        }
       },
-      "required": ["scenario", "terrain", "rover"],
+      "required": [
+        "scenario",
+        "terrain",
+        "rover"
+      ],
       "additionalProperties": false
     },
     "logs_sha256": {
       "type": "object",
       "properties": {
-        "telemetry": { "$ref": "#/$defs/sha256" },
-        "commands": { "$ref": "#/$defs/sha256" },
-        "events": { "$ref": "#/$defs/sha256" }
+        "telemetry": {
+          "$ref": "#/$defs/sha256"
+        },
+        "commands": {
+          "$ref": "#/$defs/sha256"
+        },
+        "events": {
+          "$ref": "#/$defs/sha256"
+        },
+        "decisions": {
+          "$ref": "#/$defs/sha256"
+        }
       },
-      "required": ["telemetry", "commands", "events"],
+      "required": [
+        "telemetry",
+        "commands",
+        "events"
+      ],
       "additionalProperties": false
     },
     "environment": {
       "type": "object",
       "properties": {
-        "python": { "type": "string" },
-        "platform": { "type": "string" },
-        "packages": { "type": "object", "additionalProperties": { "type": "string" } },
-        "uv_lock_sha256": { "type": ["string", "null"] },
-        "git_commit": { "type": ["string", "null"] },
-        "git_dirty": { "type": ["boolean", "null"] }
+        "python": {
+          "type": "string"
+        },
+        "platform": {
+          "type": "string"
+        },
+        "packages": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "uv_lock_sha256": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "git_commit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "git_dirty": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
       },
-      "required": ["python", "platform", "packages", "uv_lock_sha256", "git_commit", "git_dirty"],
+      "required": [
+        "python",
+        "platform",
+        "packages",
+        "uv_lock_sha256",
+        "git_commit",
+        "git_dirty"
+      ],
       "additionalProperties": false
     },
-    "started_at_utc": { "type": "string" },
-    "wall_time_s": { "type": "number", "minimum": 0 }
+    "started_at_utc": {
+      "type": "string"
+    },
+    "wall_time_s": {
+      "type": "number",
+      "minimum": 0
+    },
+    "rover_id": {
+      "type": "string"
+    },
+    "rover_version": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "scenario_version": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "agent_version": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
   },
   "required": [
     "schema_version",
@@ -68,6 +169,9 @@
   ],
   "additionalProperties": false,
   "$defs": {
-    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
   }
 }

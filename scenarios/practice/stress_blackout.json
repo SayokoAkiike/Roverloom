@@ -1,0 +1,135 @@
+{
+  "schema_version": 0,
+  "scenario_id": "stress_blackout",
+  "version": "1.0.0",
+  "tier": "practice",
+  "seed": 23,
+  "rover_id": "pathfinder_6w",
+  "mission": {
+    "schema_version": 0,
+    "mission_id": "stress",
+    "terrain_id": "flat_test",
+    "start_pose": {
+      "position_m": [
+        0,
+        0,
+        0
+      ],
+      "orientation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    "time_limit_s": 900,
+    "objectives": [],
+    "science": {
+      "targets": [
+        {
+          "id": "alpha",
+          "position_m": [
+            40,
+            15,
+            0
+          ],
+          "radius_m": 4,
+          "prior_value": 5,
+          "true_value": 5,
+          "inspect_s": 20,
+          "collect_s": 60
+        },
+        {
+          "id": "beta",
+          "position_m": [
+            80,
+            -20,
+            0
+          ],
+          "radius_m": 4,
+          "prior_value": 5,
+          "true_value": 5,
+          "inspect_s": 20,
+          "collect_s": 60
+        }
+      ],
+      "base": {
+        "position_m": [
+          0,
+          0,
+          0
+        ],
+        "radius_m": 5,
+        "required": false
+      },
+      "data_windows": {
+        "period_s": 200,
+        "open_s": 80,
+        "offset_s": 0
+      },
+      "transmit_s_per_item": 5,
+      "success_value": 4
+    }
+  },
+  "environment": {
+    "gravity_mps2": 3.71,
+    "solar_factor": 0.4
+  },
+  "faults": [
+    {
+      "type": "immobilized",
+      "start_time_s": 60,
+      "duration_s": 30,
+      "category": "stress_test"
+    },
+    {
+      "type": "comm_blackout",
+      "start_time_s": 150,
+      "duration_s": 40,
+      "category": "stress_test"
+    },
+    {
+      "type": "sensor_noise_burst",
+      "start_time_s": 220,
+      "duration_s": 40,
+      "severity": 0.5,
+      "category": "stress_test"
+    },
+    {
+      "type": "power_brownout",
+      "start_time_s": 300,
+      "duration_s": 60,
+      "severity": 0.6,
+      "category": "stress_test"
+    },
+    {
+      "type": "dust_storm",
+      "start_time_s": 400,
+      "duration_s": 100,
+      "severity": 1.0,
+      "category": "stress_test"
+    },
+    {
+      "type": "wheel_drive_failure",
+      "wheel": "front_left",
+      "start_time_s": 120,
+      "category": "stress_test"
+    },
+    {
+      "type": "wheel_drive_failure",
+      "wheel": "rear_right",
+      "start_time_s": 180,
+      "category": "stress_test"
+    }
+  ],
+  "comms": {
+    "latency_s": 1.0,
+    "loss_probability": 0.05
+  },
+  "sensors": {
+    "pose_noise_m": 0.1,
+    "yaw_noise_rad": 0.01,
+    "speed_noise_mps": 0.01,
+    "range_noise_m": 0.05
+  }
+}

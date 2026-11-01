@@ -67,7 +67,7 @@ class CommandRouter:
             return CommandRecord(time_s, source, action, None, False, "inactive_source")
         speed = max(-self._max_speed, min(self._max_speed, action.linear_velocity_mps))
         yaw = max(-self._max_yaw, min(self._max_yaw, action.yaw_rate_radps))
-        applied = Action(speed, yaw)
+        applied = Action(speed, yaw, action.task)
         clamped = not (
             math.isclose(speed, action.linear_velocity_mps)
             and math.isclose(yaw, action.yaw_rate_radps)

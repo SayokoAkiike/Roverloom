@@ -25,6 +25,13 @@ class Metrics:
     faults_recovered: int
     mean_recovery_time_s: float | None
     score: float
+    science_value: float = 0.0
+    science_fraction: float = 0.0
+    returned_to_base: bool | None = None
+    min_battery_fraction: float = 1.0
+    watchdog_stops: int = 0
+    rover_id: str = ""
+    design_cost: float | None = None
 
     def to_dict(self) -> JsonDict:
         return asdict(self)
@@ -59,6 +66,26 @@ def _score(
     return round(max(0.0, base - COLLISION_PENALTY * collisions), 3)
 
 
+def _science_score(
+    success: bool,
+    fraction: float,
+    returned: bool | None,
+    time_s: float,
+    time_limit: float,
+    energy: float,
+    energy_budget: float,
+    collisions: int,
+) -> float:
+    """Score out of 100: sent science first, then returning home, efficiency, and safety."""
+    base = 70.0 * fraction
+    # Coming home counts only after sending some science, so that idling at base earns nothing.
+    base += 10.0 if fraction > 0 and (returned or returned is None and success) else 0.0
+    if success:
+        base += 10.0 * max(0.0, 1.0 - time_s / time_limit)
+        base += 10.0 * max(0.0, 1.0 - energy / energy_budget)
+    return round(max(0.0, base - COLLISION_PENALTY * collisions), 3)
+
+
 def evaluate_run(run: LoadedRun) -> Metrics:
     telemetry, events = run.telemetry, run.events
     ended = events[-1]["data"]
@@ -90,6 +117,31 @@ def evaluate_run(run: LoadedRun) -> Metrics:
     collisions = sum(1 for event in events if event["type"] == "collision")
     success = ended["outcome"] == "success"
     budget = scenario.mission.get("energy_limit_wh") or scenario.rover.battery_capacity_wh
+    time_limit = float(scenario.mission["time_limit_s"])
+    science_spec = scenario.mission.get("science")
+    science_value = float(ended.get("science_value", 0.0))
+    fraction = 0.0
+    returned: bool | None = None
+    if science_spec is None:
+        score = _score(
+            success,
+            ended["targets_reached"],
+            len(scenario.targets),
+            time_s,
+            time_limit,
+            energy,
+            float(budget),
+            collisions,
+        )
+    else:
+        total = sum(target["true_value"] for target in science_spec["targets"])
+        fraction = min(1.0, science_value / total) if total > 0 else 0.0
+        if "base" in science_spec:
+            returned = bool(ended.get("at_base", False))
+        score = _science_score(
+            success, fraction, returned, time_s, time_limit, energy, float(budget), collisions
+        )
+    report = scenario.rover.document.get("design_report") or {}
     return Metrics(
         outcome=ended["outcome"],
         success=success,
@@ -102,16 +154,14 @@ def evaluate_run(run: LoadedRun) -> Metrics:
         faults=faults,
         faults_recovered=recovered,
         mean_recovery_time_s=round(sum(durations) / len(durations), 3) if durations else None,
-        score=_score(
-            success,
-            ended["targets_reached"],
-            len(scenario.targets),
-            time_s,
-            float(scenario.mission["time_limit_s"]),
-            energy,
-            float(budget),
-            collisions,
-        ),
+        score=score,
+        science_value=round(science_value, 3),
+        science_fraction=round(fraction, 4),
+        returned_to_base=returned,
+        min_battery_fraction=min((r["battery_fraction"] for r in telemetry), default=1.0),
+        watchdog_stops=sum(1 for event in events if event["type"] == "watchdog_stop"),
+        rover_id=str(scenario.rover.document["rover_id"]),
+        design_cost=report.get("cost"),
     )
 
 
@@ -134,6 +184,11 @@ def aggregate(metrics: Sequence[Metrics]) -> JsonDict:
         "mean_distance_m": _mean(m.distance_m for m in metrics),
         "mean_success_energy_wh": _mean(m.energy_used_wh for m in wins),
         "mean_collisions": _mean(float(m.collisions) for m in metrics),
+        "mean_science_value": _mean(m.science_value for m in metrics),
+        "mean_science_fraction": _mean(m.science_fraction for m in metrics),
+        "mean_energy_wh": _mean(m.energy_used_wh for m in metrics),
+        "mean_time_s": _mean(m.mission_time_s for m in metrics),
+        "mean_watchdog_stops": _mean(float(m.watchdog_stops) for m in metrics),
         "fault_recovery_rate": (
             round(sum(m.faults_recovered for m in metrics) / faults, 3) if faults else None
         ),

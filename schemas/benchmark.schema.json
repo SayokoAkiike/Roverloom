@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://roverloom.invalid/schemas/benchmark.schema.json",
+  "title": "Benchmark",
+  "description": "A fixed set of leagues, with pins that detect any incompatible change.",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "$ref": "common.schema.json#/$defs/schema_version"
+    },
+    "benchmark_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_-]+$"
+    },
+    "version": {
+      "type": "string"
+    },
+    "model_version": {
+      "type": "string"
+    },
+    "scoring_version": {
+      "type": "string"
+    },
+    "builder_version": {
+      "type": "string"
+    },
+    "seeds": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "leagues": {
+      "type": "object",
+      "properties": {
+        "autonomy": {
+          "type": "object",
+          "properties": {
+            "scenarios": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            "rovers": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            "agents": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            }
+          },
+          "required": [
+            "scenarios",
+            "rovers",
+            "agents"
+          ],
+          "additionalProperties": false
+        },
+        "rover_design": {
+          "type": "object",
+          "properties": {
+            "scenarios": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            "rovers": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            "agents": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            }
+          },
+          "required": [
+            "scenarios",
+            "rovers",
+            "agents"
+          ],
+          "additionalProperties": false
+        },
+        "full_mission": {
+          "type": "object",
+          "properties": {
+            "scenarios": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            "rovers": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            "agents": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            }
+          },
+          "required": [
+            "scenarios",
+            "rovers",
+            "agents"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "autonomy",
+        "rover_design",
+        "full_mission"
+      ],
+      "additionalProperties": false
+    },
+    "pins": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{64}$"
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "benchmark_id",
+    "version",
+    "model_version",
+    "scoring_version",
+    "builder_version",
+    "seeds",
+    "leagues",
+    "pins"
+  ],
+  "additionalProperties": false
+}

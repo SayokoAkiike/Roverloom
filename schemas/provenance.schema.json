@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://roverloom.invalid/schemas/provenance.schema.json",
+  "title": "Provenance",
+  "description": "Who made a design, under what terms, and what it derives from.",
+  "type": "object",
+  "properties": {
+    "author": {
+      "type": "string",
+      "minLength": 1
+    },
+    "license": {
+      "description": "SPDX identifier, or NOASSERTION.",
+      "type": "string",
+      "minLength": 1
+    },
+    "derived_from": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "derived_from_commit": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{7,40}$"
+    },
+    "source_url": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "author",
+    "license",
+    "derived_from",
+    "derived_from_commit"
+  ],
+  "additionalProperties": false
+}

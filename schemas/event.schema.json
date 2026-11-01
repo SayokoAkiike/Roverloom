@@ -5,9 +5,17 @@
   "description": "One ground-truth event in a JSON Lines log.",
   "type": "object",
   "properties": {
-    "schema_version": { "$ref": "common.schema.json#/$defs/schema_version" },
-    "seq": { "type": "integer", "minimum": 0 },
-    "time_s": { "type": "number", "minimum": 0 },
+    "schema_version": {
+      "$ref": "common.schema.json#/$defs/schema_version"
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "time_s": {
+      "type": "number",
+      "minimum": 0
+    },
     "type": {
       "enum": [
         "mission_started",
@@ -19,11 +27,25 @@
         "watchdog_cleared",
         "source_changed",
         "agent_error",
-        "mission_ended"
+        "mission_ended",
+        "task_started",
+        "task_completed",
+        "task_rejected",
+        "task_failed",
+        "data_window_opened",
+        "data_window_closed"
       ]
     },
-    "data": { "type": "object" }
+    "data": {
+      "type": "object"
+    }
   },
-  "required": ["schema_version", "seq", "time_s", "type", "data"],
+  "required": [
+    "schema_version",
+    "seq",
+    "time_s",
+    "type",
+    "data"
+  ],
   "additionalProperties": false
 }

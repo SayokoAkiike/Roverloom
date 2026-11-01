@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://roverloom.invalid/schemas/decision.schema.json",
+  "title": "Decision record",
+  "description": "What an agent said it decided. Its own claim, not ground truth.",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "$ref": "common.schema.json#/$defs/schema_version"
+    },
+    "time_s": {
+      "type": "number",
+      "minimum": 0
+    },
+    "source": {
+      "type": "string"
+    },
+    "text": {
+      "type": "string",
+      "maxLength": 500
+    }
+  },
+  "required": [
+    "schema_version",
+    "time_s",
+    "source",
+    "text"
+  ],
+  "additionalProperties": false
+}

@@ -7,7 +7,7 @@ from functools import cached_property
 from pathlib import Path
 from typing import Any
 
-from roverloom.api import MissionBrief, Pose, Target
+from roverloom.api import BaseSite, DataWindows, MissionBrief, Pose, ScienceTarget, Target
 from roverloom.contract import (
     ContractError,
     JsonDict,
@@ -226,14 +226,48 @@ class Scenario:
             targets=self.targets,
             time_limit_s=self.mission["time_limit_s"],
             energy_limit_wh=self.mission.get("energy_limit_wh"),
-            control_period_s=CONTROL_PERIOD_S,
+            control_period_s=self.rover.document.get("control_period_s", CONTROL_PERIOD_S),
             max_speed_mps=self.rover.max_speed_mps,
             max_yaw_rate_radps=self.rover.max_yaw_rate_radps,
             body_radius_m=self.rover.body_radius_m,
             sensor_max_range_m=self.rover.range_sensor["max_range_m"],
             extent_min_xy=(self.terrain.min_x, self.terrain.min_y),
             extent_max_xy=(self.terrain.max_x, self.terrain.max_y),
+            can_collect=self.rover.document.get("has_sample_tool", True),
+            battery_capacity_wh=self.rover.battery_capacity_wh,
+            **self._science_brief(),
         )
+
+    def _science_brief(self) -> JsonDict:
+        science = self.mission.get("science")
+        if science is None:
+            return {}
+        base, windows = science.get("base"), science.get("data_windows")
+        return {
+            # true_value is deliberately left out: agents learn it by inspecting.
+            "science_targets": tuple(
+                ScienceTarget(
+                    t["id"],
+                    t["position_m"][0],
+                    t["position_m"][1],
+                    t["radius_m"],
+                    t["prior_value"],
+                    t["inspect_s"],
+                    t["collect_s"],
+                )
+                for t in science["targets"]
+            ),
+            "base": BaseSite(
+                base["position_m"][0], base["position_m"][1], base["radius_m"], base["required"]
+            )
+            if base
+            else None,
+            "data_windows": DataWindows(windows["period_s"], windows["open_s"], windows["offset_s"])
+            if windows
+            else None,
+            "transmit_s_per_item": science["transmit_s_per_item"],
+            "success_value": science["success_value"],
+        }
 
     def inputs_sha256(self) -> dict[str, str]:
         return {
@@ -265,15 +299,39 @@ def build_scenario(document: JsonDict, terrain_doc: JsonDict, rover_doc: JsonDic
         raise ContractError(f"{scenario_id}: start is outside the terrain")
     if terrain.collides(x, y, radius):
         raise ContractError(f"{scenario_id}: start collides with a rock")
+    science = mission.get("science")
+    if not mission["objectives"] and science is None:
+        raise ContractError(f"{scenario_id}: mission needs objectives or a science campaign")
     for index, objective in enumerate(mission["objectives"]):
         tx, ty, _ = objective["position_m"]
         if not terrain.in_bounds(tx, ty, radius):
             raise ContractError(f"{scenario_id}: objective {index} is outside the terrain")
         if terrain.collides(tx, ty, radius):
             raise ContractError(f"{scenario_id}: objective {index} is inside a rock")
+    if science is not None:
+        _check_science(scenario_id, science, terrain, radius)
     scenario = Scenario(document, terrain, RoverSpec(rover_doc))
     _ = scenario.start_pose  # Rejects a bad start quaternion at load time.
     return scenario
+
+
+def _check_science(scenario_id: str, science: JsonDict, terrain: Terrain, radius: float) -> None:
+    ids = [target["id"] for target in science["targets"]]
+    if len(ids) != len(set(ids)):
+        raise ContractError(f"{scenario_id}: science target IDs must be unique")
+    sites = [(f"science target {t['id']}", t["position_m"]) for t in science["targets"]]
+    if "base" in science:
+        sites.append(("base", science["base"]["position_m"]))
+    for name, (x, y, _) in sites:
+        if not terrain.in_bounds(x, y, radius):
+            raise ContractError(f"{scenario_id}: {name} is outside the terrain")
+        if terrain.collides(x, y, radius):
+            raise ContractError(f"{scenario_id}: {name} is inside a rock")
+    if science["success_value"] > sum(t["true_value"] for t in science["targets"]):
+        raise ContractError(f"{scenario_id}: success_value exceeds the total science value")
+    windows = science.get("data_windows")
+    if windows and windows["open_s"] > windows["period_s"]:
+        raise ContractError(f"{scenario_id}: data window is longer than its period")
 
 
 def scenario_search_dirs() -> list[Path]:
@@ -297,7 +355,8 @@ def list_practice_scenarios() -> list[str]:
     return sorted(p.stem for p in (repo_root() / "scenarios" / "practice").glob("*.json"))
 
 
-def load_scenario(name: str) -> Scenario:
+def load_scenario(name: str, rover: str | None = None) -> Scenario:
+    """Load a scenario, optionally replacing its rover with another by name or file path."""
     path = resolve_scenario_path(name)
     document = load_json_file(path)
     validate("scenario", document, name)
@@ -307,9 +366,10 @@ def load_scenario(name: str) -> Scenario:
     terrain_path = path.parent / "terrains" / terrain_file
     if not terrain_path.is_file():
         terrain_path = root / "scenarios" / "terrains" / terrain_file
-    rover_path = root / "rovers" / f"{document.get('rover_id', 'standard_6w')}.json"
     if not terrain_path.is_file():
         raise ContractError(f"{name}: unknown terrain {document['mission']['terrain_id']}")
-    if not rover_path.is_file():
-        raise ContractError(f"{name}: unknown rover {document.get('rover_id')}")
-    return build_scenario(document, load_json_file(terrain_path), load_json_file(rover_path))
+    from roverloom.rover_builder import load_rover_document
+
+    rover_doc = load_rover_document(rover or document.get("rover_id", "standard_6w"))
+    document = {**document, "rover_id": rover_doc["rover_id"]}
+    return build_scenario(document, load_json_file(terrain_path), rover_doc)

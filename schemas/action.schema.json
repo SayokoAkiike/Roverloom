@@ -5,10 +5,37 @@
   "description": "A body-frame drive command from an agent or human driver.",
   "type": "object",
   "properties": {
-    "schema_version": { "$ref": "common.schema.json#/$defs/schema_version" },
-    "linear_velocity_mps": { "type": "number" },
-    "yaw_rate_radps": { "type": "number" }
+    "schema_version": {
+      "$ref": "common.schema.json#/$defs/schema_version"
+    },
+    "linear_velocity_mps": {
+      "type": "number"
+    },
+    "yaw_rate_radps": {
+      "type": "number"
+    },
+    "task": {
+      "description": "Optional rover task. Executed when the rover is stopped.",
+      "type": "object",
+      "properties": {
+        "type": {
+          "$ref": "common.schema.json#/$defs/task_type"
+        },
+        "target_id": {
+          "type": "string",
+          "maxLength": 64
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false
+    }
   },
-  "required": ["schema_version", "linear_velocity_mps", "yaw_rate_radps"],
+  "required": [
+    "schema_version",
+    "linear_velocity_mps",
+    "yaw_rate_radps"
+  ],
   "additionalProperties": false
 }

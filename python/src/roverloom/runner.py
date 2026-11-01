@@ -21,10 +21,15 @@ class RunResult:
 
 
 def finalize_run(
-    writer: RunWriter, session: MissionSession, agent_name: str, wall_time_s: float
+    writer: RunWriter,
+    session: MissionSession,
+    agent_name: str,
+    wall_time_s: float,
+    source: object = None,
 ) -> RunResult:
+    version = getattr(source, "VERSION", None)
     manifest = writer.finish(
-        session.scenario, agent_name, session.seed, session.step_index, wall_time_s
+        session.scenario, agent_name, session.seed, session.step_index, wall_time_s, version
     )
     metrics = evaluate_run(load_run(writer.directory, trusted=True))
     (writer.directory / "metrics.json").write_text(
@@ -52,13 +57,14 @@ def run_mission(
             on_telemetry=writer.telemetry,
             on_command=writer.command,
             on_event=writer.event,
+            on_decision=writer.decision,
         )
         while not session.mission.finished:
             session.step()
     except BaseException:
         writer.close_files()
         raise
-    return finalize_run(writer, session, agent_name, time.perf_counter() - started)
+    return finalize_run(writer, session, agent_name, time.perf_counter() - started, source)
 
 
 @dataclass(frozen=True)

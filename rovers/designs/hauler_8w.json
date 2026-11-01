@@ -1,0 +1,36 @@
+{
+  "schema_version": 0,
+  "design_id": "hauler_8w",
+  "version": "1.0.0",
+  "description": "Heavy eight-wheeled rover: long sensor range, steady RTG power, large battery, and low ground pressure.",
+  "provenance": {
+    "author": "Roverloom project",
+    "license": "NOASSERTION",
+    "derived_from": null,
+    "derived_from_commit": null,
+    "source_url": null,
+    "notes": "Original design with game values. Not based on any real vehicle."
+  },
+  "chassis_kg": 640,
+  "wheels": {
+    "count": 8,
+    "radius_m": 0.3,
+    "width_m": 0.25,
+    "motor_w": 90
+  },
+  "battery_wh": 700,
+  "power": {
+    "kind": "rtg",
+    "output_w": 90
+  },
+  "sensors": {
+    "range_max_m": 18,
+    "range_beams": 11,
+    "range_fov_rad": 3.0,
+    "pose_grade": "standard"
+  },
+  "compute": "standard",
+  "tools": {
+    "sample_arm": true
+  }
+}

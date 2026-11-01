@@ -1,0 +1,36 @@
+{
+  "schema_version": 0,
+  "design_id": "pathfinder_6w",
+  "version": "1.0.0",
+  "description": "Balanced six-wheeled science rover with solar panels and a sample arm.",
+  "provenance": {
+    "author": "Roverloom project",
+    "license": "NOASSERTION",
+    "derived_from": null,
+    "derived_from_commit": null,
+    "source_url": null,
+    "notes": "Original design with game values. Not based on any real vehicle."
+  },
+  "chassis_kg": 420,
+  "wheels": {
+    "count": 6,
+    "radius_m": 0.25,
+    "width_m": 0.2,
+    "motor_w": 90
+  },
+  "battery_wh": 480,
+  "power": {
+    "kind": "solar",
+    "panel_m2": 6
+  },
+  "sensors": {
+    "range_max_m": 12,
+    "range_beams": 9,
+    "range_fov_rad": 2.4,
+    "pose_grade": "standard"
+  },
+  "compute": "standard",
+  "tools": {
+    "sample_arm": true
+  }
+}

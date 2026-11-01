@@ -5,29 +5,160 @@
   "description": "What the rover can sense. Must not expose ground truth or undetected faults.",
   "type": "object",
   "properties": {
-    "schema_version": { "$ref": "common.schema.json#/$defs/schema_version" },
-    "time_s": { "type": "number", "minimum": 0 },
-    "estimated_pose": { "$ref": "common.schema.json#/$defs/pose" },
-    "battery_fraction": { "type": "number", "minimum": 0, "maximum": 1 },
+    "schema_version": {
+      "$ref": "common.schema.json#/$defs/schema_version"
+    },
+    "time_s": {
+      "type": "number",
+      "minimum": 0
+    },
+    "estimated_pose": {
+      "$ref": "common.schema.json#/$defs/pose"
+    },
+    "battery_fraction": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
     "estimated_speed_mps": {
       "description": "Wheel odometry speed. Does not reveal slip.",
       "type": "number"
     },
-    "targets_reached": { "type": "integer", "minimum": 0 },
+    "targets_reached": {
+      "type": "integer",
+      "minimum": 0
+    },
     "range_scan": {
       "description": "Forward range sensor. range_m is null when nothing was returned.",
       "type": "array",
       "items": {
         "type": "object",
         "properties": {
-          "bearing_rad": { "type": "number" },
-          "range_m": { "type": ["number", "null"], "minimum": 0 }
+          "bearing_rad": {
+            "type": "number"
+          },
+          "range_m": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0
+          }
         },
-        "required": ["bearing_rad", "range_m"],
+        "required": [
+          "bearing_rad",
+          "range_m"
+        ],
         "additionalProperties": false
       }
+    },
+    "measured_power_w": {
+      "description": "Power being generated, as measured onboard.",
+      "type": "number"
+    },
+    "science": {
+      "type": "object",
+      "properties": {
+        "active_task": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "task_progress": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "inspected": {
+          "description": "Science value found by inspection, by target ID.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "collected": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "stored_items": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "stored_value": {
+          "type": "number",
+          "minimum": 0
+        },
+        "transmitted_value": {
+          "type": "number",
+          "minimum": 0
+        },
+        "data_window_open": {
+          "type": "boolean"
+        },
+        "last_result": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "type": {
+              "type": "string"
+            },
+            "target_id": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "status": {
+              "enum": [
+                "completed",
+                "rejected",
+                "failed"
+              ]
+            },
+            "reason": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "time_s": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "type",
+            "target_id",
+            "status",
+            "reason",
+            "time_s"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "active_task",
+        "task_progress",
+        "inspected",
+        "collected",
+        "stored_items",
+        "stored_value",
+        "transmitted_value",
+        "data_window_open",
+        "last_result"
+      ],
+      "additionalProperties": false
     }
   },
-  "required": ["schema_version", "time_s", "estimated_pose", "battery_fraction"],
+  "required": [
+    "schema_version",
+    "time_s",
+    "estimated_pose",
+    "battery_fraction"
+  ],
   "additionalProperties": false
 }

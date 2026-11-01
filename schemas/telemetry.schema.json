@@ -5,22 +5,85 @@
   "description": "One ground-truth line of a JSON Lines log, consumed by evaluation and replay.",
   "type": "object",
   "properties": {
-    "schema_version": { "$ref": "common.schema.json#/$defs/schema_version" },
-    "time_s": { "type": "number", "minimum": 0 },
-    "pose": { "$ref": "common.schema.json#/$defs/pose" },
-    "linear_velocity_mps": { "$ref": "common.schema.json#/$defs/vector3" },
-    "battery_fraction": { "type": "number", "minimum": 0, "maximum": 1 },
-    "energy_used_wh": { "type": "number", "minimum": 0 },
-    "step": { "type": "integer", "minimum": 0 },
-    "yaw_rate_radps": { "type": "number" },
-    "slip_fraction": { "type": "number", "minimum": 0, "maximum": 1 },
-    "distance_m": { "type": "number", "minimum": 0 },
+    "schema_version": {
+      "$ref": "common.schema.json#/$defs/schema_version"
+    },
+    "time_s": {
+      "type": "number",
+      "minimum": 0
+    },
+    "pose": {
+      "$ref": "common.schema.json#/$defs/pose"
+    },
+    "linear_velocity_mps": {
+      "$ref": "common.schema.json#/$defs/vector3"
+    },
+    "battery_fraction": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "energy_used_wh": {
+      "type": "number",
+      "minimum": 0
+    },
+    "step": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "yaw_rate_radps": {
+      "type": "number"
+    },
+    "slip_fraction": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "distance_m": {
+      "type": "number",
+      "minimum": 0
+    },
     "failed_wheels": {
       "type": "array",
-      "items": { "$ref": "common.schema.json#/$defs/wheel_id" },
+      "items": {
+        "$ref": "common.schema.json#/$defs/wheel_id"
+      },
       "uniqueItems": true
     },
-    "targets_reached": { "type": "integer", "minimum": 0 }
+    "targets_reached": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "power_generation_w": {
+      "type": "number",
+      "minimum": 0
+    },
+    "data_window_open": {
+      "type": "boolean"
+    },
+    "science_value": {
+      "type": "number",
+      "minimum": 0
+    },
+    "stored_value": {
+      "type": "number",
+      "minimum": 0
+    },
+    "active_task": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "active_faults": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source": {
+      "type": "string"
+    }
   },
   "required": [
     "schema_version",
