@@ -26,6 +26,8 @@ def steer_to(
 class StopAgent:
     """Never moves. Useful as a lower bound and for testing watchdogs and limits."""
 
+    VERSION = "1.0.0"
+
     def reset(self, brief: MissionBrief, seed: int) -> None:
         pass
 
@@ -35,6 +37,8 @@ class StopAgent:
 
 class WaypointFollowerAgent:
     """Drives straight at each target, ignoring obstacles."""
+
+    VERSION = "1.0.0"
 
     def __init__(self) -> None:
         self._brief: MissionBrief | None = None
@@ -56,6 +60,8 @@ class ReactiveAgent:
     It remembers which way it committed to turning, and backs out when it stops making
     progress. It has no map, so it can still get trapped by large obstacles.
     """
+
+    VERSION = "1.0.0"
 
     _STUCK_WINDOW_S = 10.0
     _BACKUP_S = 5.0

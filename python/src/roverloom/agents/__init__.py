@@ -8,6 +8,7 @@ from typing import Protocol
 
 from roverloom.agents.basic import ReactiveAgent, StopAgent, WaypointFollowerAgent
 from roverloom.agents.planner import GridReplannerAgent
+from roverloom.agents.sdk import HumanApprovalAgent, MissionPlannerAgent, MockCapAgent
 from roverloom.agents.skills import SkillPlanAgent
 from roverloom.api import Action, MissionBrief, Observation
 from roverloom.contract import ContractError
@@ -33,6 +34,9 @@ BUILTIN_AGENTS: dict[str, type[Agent]] = {
     "reactive": ReactiveAgent,
     "replanner": GridReplannerAgent,
     "skill-plan": SkillPlanAgent,
+    "mission-planner": MissionPlannerAgent,
+    "cap-mock": MockCapAgent,
+    "human-approval": HumanApprovalAgent,
 }
 
 

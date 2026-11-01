@@ -1,0 +1,36 @@
+{
+  "schema_version": 0,
+  "design_id": "my_scout",
+  "version": "0.1.0",
+  "description": "Tutorial rover: derived from scout_4w with a sample arm.",
+  "provenance": {
+    "author": "Your name",
+    "license": "CC-BY-4.0",
+    "derived_from": "scout_4w@1.0.0",
+    "derived_from_commit": "80b4a43",
+    "source_url": null,
+    "notes": "Example of recording where a design came from."
+  },
+  "chassis_kg": 260,
+  "wheels": {
+    "count": 4,
+    "radius_m": 0.22,
+    "width_m": 0.15,
+    "motor_w": 80
+  },
+  "battery_wh": 300,
+  "power": {
+    "kind": "solar",
+    "panel_m2": 3
+  },
+  "sensors": {
+    "range_max_m": 10,
+    "range_beams": 7,
+    "range_fov_rad": 2.4,
+    "pose_grade": "standard"
+  },
+  "compute": "low",
+  "tools": {
+    "sample_arm": true
+  }
+}

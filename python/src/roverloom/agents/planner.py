@@ -34,18 +34,17 @@ def _center(cell: Cell) -> tuple[float, float]:
     return ((cell[0] + 0.5) * _CELL_M, (cell[1] + 0.5) * _CELL_M)
 
 
-class GridReplannerAgent:
+class Navigator:
+    """Explores toward a goal with an empty map, replanning as obstacles appear."""
+
     _STUCK_WINDOW_S = 12.0
     _BACKUP_S = 4.0
 
-    def __init__(self) -> None:
-        self._brief: MissionBrief | None = None
-
-    def reset(self, brief: MissionBrief, seed: int) -> None:
+    def __init__(self, brief: MissionBrief) -> None:
         self._brief = brief
         self._blocked: set[Cell] = set()
         self._path: list[Cell] = []
-        self._target_index = -1
+        self._goal: Cell | None = None
         self._inflate = math.ceil((brief.body_radius_m + 0.8) / _CELL_M)
         self._min_cell = _cell(*brief.extent_min_xy)
         self._max_cell = _cell(*brief.extent_max_xy)
@@ -102,12 +101,8 @@ class GridReplannerAgent:
             and self._min_cell[1] < cell[1] < self._max_cell[1]
         )
 
-    def act(self, observation: Observation) -> Action:
+    def step(self, observation: Observation, x_m: float, y_m: float) -> Action:
         brief = self._brief
-        assert brief is not None
-        target = next_target(brief, observation)
-        if target is None:
-            return STOP
         pose = observation.estimated_pose
         now = observation.time_s
 
@@ -140,11 +135,11 @@ class GridReplannerAgent:
             self._check_xy = (pose.x_m, pose.y_m)
 
         start = _cell(pose.x_m, pose.y_m)
-        goal = _cell(target.x_m, target.y_m)
+        goal = _cell(x_m, y_m)
         self._blocked.discard(start)
         self._blocked.discard(goal)
-        if observation.targets_reached != self._target_index:
-            self._target_index = observation.targets_reached
+        if goal != self._goal:
+            self._goal = goal
             changed = True
         if start in self._path:
             del self._path[: self._path.index(start)]
@@ -158,5 +153,30 @@ class GridReplannerAgent:
             return STOP
         waypoint = self._path[min(_LOOKAHEAD_CELLS, len(self._path) - 1)]
         if waypoint == goal:
-            return steer_to(brief, observation, target.x_m, target.y_m)
+            return steer_to(brief, observation, x_m, y_m)
         return steer_to(brief, observation, *_center(waypoint))
+
+    def reset_progress(self, now: float, x_m: float, y_m: float) -> None:
+        """Call after a pause, so that standing still is not mistaken for being stuck."""
+        self._check_time = now
+        self._check_xy = (x_m, y_m)
+
+
+class GridReplannerAgent:
+    """Goes to each target in order using a Navigator."""
+
+    VERSION = "1.0.0"
+
+    def __init__(self) -> None:
+        self._brief: MissionBrief | None = None
+
+    def reset(self, brief: MissionBrief, seed: int) -> None:
+        self._brief = brief
+        self._navigator = Navigator(brief)
+
+    def act(self, observation: Observation) -> Action:
+        assert self._brief is not None
+        target = next_target(self._brief, observation)
+        if target is None:
+            return STOP
+        return self._navigator.step(observation, target.x_m, target.y_m)
