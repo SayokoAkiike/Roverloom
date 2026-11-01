@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roverloom Preview</title>
+<style>
+:root { color-scheme: dark; --bg:#17120f; --panel:#231b16; --line:#3d3027; --text:#efe6dc; --muted:#b5a596; --accent:#f0a35e; --good:#7fce8f; --bad:#ff7b6b; --warn:#f2c94c; }
+* { box-sizing: border-box; }
+[hidden] { display:none !important; }
+body { margin:0; background:var(--bg); color:var(--text); font:14px/1.45 system-ui,"Segoe UI",sans-serif; }
+header { padding:10px 16px; border-bottom:1px solid var(--line); display:flex; flex-wrap:wrap; gap:6px 16px; align-items:baseline; }
+h1 { font-size:17px; margin:0; }
+.notice { color:var(--warn); font-size:12.5px; }
+main { display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:12px; padding:12px 16px; }
+@media (max-width:900px) { main { grid-template-columns:minmax(0,1fr); } }
+canvas#map { width:100%; display:block; border:1px solid var(--line); border-radius:6px; background:#000; }
+.panel { background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:10px 12px; margin-bottom:12px; }
+.panel h2 { font-size:12px; margin:0 0 6px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
+.stats { display:grid; grid-template-columns:1fr auto; gap:1px 12px; font-variant-numeric:tabular-nums; }
+.stats dt { color:var(--muted); } .stats dd { margin:0; text-align:right; }
+#events { max-height:250px; overflow:auto; font-size:12.5px; }
+#events div { padding:2px 0 2px 7px; border-left:3px solid var(--line); margin-bottom:2px; font-variant-numeric:tabular-nums; }
+#events .fault { border-color:var(--bad); } #events .good { border-color:var(--good); } #events .future { opacity:.35; }
+.controls { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:8px; }
+button, select { background:#33271f; color:var(--text); border:1px solid #5a4739; border-radius:5px; padding:5px 10px; font:inherit; cursor:pointer; }
+button:hover { border-color:var(--accent); } button:focus-visible, select:focus-visible, input:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
+input[type=range] { flex:1 1 200px; accent-color:var(--accent); }
+kbd { background:#33271f; border:1px solid #5a4739; border-radius:3px; padding:0 4px; font-size:12px; }
+.table-wrap { overflow:auto; margin:12px 16px 0; }
+table { border-collapse:collapse; width:100%; font-variant-numeric:tabular-nums; font-size:13px; }
+th,td { padding:4px 9px; border-bottom:1px solid var(--line); text-align:right; white-space:nowrap; }
+th:nth-child(-n+2),td:nth-child(-n+2) { text-align:left; } th { color:var(--muted); font-weight:600; }
+.outcome-success { color:var(--good); } .outcome-fail { color:var(--bad); }
+footer { padding:0 16px 16px; color:var(--muted); font-size:12.5px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Roverloom Preview</h1>
+  <span class="notice">Lightweight 2D preview, not the Unreal renderer. The model is an unvalidated approximation.</span>
+</header>
+<div class="table-wrap" id="tableWrap" hidden><table id="table"></table></div>
+<main>
+  <section>
+    <canvas id="map" width="1100" height="660" aria-label="Map of terrain, rocks, targets, and the rover"></canvas>
+    <div class="controls" id="replayControls" hidden>
+      <label for="runSelect">Run</label>
+      <select id="runSelect"></select>
+      <button id="play" type="button">Play</button>
+      <input id="time" type="range" min="0" max="1" step="0.1" value="0" aria-label="Replay time">
+      <span id="timeLabel"></span>
+    </div>
+    <div class="controls" id="liveControls" hidden>
+      <button id="modeButton" type="button"></button>
+      <button id="resetButton" type="button">Restart</button>
+      <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or arrows drive, <kbd>Space</kbd> stop, <kbd>M</kbd> switch driver, <kbd>R</kbd> restart</span>
+    </div>
+  </section>
+  <aside>
+    <div class="panel"><h2>Rover (ground truth)</h2><dl class="stats" id="stats"></dl></div>
+    <div class="panel" id="metricsPanel" hidden><h2>Result</h2><dl class="stats" id="metrics"></dl></div>
+    <div class="panel"><h2>Event and fault history</h2><div id="events"></div></div>
+  </aside>
+</main>
+<footer id="footer"></footer>
+<script>
+"use strict";
+const DATA = /*ROVERLOOM_DATA*/null;
+const params = new URLSearchParams(location.search);
+const $ = (id) => document.getElementById(id);
+const canvas = $("map"), ctx = canvas.getContext("2d");
+let world = null, terrainImage = null;
+
+function setWorld(next) {
+  if (world === next) return;
+  world = next;
+  const [x0, y0, x1, y1] = world.extent;
+  canvas.height = Math.round(canvas.width * Math.min(0.75, (y1 - y0) / (x1 - x0)));
+  terrainImage = renderTerrain();
+  const flat = world.terrain_note;
+  $("footer").textContent = `Scenario ${world.scenario_id}, terrain ${world.terrain_id}: ${flat}`;
+}
+
+function renderTerrain() {
+  const grid = world.grid, rows = grid.length, cols = grid[0].length;
+  const image = new ImageData(cols, rows);
+  let low = Infinity, high = -Infinity;
+  for (const row of grid) for (const v of row) { low = Math.min(low, v); high = Math.max(high, v); }
+  const range = Math.max(high - low, 1), cell = world.grid_spacing;
+  for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
+    const dx = (grid[j][Math.min(i + 1, cols - 1)] - grid[j][Math.max(i - 1, 0)]) / (2 * cell);
+    const dy = (grid[Math.min(j + 1, rows - 1)][i] - grid[Math.max(j - 1, 0)][i]) / (2 * cell);
+    const shade = Math.max(0.35, Math.min(1.35, 0.92 + (-dx + dy) * 1.5));
+    const h = (grid[j][i] - low) / range;
+    const r = (150 + 46 * h) * shade, g = (84 + 30 * h) * shade, b = (52 + 18 * h) * shade;
+    const k = ((rows - 1 - j) * cols + i) * 4;
+    image.data[k] = r; image.data[k + 1] = g; image.data[k + 2] = b; image.data[k + 3] = 255;
+  }
+  const offscreen = document.createElement("canvas");
+  offscreen.width = cols; offscreen.height = rows;
+  offscreen.getContext("2d").putImageData(image, 0, 0);
+  return offscreen;
+}
+
+function toScreen(x, y) {
+  const [x0, y0, x1, y1] = world.extent;
+  return [(x - x0) / (x1 - x0) * canvas.width, canvas.height - (y - y0) / (y1 - y0) * canvas.height];
+}
+const scale = () => canvas.width / (world.extent[2] - world.extent[0]);
+
+function drawWorld(reached) {
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(terrainImage, 0, 0, canvas.width, canvas.height);
+  const s = scale();
+  for (const [x, y, r, slip] of world.soil) {
+    const [a, b] = toScreen(x, y);
+    ctx.fillStyle = `rgba(240,205,140,${0.14 + slip * 0.3})`;
+    ctx.beginPath(); ctx.arc(a, b, r * s, 0, 7); ctx.fill();
+  }
+  for (const [x, y, r] of world.rocks) {
+    const [a, b] = toScreen(x, y);
+    ctx.fillStyle = "#35261f"; ctx.beginPath(); ctx.arc(a, b, Math.max(r * s, 1.5), 0, 7); ctx.fill();
+    ctx.fillStyle = "rgba(205,170,140,.4)"; ctx.beginPath(); ctx.arc(a - r * s * .25, b - r * s * .25, Math.max(r * s * .45, .6), 0, 7); ctx.fill();
+  }
+  world.targets.forEach(([x, y, r], index) => {
+    const [a, b] = toScreen(x, y), done = index < reached;
+    ctx.strokeStyle = done ? "#7fce8f" : "#ffe08a"; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(a, b, Math.max(r * s, 7), 0, 7); ctx.stroke();
+    ctx.fillStyle = ctx.strokeStyle; ctx.font = "bold 14px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(String(index + 1), a, b);
+  });
+}
+
+function drawTrail(points, color) {
+  if (points.length < 2) return;
+  ctx.strokeStyle = "rgba(0,0,0,.55)"; ctx.lineWidth = 4.5; ctx.lineJoin = "round";
+  for (const pass of [0, 1]) {
+    ctx.beginPath();
+    points.forEach(([x, y], i) => { const [a, b] = toScreen(x, y); i ? ctx.lineTo(a, b) : ctx.moveTo(a, b); });
+    ctx.stroke();
+    ctx.strokeStyle = color; ctx.lineWidth = 2.2;
+  }
+}
+
+const WHEELS = [["front_left", .8, .75], ["front_right", .8, -.75], ["middle_left", 0, .85], ["middle_right", 0, -.85], ["rear_left", -.8, .75], ["rear_right", -.8, -.75]];
+function drawRover(x, y, yaw, failed) {
+  const [a, b] = toScreen(x, y), size = Math.max(world.rover_radius * scale(), 9);
+  ctx.save(); ctx.translate(a, b); ctx.rotate(-yaw);
+  for (const [name, fx, fy] of WHEELS) {
+    ctx.fillStyle = failed.includes(name) ? "#ff4d3d" : "#111";
+    ctx.fillRect(fx * size - size * .24, -fy * size - size * .15, size * .48, size * .3);
+  }
+  ctx.fillStyle = "#f2f2ee"; ctx.strokeStyle = "#111"; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(size * 1.05, 0); ctx.lineTo(-size * .8, size * .52); ctx.lineTo(-size * .8, -size * .52); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.restore();
+}
+
+function setStats(rows) {
+  $("stats").innerHTML = "";
+  for (const [label, value] of rows) {
+    const dt = document.createElement("dt"), dd = document.createElement("dd");
+    dt.textContent = label; dd.textContent = value;
+    $("stats").append(dt, dd);
+  }
+}
+
+function setMetrics(metrics) {
+  $("metricsPanel").hidden = !metrics;
+  if (!metrics) return;
+  $("metrics").innerHTML = "";
+  for (const key of ["outcome", "score", "targets_reached", "mission_time_s", "distance_m", "energy_used_wh", "collisions", "faults", "faults_recovered", "mean_recovery_time_s"]) {
+    const dt = document.createElement("dt"), dd = document.createElement("dd");
+    dt.textContent = key.replaceAll("_", " ");
+    dd.textContent = metrics[key] === null ? "-" : metrics[key];
+    if (key === "outcome") dd.className = metrics.success ? "outcome-success" : "outcome-fail";
+    $("metrics").append(dt, dd);
+  }
+}
+
+function describeEvent(event) {
+  const data = event.data;
+  if (event.type === "fault_started" || event.type === "fault_ended") {
+    return `${event.type === "fault_started" ? "FAULT" : "recovered"}: ${data.fault}${data.wheel ? " " + data.wheel : ""}`;
+  }
+  if (event.type === "target_reached") return `target ${data.index + 1} reached`;
+  if (event.type === "mission_ended") return `mission ended: ${data.outcome}`;
+  if (event.type === "source_changed") return `driver: ${data.source}`;
+  if (event.type === "agent_error") return `agent error: ${data.error}`;
+  return event.type.replaceAll("_", " ");
+}
+
+function setEvents(events, now) {
+  const box = $("events"); box.innerHTML = "";
+  for (const event of events) {
+    const row = document.createElement("div");
+    const time = event.t ?? event.time_s;
+    row.textContent = `${time.toFixed(1).padStart(6, " ")} s  ${describeEvent(event)}`;
+    if (/fault_started|collision|agent_error|watchdog_stop/.test(event.type)) row.className = "fault";
+    if (/target_reached|mission_ended/.test(event.type)) row.className = "good";
+    if (now !== undefined && time > now) row.classList.add("future");
+    box.append(row);
+  }
+}
+
+function startReport() {
+  const rows = DATA.comparison;
+  if (rows.length) {
+    $("tableWrap").hidden = false;
+    const columns = [["scenario", "scenario"], ["agent", "agent"], ["runs", "runs"], ["success_rate", "success"], ["mean_score", "score"], ["mean_success_time_s", "time s"], ["mean_distance_m", "dist m"], ["mean_success_energy_wh", "energy Wh"], ["mean_collisions", "collisions"], ["fault_recovery_rate", "fault recovery"]];
+    const head = $("table").createTHead().insertRow();
+    for (const [, label] of columns) { const th = document.createElement("th"); th.textContent = label; head.append(th); }
+    const body = $("table").createTBody();
+    for (const row of rows) { const tr = body.insertRow(); for (const [key] of columns) tr.insertCell().textContent = row[key] ?? "-"; }
+  }
+  $("replayControls").hidden = false;
+  DATA.runs.forEach((run, index) => {
+    const option = document.createElement("option");
+    option.value = index;
+    option.textContent = `${run.scenario} / ${run.agent} / seed ${run.seed} / ${run.metrics.outcome}`;
+    $("runSelect").append(option);
+  });
+  let run = null, playing = false, time = 0, last = 0;
+
+  function select(index) {
+    run = DATA.runs[index];
+    setWorld(DATA.worlds[run.scenario]);
+    const samples = run.samples;
+    $("time").max = samples.length ? samples[samples.length - 1][0] : 0;
+    time = 0;
+    setMetrics(run.metrics);
+    render();
+  }
+  function sampleAt(t) {
+    const s = run.samples;
+    let low = 0, high = s.length - 1;
+    while (low < high) { const mid = (low + high + 1) >> 1; if (s[mid][0] <= t) low = mid; else high = mid - 1; }
+    const a = s[low], b = s[Math.min(low + 1, s.length - 1)];
+    const f = b[0] > a[0] ? Math.min(1, (t - a[0]) / (b[0] - a[0])) : 0;
+    let dyaw = b[3] - a[3];
+    while (dyaw > Math.PI) dyaw -= 2 * Math.PI;
+    while (dyaw < -Math.PI) dyaw += 2 * Math.PI;
+    return { index: low, x: a[1] + (b[1] - a[1]) * f, y: a[2] + (b[2] - a[2]) * f, yaw: a[3] + dyaw * f, speed: a[4], battery: a[5], energy: a[6], slip: a[7] };
+  }
+  function render() {
+    if (!run.samples.length) return;
+    const now = sampleAt(time);
+    const shown = run.events.filter((e) => e.t <= time);
+    const reached = shown.filter((e) => e.type === "target_reached").length;
+    const failed = shown.filter((e) => e.type === "fault_started" && e.data.wheel).map((e) => e.data.wheel);
+    drawWorld(reached);
+    const points = run.samples.slice(0, now.index + 1).map((s) => [s[1], s[2]]);
+    points.push([now.x, now.y]);
+    drawTrail(points, "#67d4ff");
+    drawRover(now.x, now.y, now.yaw, failed);
+    setStats([["time", `${time.toFixed(1)} s`], ["position", `${now.x.toFixed(1)}, ${now.y.toFixed(1)} m`], ["speed", `${now.speed.toFixed(2)} m/s`], ["slip", `${(now.slip * 100).toFixed(0)} %`], ["battery", `${(now.battery * 100).toFixed(1)} %`], ["energy used", `${now.energy.toFixed(1)} Wh`], ["targets", `${reached} / ${world.targets.length}`], ["failed wheels", failed.join(", ") || "none"], ["model", run.model]]);
+    setEvents(run.events, time);
+    $("time").value = time;
+    $("timeLabel").textContent = `${time.toFixed(0)} / ${Number($("time").max).toFixed(0)} s`;
+  }
+  function frame(stamp) {
+    if (playing) {
+      time += Math.min(stamp - last, 100) / 1000 * 8;
+      if (time >= Number($("time").max)) { time = Number($("time").max); playing = false; $("play").textContent = "Play"; }
+      render();
+    }
+    last = stamp;
+    requestAnimationFrame(frame);
+  }
+  $("runSelect").addEventListener("change", (e) => { playing = false; $("play").textContent = "Play"; select(Number(e.target.value)); });
+  $("time").addEventListener("input", (e) => { time = Number(e.target.value); render(); });
+  $("play").addEventListener("click", () => {
+    if (time >= Number($("time").max)) time = 0;
+    playing = !playing;
+    $("play").textContent = playing ? "Pause" : "Play";
+  });
+  const preferred = params.get("find");
+  let first = Number(params.get("run") ?? 0);
+  if (preferred) {
+    const found = DATA.runs.findIndex((r) => `${r.scenario}/${r.agent}` === preferred);
+    if (found >= 0) first = found;
+  }
+  $("runSelect").value = first;
+  select(first);
+  // ?at=0.6 opens at a fraction of the run. Useful for links and screenshots.
+  if (params.has("at")) { time = Number(params.get("at")) * Number($("time").max); render(); }
+  requestAnimationFrame(frame);
+}
+
+function startLive() {
+  setWorld(DATA.world);
+  $("liveControls").hidden = false;
+  const keys = new Set();
+  let source = "manual";
+  const post = (path, body) => fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+
+  function sendCommand() {
+    if (source !== "manual") return;
+    const forward = (keys.has("KeyW") || keys.has("ArrowUp") ? 1 : 0) - (keys.has("KeyS") || keys.has("ArrowDown") ? 1 : 0);
+    const turn = (keys.has("KeyA") || keys.has("ArrowLeft") ? 1 : 0) - (keys.has("KeyD") || keys.has("ArrowRight") ? 1 : 0);
+    post("/api/command", { schema_version: 0, linear_velocity_mps: forward * DATA.world.max_speed, yaw_rate_radps: turn * DATA.world.max_yaw }).catch(() => {});
+  }
+  const toggle = () => post("/api/mode", { source: source === "manual" ? "agent" : "manual" });
+  const restart = () => post("/api/reset", {});
+  window.addEventListener("keydown", (e) => {
+    if (/^(Key[WASD]|Arrow|Space)/.test(e.code)) e.preventDefault();
+    if (e.repeat) return;
+    if (e.code === "KeyM") toggle();
+    else if (e.code === "KeyR") restart();
+    else if (e.code === "Space") keys.clear();
+    else keys.add(e.code);
+  });
+  window.addEventListener("keyup", (e) => keys.delete(e.code));
+  window.addEventListener("blur", () => keys.clear());
+  $("modeButton").addEventListener("click", toggle);
+  $("resetButton").addEventListener("click", restart);
+  setInterval(sendCommand, 100);
+
+  async function poll() {
+    try {
+      const s = await (await fetch("/api/state")).json();
+      source = s.source;
+      $("modeButton").textContent = source === "manual" ? `Driver: you (switch to ${DATA.agent})` : `Driver: ${DATA.agent} (switch to you)`;
+      drawWorld(s.targets_reached);
+      drawTrail(s.trail.concat([[s.x, s.y]]), source === "manual" ? "#ffe08a" : "#67d4ff");
+      drawRover(s.x, s.y, s.yaw, s.failed_wheels);
+      setStats([["time", `${s.t.toFixed(1)} s (${DATA.speed}x)`], ["mission", s.outcome], ["position", `${s.x.toFixed(1)}, ${s.y.toFixed(1)} m`], ["speed", `${s.speed.toFixed(2)} m/s`], ["slip", `${(s.slip * 100).toFixed(0)} %`], ["battery", `${(s.battery * 100).toFixed(1)} %`], ["energy used", `${s.energy.toFixed(1)} Wh`], ["targets", `${s.targets_reached} / ${DATA.world.targets.length}`], ["active faults", s.active_faults.join(", ") || "none"], ["failed wheels", s.failed_wheels.join(", ") || "none"], ["commands received", s.commands]]);
+      setEvents(s.events);
+      setMetrics(s.metrics);
+      $("footer").textContent = s.saved_to ? `Run saved: ${s.saved_to}` : `Scenario ${DATA.world.scenario_id}: ${DATA.world.terrain_note}`;
+    } catch (error) { $("footer").textContent = "The preview server is not responding."; }
+    setTimeout(poll, 120);
+  }
+  poll();
+  // ?keys=KeyW:4000,KeyA:1000 presses real key events, for checking the page end to end.
+  if (params.has("keys")) {
+    let delay = 300;
+    for (const item of params.get("keys").split(",")) {
+      const [code, ms] = item.split(":");
+      setTimeout(() => window.dispatchEvent(new KeyboardEvent("keydown", { code })), delay);
+      setTimeout(() => window.dispatchEvent(new KeyboardEvent("keyup", { code })), delay + Number(ms));
+      delay += Number(ms) + 100;
+    }
+  }
+}
+
+if (DATA.mode === "live") startLive(); else startReport();
+</script>
+</body>
+</html>
