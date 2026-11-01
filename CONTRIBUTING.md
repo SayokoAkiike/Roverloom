@@ -50,7 +50,7 @@ they are optional. See [docs/architecture.md](docs/architecture.md).
 - Unreal Engine source or binaries, or engine content copied into this repository
 - Assets without a license that allows redistribution here. Every third-party
   asset must be listed with its source and license; see
-  [docs/licensing-notes.md](docs/licensing-notes.md)
+  [docs/licensing-review.md](docs/licensing-review.md)
 - API keys, tokens, credentials, or `.env` files
 - `Binaries/`, `Intermediate/`, `Saved/`, `DerivedDataCache/`, packaged builds
 

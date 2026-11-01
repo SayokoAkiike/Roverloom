@@ -23,12 +23,13 @@ evaluation.
 | `python/` | Contract tests only; no agent SDK, planner, or evaluator yet |
 | `scripts/` | Repository hygiene check |
 | `unreal/` | Placeholder; no Unreal project yet |
-| `docs/` | Architecture, roadmap, decisions, environment and licensing notes |
+| `docs/` | Architecture, roadmap, decisions, and plans for graphics, Unreal integration, licensing, and the vertical slice |
 
 ## What is planned
 
-See [docs/roadmap.md](docs/roadmap.md). The next milestone is a vertical slice:
-high-quality Martian terrain, a six-wheeled rover, and manual driving.
+See [docs/roadmap.md](docs/roadmap.md). The next milestone is a
+[vertical slice](docs/vertical-slice-plan.md): high-quality Martian terrain, a
+six-wheeled rover, keyboard and Python driving, and replayable logs.
 
 ## Repository layout
 
@@ -67,7 +68,7 @@ contributions.
 
 No license has been selected yet, so no rights are granted to use, copy, or
 modify this code. An open source license is planned before any public release;
-see [docs/licensing-notes.md](docs/licensing-notes.md).
+see [docs/licensing-review.md](docs/licensing-review.md).
 
 Unreal Engine is a trademark of Epic Games, Inc. Roverloom is not affiliated
 with or endorsed by Epic Games.

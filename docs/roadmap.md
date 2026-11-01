@@ -11,20 +11,17 @@ All items below are plans. Only Phase 0 has work in the repository.
 
 ## Phase 1: Vertical slice
 
-Goal: a real Martian site you can drive a six-wheeled rover across.
+Goal: a real Martian site you can drive a six-wheeled rover across. Details and
+completion criteria are in [vertical-slice-plan.md](vertical-slice-plan.md).
 
+- [ ] Python client, log, and replay tools, tested without Unreal
 - [ ] Create the UE 5.8 C++ project in `unreal/`, confirm a clean clone opens
 - [ ] Measure baseline frame rate on the target machines
-- [ ] Terrain: choose Landscape or Mesh Terrain using a timed spike; import a
-      public Mars elevation tile after checking its terms
-- [ ] Martian look: regolith material, atmosphere, lighting, dust
-- [ ] Rover: six wheels with independent drive and a rocker-bogie test; use
-      Martian gravity (3.71 m/s²)
-- [ ] Manual driving: keyboard and gamepad, chase camera
-- [ ] Record a telemetry log that validates against the schema (stretch)
-
-Done when: a fresh clone builds, the rover can climb and cross rough terrain
-without physics instability, and frame rate and settings are documented.
+- [ ] Rover: physics spike, six wheels, rocker-bogie, plausibility tests
+- [ ] Keyboard and Python driving through one input path; camera switching
+- [ ] Telemetry logs and kinematic replay
+- [ ] Terrain from a public Mars elevation tile, Landscape by default
+- [ ] Martian look: regolith, atmosphere, lighting, dust; graphics report
 
 ## Phase 2: Shared mission loop
 

@@ -58,7 +58,7 @@ secrets.*
 /unreal/Linux/
 
 # Assets whose license does not allow redistribution in this repository.
-# See docs/licensing-notes.md before adding anything elsewhere under Content/.
+# See docs/licensing-review.md before adding anything elsewhere under Content/.
 /unreal/Content/Licensed/
 /unreal/Content/Fab/
 /unreal/Content/Megascans/

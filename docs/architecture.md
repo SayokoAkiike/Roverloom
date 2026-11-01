@@ -64,18 +64,19 @@ Observations, and writes Telemetry. Three rules keep backends interchangeable:
   matching handedness conversion and must be covered by tests when implemented.
 - Each document carries `schema_version`. Breaking changes increase it.
 
-## Agent to Unreal transport (undecided)
+## Python to Unreal transport (proposed)
 
-Decide this when the first agent drives an Unreal rover, not before. Requirements:
-deterministic stepping, and the same message schemas as the lightweight backend.
-Unreal MCP is not a candidate for this runtime role: it is an editor tool, runs
-serially on the game thread, has no authentication, and is experimental.
+A loopback TCP bridge carrying JSON Lines that match `schemas/`; see
+[unreal-integration.md](unreal-integration.md) and ADR 0005. Unreal MCP is not a
+candidate for this runtime role: it is an editor tool, runs serially on the game
+thread, has no authentication, and is experimental. Deterministic stepping is a
+later requirement for agents and competitions.
 
 ## Vertical slice boundary
 
-The next phase needs only `unreal/`: terrain, a six-wheeled rover, manual control,
-and if cheap, a telemetry log conforming to the schema. No networking, agents, or
-competition services.
+The next phase is [vertical-slice-plan.md](vertical-slice-plan.md): terrain, one
+six-wheeled rover, keyboard and Python driving through the same input path, camera
+switching, logs, and replay. No agents, remote networking, or competition services.
 
 ## Deliberately excluded
 
