@@ -1,6 +1,6 @@
 # Lightweight models
 
-Model version `kinematic-0.1`. **All of these are unvalidated approximations for games and
+Model version `kinematic-0.2`. **All of these are unvalidated approximations for games and
 early autonomy research.** No parameter has been fitted to, or compared with, real rover data.
 Do not cite these results as physical predictions.
 
@@ -16,7 +16,10 @@ future work.
 | Collision | Rocks and map edges stop the rover; turning stays possible | Climbing over rocks, damage |
 | Power | Idle + `m g (Crr + slope) v / efficiency` + turning | Solar, thermal, battery chemistry; no regeneration |
 | Sensing | Gaussian noise on pose, yaw, speed, and ranges; ideal rays against circles | Dust, occlusion by terrain, drift, cameras |
-| Communications | Fixed latency, independent random loss, blackouts | Bandwidth, jitter, orbital windows |
+| Communications | Fixed latency, independent random loss, blackouts; separate periodic data windows | Bandwidth, jitter, real orbital geometry |
+| Power generation | Fixed RTG or solar output scaled by site and dust | Day and night, panel angle and dust buildup |
+| Events | Fixed effects scaled by severity | See [event list](tutorials/custom-failure-model.md). Rates and sizes are game values |
+| Science | Game points, with 30% for inspecting and 70% for sampling | Any real instrument or science value |
 
 Rover values in `rovers/standard_6w.json` are game values. The 0.5 m/s top speed is
 deliberately much faster than real planetary rovers, to keep missions short.
@@ -41,11 +44,7 @@ because messages are rounded to six decimals.
 
 ## Scoring
 
-`score-0.1`, out of 100, implemented in `roverloom.evaluate`:
-
-- 60 × fraction of targets reached.
-- On success only: up to 20 for remaining time, and up to 20 for remaining energy.
-- Minus 2 per collision event, with a floor of 0.
+`score-0.2`, implemented in `roverloom.evaluate`. See [rules](competition-rules.md#scoring-score-02).
 
 A fault counts as recovered when the rover travels 1 m after it. Permanent faults are measured
 from their start, and temporary ones from their end. This is a simple proxy: traveling is not
@@ -53,7 +52,8 @@ the same as making progress toward the target.
 
 ## Measured baseline results
 
-Measured on 2026-11-02 at model `kinematic-0.1`, on a Ryzen AI 5 340 laptop, ten seeds per
+League results for the current model are in [Benchmark Reproduction](benchmark-reproduction.md).
+These earlier figures were measured on 2026-11-02 at model `kinematic-0.1`, on a Ryzen AI 5 340 laptop, ten seeds per
 row. These describe sample agents on these practice scenarios only.
 
 | Scenario | Agent | Success | Mean score | Mean time on success (s) | Mean collisions | Fault recovery |

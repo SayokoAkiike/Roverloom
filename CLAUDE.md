@@ -49,6 +49,8 @@ Run all of these before committing. After changing the preview, also run
 - Models are approximations. Never describe them as validated, and report only measured numbers.
 - Never add `eval`, `exec`, or LLM-generated code execution to the agent or skill path.
 - Never commit evaluation scenarios.
+- After changing a pinned file, rerun `uv run roverloom league verify`. Lock only deliberately.
+- Label events `mars_inspired` or `stress_test`, and never attribute invented rates to NASA.
 
 ## Unreal Engine
 

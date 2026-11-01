@@ -39,6 +39,7 @@ backend does not exist yet.
 | `python/` | Mission core, agents, evaluator, bridge, 2D preview | Working; see [models](lightweight-models.md) |
 | `unreal/` | Terrain, physics, rendering, manual driving | Not started; see [plan](unreal-production-plan.md) |
 | `scripts/` | Repository checks and preview capture | Working |
+| `benchmarks/`, `competition/` | Pinned leagues, draft Codabench files | Working offline; never run on Codabench |
 
 The 2D preview is a development tool. It reads the same logs and scenario files as other tools, and
 nothing depends on it. It is not an early version of the Unreal renderer.

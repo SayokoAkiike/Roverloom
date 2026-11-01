@@ -11,3 +11,6 @@ accepted records. Supersede them with a new one.
 | [0004](0004-git-lfs.md) | Git LFS for binary assets | Accepted |
 | [0005](0005-runtime-bridge.md) | Loopback TCP bridge for Python control | Implemented on the lightweight backend; Unreal pending |
 | [0006](0006-mission-core-layout.md) | Mission core layout and contract extensions | Accepted |
+| [0007](0007-rover-designs-compile-to-parameters.md) | Rover designs compile to parameters | Accepted |
+| [0008](0008-skills-are-data-not-code.md) | Rover tasks and typed skills; plans are data, never code | Accepted |
+| [0009](0009-pinned-benchmarks-and-leagues.md) | Pinned benchmarks and separate leagues | Accepted |

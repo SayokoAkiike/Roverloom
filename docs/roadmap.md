@@ -18,6 +18,18 @@ Checked items exist and are tested on the lightweight backend. Everything else i
 - [x] Lightweight browser preview, separate from the Unreal renderer
 - [x] Loopback bridge protocol, on the lightweight backend
 
+## Game systems and competition (done on the lightweight backend)
+
+- [x] Rover Builder with budgets, and three standard rovers
+- [x] Science missions, data windows, events labeled by origin
+- [x] Agent SDK, seven typed skills, mock CaP agent, human approval
+- [x] Pinned benchmark, three leagues, private seeds, local leaderboards
+- [x] Local mock of Codabench-style ingestion and scoring
+- [x] Mission Control with setup, tasks, approvals, and replay
+- [ ] Balance: design cost in the Rover Design score
+- [ ] Connect and evaluate a real language model (optional)
+- [ ] Real sandbox and an actual Codabench run
+
 ## Phase 1: Unreal vertical slice
 
 Goal: a real Martian site you can drive a six-wheeled rover across. Details are in
@@ -45,9 +57,8 @@ Goal: a real Martian site you can drive a six-wheeled rover across. Details are 
 
 ## Phase 4: Depth
 
-- [ ] More faults: power and sensor degradation
-- [ ] Environment: dust, terrain properties, day and night
-- [ ] Rover design: configurable chassis and components
+- [ ] Environment: terrain properties, day and night
+- [ ] Rover design in Unreal: configurable chassis and components
 
 ## Phase 5: Open release and competition
 

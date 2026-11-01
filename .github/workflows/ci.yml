@@ -36,3 +36,8 @@ jobs:
           uv run roverloom score ../runs/demo/demo_traverse/replanner/seed-1
           uv run roverloom replay ../runs/demo/demo_traverse/replanner/seed-1 --at 100
       - run: uv run roverloom benchmark
+      - run: uv run roverloom league verify
+      - name: Offline league on public seeds
+        run: uv run roverloom league run --league rover_design --out ../runs/league
+      - name: Local mock submission
+        run: uv run roverloom competition examples/submission --out ../runs/competition

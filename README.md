@@ -2,14 +2,14 @@
 
 An open planetary robotics simulation and autonomy competition platform.
 
-> **Status: pre-alpha.** The Python mission core, sample agents, and a lightweight 2D
-> browser preview work today. The high-fidelity Unreal Engine version and online
+> **Status: pre-alpha.** A Python mission core, rover builder, agent SDK, offline leagues, and a
+> lightweight 2D Mission Control work today. The high-fidelity Unreal Engine version and online
 > competition **do not exist yet**.
 >
-> The rover, soil, power, and sensor models are simple approximations for games and early
+> The rover, soil, power, sensor, and event models are simple approximations for games and early
 > research. They have not been validated against real rovers or terramechanics.
 
-![Replay of an autonomous mission in the lightweight preview](docs/images/replay-demo-traverse.png)
+![Replay of a science campaign in the lightweight preview](docs/images/replay-science-campaign.png)
 
 *The lightweight preview. This is not the planned Unreal Engine renderer, and the terrain is
 generated rather than real.*
@@ -48,29 +48,42 @@ Run these from `python/`.
 | `uv run roverloom replay RUN_DIR --html view.html` | Write a replay viewer for one run |
 | `uv run roverloom score RUN_DIR` | Recompute the score from logs only |
 | `uv run roverloom benchmark` | Measure simulation speed on this machine |
+| `uv run roverloom rover` | Compare rover designs and budgets |
+| `uv run roverloom run --scenario science_campaign --agent mission-planner --rover hauler_8w` | Run a science mission on a chosen rover |
+| `uv run roverloom skills` | Print the skill contract |
+| `uv run roverloom league run` | Run all offline leagues, with CSV, JSON, and leaderboards |
+| `uv run roverloom competition examples/submission` | Run a local mock submission (not a sandbox) |
 
 ## What works today
 
 | Capability | State | Details |
 | --- | --- | --- |
 | Mission simulation | Works | Fixed-step 2.5D model. See [models](docs/lightweight-models.md) |
-| Faults, delay, loss, noise | Works | Wheel failure, comm blackout, sensor dropout; seeded |
+| Rover Builder | Works | Designs, budgets, three standard rovers. See [guide](docs/rover-builder.md) |
+| Science missions | Works | Inspect, sample, send in data windows, return to base |
+| Events, delay, loss, noise | Works | Eight event types, labeled as Mars-inspired or stress tests; seeded |
 | Manual driving and agents | Works | The same command path for both |
-| Sample agents | Works | Stop, waypoint, reactive, grid replanner, skill plan |
+| Agents and skills | Works | Reactive, classical, mission planner, human approval, seven typed skills |
+| CaP-ready interface | Mock only | Validated JSON skill calls. No real model is connected, and no code is executed |
+| Offline leagues | Works | Autonomy, Rover Design, Full Mission; pinned benchmark, private seeds |
+| Codabench-style evaluator | Local mock only | **Never run on Codabench**, and not a sandbox |
 | Logs, replay, scoring | Works | Tamper-evident JSONL; scored from files alone |
 | Reproducibility | Tested | Identical logs for identical inputs on the same platform |
-| Lightweight browser preview | Works | Local only, no frontend framework |
+| Mission Control | Works locally | [Guide](docs/mission-control.md). No frontend framework |
 | Agent-to-simulator bridge | Works on the lightweight backend | Loopback JSON Lines |
-| Skill plans for future code-as-policy agents | Interface only | Plans are data; no LLM is connected |
 | Unreal Engine project | **Not started** | [Production plan](docs/unreal-production-plan.md) |
 | Unreal MCP | **Not verified** | Engine is not installed |
 | Online competition | **Not started** | [Input and output draft](docs/competition-io.md) |
 
 ## Add your own
 
-- [Agents](docs/adding-agents.md)
-- [Scenarios and fault models](docs/adding-scenarios.md)
-- [Rover specifications](docs/adding-rovers.md)
+- [Custom Rover Tutorial](docs/tutorials/custom-rover.md)
+- [Custom Agent Tutorial](docs/tutorials/custom-agent.md)
+- [Custom Mission Tutorial](docs/tutorials/custom-mission.md)
+- [Custom Failure Model Tutorial](docs/tutorials/custom-failure-model.md)
+- [Benchmark Reproduction Guide](docs/benchmark-reproduction.md)
+- [Competition Rules Draft](docs/competition-rules.md)
+- [API Compatibility Policy](docs/api-compatibility.md)
 
 ## Repository layout
 
@@ -78,7 +91,9 @@ Run these from `python/`.
 python/      Mission core, agents, preview, and tests
 schemas/     Backend-neutral contracts for messages, logs, and configuration
 scenarios/   Practice missions, terrain definitions
-rovers/      Rover specifications
+rovers/      Rover parameters and designs
+benchmarks/  Pinned benchmark definitions
+competition/ Draft Codabench bundle files and public reference data
 unreal/      Placeholder for the future Unreal Engine project
 docs/        Design, decisions, plans, and guides
 scripts/     Repository checks and preview capture

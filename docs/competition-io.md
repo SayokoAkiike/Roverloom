@@ -1,7 +1,8 @@
 # Competition input and output draft
 
-**Design only.** No online service, submission server, or Codabench competition exists, and this
-has never been run on Codabench. Check the current
+**A local mock works; nothing else exists.** `roverloom competition` runs ingestion and scoring on your
+own machine. No online service, submission server, or Codabench competition exists, and this has
+never been run on Codabench. Files in `competition/` are untested drafts. Check the current
 [Codabench bundle documentation](https://docs.codabench.org/latest/Organizers/Benchmark_Creation/Competition-Bundle-Structure)
 and [YAML reference](https://docs.codabench.org/dev/Organizers/Benchmark_Creation/Yaml-Structure/)
 when implementing. Reviewed 2026-11-02.
@@ -32,8 +33,9 @@ Submission (agent code)      Hidden scenarios and seeds
 
 ```text
 submission.zip
-  agent.py          Defines class Agent with reset() and act()
-  metadata.json     {"schema_version": 0, "name": "...", "authors": ["..."]}
+  agent.py          Defines the class named in metadata, with reset() and act()
+  metadata.json     See schemas/submission_metadata.schema.json
+  rover.json        Rover design, for Rover Design and Full Mission leagues
 ```
 
 Dependencies would be limited to those in the published container image at first.
@@ -41,8 +43,8 @@ Dependencies would be limited to those in the published container image at first
 ## Scoring program input
 
 ```text
-input/ref/scenarios/*.json    Hidden evaluation scenarios
-input/ref/seeds.json          Hidden seeds
+input/ref/reference.json      Scenario names, seeds, and rover
+input/ref/scenarios/*.json    Hidden evaluation scenarios, when present
 input/res/<scenario>/seed-<n>/   Run directories from ingestion
 ```
 
@@ -56,25 +58,34 @@ revealing hidden data.
 
 ```json
 {
-  "mean_score": 81.5,
-  "success_rate": 0.9,
-  "mean_success_time_s": 702.4,
-  "mean_success_energy_wh": 145.1,
-  "fault_recovery_rate": 1.0
+  "mean_score": 68.358,
+  "success_rate": 1.0,
+  "mean_science_value": 7.35,
+  "mean_time_s": 512.4,
+  "mean_energy_wh": 78.7,
+  "mean_collisions": 0.0,
+  "runs_scored": 4,
+  "runs_expected": 4
 }
 ```
 
-These are the keys produced today by `roverloom.evaluate.aggregate`.
+This is real output from the example submission. Leaderboard keys are in `competition/competition.yaml`.
+
+## What the local mock does
+
+- Validates metadata and zip contents, refusing traversal, links, and oversized archives.
+- Runs each scenario and seed with the agent in a separate process over the bridge, with a minimal
+  environment and a reply time limit. A crash or hang ends that run as `agent_error`.
+- Scores in a separate step, without running submitted code. Missing or modified runs score zero.
 
 ## Security requirements before running anyone else's code
 
-The current in-process agent loading is **not safe for untrusted code**. Required before opening:
+**The mock is not a sandbox.** The agent process can still read files and use the network.
+Required before opening:
 
-- Separate agent from simulator process, using the bridge protocol, so an agent cannot read simulator
-  memory, hidden scenarios, or other participants' files. Simulator-signed logs would also be needed,
-  since hashes in `run.json` detect accidents but do not prove who wrote the log.
-- Container with no network, limited CPU, memory, disk, and time.
-- Time limits per `act()` call, which do not exist today.
+- Container with no network, limited CPU, memory, disk, and time, and no hidden data mounted where
+  the agent runs. Simulator-signed logs would also be needed, since hashes in `run.json` detect
+  accidents but do not prove who wrote the log.
 - Confirm exactly what Codabench isolates, and what its compute workers provide.
 - Decide on a process for rule violations, and for publishing winning code.
 

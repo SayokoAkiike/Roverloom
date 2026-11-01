@@ -12,12 +12,15 @@ been done.**
 | Run logs | Strict parser; SHA-256 per file; ordering and schema checks | Detects accidents and simple edits, not forgery: anyone can recompute hashes |
 | Configuration | Schema validation and semantic checks; NaN and duplicate keys rejected | Validity does not prove a mission is solvable |
 | Agent loading | Explicit user action only | **Runs the file's code with your permissions** |
-| Skill plans | Fixed skill list and strict schema; no code execution | No planner is connected |
+| Skill calls and plans | Fixed skill list and strict schema; model text is parsed, never executed | Only a mock model exists |
+| Mission Control | Only published scenario, rover, and agent choices; bodies always read | Local programs can still control it |
+| Mock submissions | Safe zip extraction, separate process, minimal environment, reply limit | **Not a sandbox**: files and network stay reachable |
+| Leagues | Pinned hashes; private seeds left out of shareable files; CSV formula escaping | Run directories still contain seeds |
 
 ## Unresolved
 
 - [ ] No sandbox for untrusted agents, so do not run agents from people you do not trust.
-- [ ] No time limit per `act()`. A hung in-process agent hangs the run.
+- [ ] No time limit per `act()` for in-process agents. A hung agent hangs the run. Bridge agents have one.
 - [ ] Information boundaries prevent accidents, not deliberate cheating in the same process.
 - [ ] Logs are not signed.
 - [ ] A dependency vulnerability and license audit has not been run.
