@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://roverloom.invalid/schemas/common.schema.json",
+  "title": "Common definitions",
+  "description": "SI units. Site frame is right-handed: +X east, +Y north, +Z up.",
+  "$defs": {
+    "schema_version": { "const": 0 },
+    "vector3": {
+      "type": "array",
+      "items": { "type": "number" },
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "quaternion_xyzw": {
+      "type": "array",
+      "items": { "type": "number" },
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "pose": {
+      "type": "object",
+      "properties": {
+        "position_m": { "$ref": "#/$defs/vector3" },
+        "orientation_xyzw": { "$ref": "#/$defs/quaternion_xyzw" }
+      },
+      "required": ["position_m", "orientation_xyzw"],
+      "additionalProperties": false
+    },
+    "wheel_id": {
+      "enum": [
+        "front_left",
+        "front_right",
+        "middle_left",
+        "middle_right",
+        "rear_left",
+        "rear_right"
+      ]
+    }
+  }
+}

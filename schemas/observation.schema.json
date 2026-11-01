@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://roverloom.invalid/schemas/observation.schema.json",
+  "title": "Observation",
+  "description": "What the rover can sense. Must not expose ground truth or undetected faults.",
+  "type": "object",
+  "properties": {
+    "schema_version": { "$ref": "common.schema.json#/$defs/schema_version" },
+    "time_s": { "type": "number", "minimum": 0 },
+    "estimated_pose": { "$ref": "common.schema.json#/$defs/pose" },
+    "battery_fraction": { "type": "number", "minimum": 0, "maximum": 1 }
+  },
+  "required": ["schema_version", "time_s", "estimated_pose", "battery_fraction"],
+  "additionalProperties": false
+}

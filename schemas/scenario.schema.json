@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://roverloom.invalid/schemas/scenario.schema.json",
+  "title": "Scenario",
+  "description": "A mission plus the environment and faults it runs under.",
+  "type": "object",
+  "properties": {
+    "schema_version": { "$ref": "common.schema.json#/$defs/schema_version" },
+    "scenario_id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+    "seed": { "type": "integer", "minimum": 0 },
+    "mission": { "$ref": "mission.schema.json" },
+    "environment": {
+      "type": "object",
+      "properties": {
+        "gravity_mps2": { "type": "number", "exclusiveMinimum": 0 }
+      },
+      "required": ["gravity_mps2"],
+      "additionalProperties": false
+    },
+    "faults": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": { "const": "wheel_drive_failure" },
+          "wheel": { "$ref": "common.schema.json#/$defs/wheel_id" },
+          "start_time_s": { "type": "number", "minimum": 0 }
+        },
+        "required": ["type", "wheel", "start_time_s"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "scenario_id",
+    "seed",
+    "mission",
+    "environment",
+    "faults"
+  ],
+  "additionalProperties": false
+}

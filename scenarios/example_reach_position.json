@@ -1,0 +1,22 @@
+{
+  "schema_version": 0,
+  "scenario_id": "example_reach_position",
+  "seed": 1,
+  "mission": {
+    "schema_version": 0,
+    "mission_id": "reach_position_100m",
+    "terrain_id": "flat_test",
+    "start_pose": {
+      "position_m": [0, 0, 0],
+      "orientation_xyzw": [0, 0, 0, 1]
+    },
+    "time_limit_s": 600,
+    "objectives": [
+      { "type": "reach_position", "position_m": [100, 0, 0], "radius_m": 2 }
+    ]
+  },
+  "environment": { "gravity_mps2": 3.71 },
+  "faults": [
+    { "type": "wheel_drive_failure", "wheel": "middle_left", "start_time_s": 120 }
+  ]
+}

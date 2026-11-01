@@ -1,0 +1,51 @@
+# Roadmap
+
+All items below are plans. Only Phase 0 has work in the repository.
+
+## Phase 0: Foundation (in progress)
+
+- [x] Private repository, documentation, Git LFS, and CI configuration
+- [x] Draft data contracts and contract tests
+- [ ] Unreal Engine 5.8 and C++ toolchain installed
+- [ ] Unreal MCP verified with a read-only call
+
+## Phase 1: Vertical slice
+
+Goal: a real Martian site you can drive a six-wheeled rover across.
+
+- [ ] Create the UE 5.8 C++ project in `unreal/`, confirm a clean clone opens
+- [ ] Measure baseline frame rate on the target machines
+- [ ] Terrain: choose Landscape or Mesh Terrain using a timed spike; import a
+      public Mars elevation tile after checking its terms
+- [ ] Martian look: regolith material, atmosphere, lighting, dust
+- [ ] Rover: six wheels with independent drive and a rocker-bogie test; use
+      Martian gravity (3.71 m/s²)
+- [ ] Manual driving: keyboard and gamepad, chase camera
+- [ ] Record a telemetry log that validates against the schema (stretch)
+
+Done when: a fresh clone builds, the rover can climb and cross rough terrain
+without physics instability, and frame rate and settings are documented.
+
+## Phase 2: Shared mission loop
+
+- [ ] Lightweight Python simulator running scenarios
+- [ ] Evaluator scoring telemetry logs, same code for both backends
+- [ ] Mission logic in Unreal consuming the same scenario files
+
+## Phase 3: Autonomous agents
+
+- [ ] Python agent SDK and a baseline planner
+- [ ] Decide and implement the Unreal agent transport
+- [ ] Deterministic stepping and reproducibility checks
+
+## Phase 4: Depth
+
+- [ ] Fault injection: wheel failures, power, sensor degradation
+- [ ] Environment: dust, terrain properties, day and night
+- [ ] Rover design: configurable chassis and components
+
+## Phase 5: Open release and competition
+
+- [ ] License audit and license selection
+- [ ] Public release decision, contribution process
+- [ ] Competition design, submission sandboxing, and leaderboard

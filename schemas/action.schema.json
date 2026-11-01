@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://roverloom.invalid/schemas/action.schema.json",
+  "title": "Action",
+  "description": "A body-frame drive command from an agent or human driver.",
+  "type": "object",
+  "properties": {
+    "schema_version": { "$ref": "common.schema.json#/$defs/schema_version" },
+    "linear_velocity_mps": { "type": "number" },
+    "yaw_rate_radps": { "type": "number" }
+  },
+  "required": ["schema_version", "linear_velocity_mps", "yaw_rate_radps"],
+  "additionalProperties": false
+}
