@@ -30,8 +30,10 @@ Check a run: `uv run roverloom score RUN_DIR`, or `uv run roverloom replay RUN_D
 ## Measured results
 
 Benchmark `roverloom-bench` 2.0.0, model `kinematic-0.3`, scoring `score-0.3`, five public seeds, measured
-2026-11-02 on the development laptop. **All of it is an unvalidated game model.** The Full Mission League
-did not finish in that session, as the system stopped it for low memory, so it has no numbers here.
+2026-11-02 on the development laptop. **All of it is an unvalidated game model.** Data, conditions, and memory
+use are in [results/phase3](results/phase3/README.md).
+
+On a machine with limited memory, use `--workers 2` with `study` and `design-study`.
 
 Rover Design League, standard agent `mission-planner`. Ranks are inside each class.
 
@@ -70,6 +72,35 @@ Autonomy League, `pathfinder_6w`:
 
 `cap-mock` uses the same rules as `mission-planner`, and says nothing about a real language model.
 For planner comparisons, see the [scientific benchmark](scientific-benchmark.md).
+
+Full Mission League, on code commit `2be6d9c`:
+
+| Rank | Entry | Score | Achievement | Success | Science sent |
+| --- | --- | --- | --- | --- | --- |
+| 1 | `hauler_8w` + `mission-planner` | 70.9 | 79.4 | 86% | 15.71 |
+| 2 | `pathfinder_6w` + `mission-planner` | 60.5 | 68.1 | 71% | 13.00 |
+| 3 | `scout_4w` + `mission-planner` | 26.3 | 33.8 | 11% | 5.69 |
+| 4 to 6 | `scout_4w`, `pathfinder_6w`, `hauler_8w` + `reactive` | 0.0 | 0.0 | 0% | 0.00 |
+
+`reactive` does no science, so it scores nothing on these missions. Its rows tell nothing about the rovers.
+
+Design study, on the same commit: change in mean achievement from changing one thing, over 5 seeds.
+
+| Rover | Change | Cost after | `science_campaign` | `dust_season` | `frugal_survey` | `steep_traverse` | `stress_blackout` |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `scout_4w` | Add arm, larger chassis and battery | 36.7 | +26.6 | -2.2 | -46.7 | -40.0 | +35.0 |
+| `scout_4w` | Solar to RTG | 47.4 | 0.0 | -1.1 | -80.0 | -65.3 | 0.0 |
+| `pathfinder_6w` | Solar to RTG | 72.1 | 0.0 | +25.8 | 0.0 | 0.0 | -10.0 |
+| `pathfinder_6w` | Remove arm | 50.6 | -59.5 | -25.0 | 0.0 | 0.0 | -30.0 |
+| `pathfinder_6w` | Four wheels | 54.4 | -8.8 | -34.2 | 0.0 | -60.0 | -10.0 |
+| `hauler_8w` | RTG to solar | 70.6 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
+| `hauler_8w` | 25% less battery | 82.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
+| `hauler_8w` | Remove arm | 76.1 | -61.6 | -64.5 | 0.0 | 0.0 | -70.0 |
+| `hauler_8w` | Four wheels | 75.7 | -82.5 | -83.4 | 0.0 | -100.0 | -50.0 |
+
+The builder refused 25% less battery for `scout_4w` and `pathfinder_6w`, because of peak power. Replacing the RTG on
+`hauler_8w` changed no achievement, so the RTG does not explain its `dust_season` result. Its battery does not
+either, within 25%. The full table is in [design_study.json](results/phase3/design_study.json).
 
 ## Private seeds
 

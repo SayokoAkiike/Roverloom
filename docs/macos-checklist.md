@@ -14,7 +14,7 @@ times as much on a private repository. Do these on the Mac, in order, and record
 - [ ] `uv run pytest`, including the E2E tests. Record the count, and any failure.
 - [ ] `uv run ruff check . ../scripts`, `uv run ruff format --check . ../scripts`, `uv run mypy`.
 - [ ] `uv run roverloom league verify`. Pins normalize line endings, so this should match.
-- [ ] Compare a run digest with Windows and Ubuntu. Floating point may differ across CPUs and libraries,
+- [ ] Compare `docs/results/phase3` with a rerun, using `--workers 2`. Then compare a run digest with Windows and Ubuntu. Floating point may differ across CPUs and libraries,
       so identical bytes are not claimed. Record whether they match.
 
 ## Things likely to differ

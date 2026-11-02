@@ -1,0 +1,7 @@
+rank,entry,runs,mean_score,mean_achievement,success_rate,mean_science_value,mean_time_s,mean_energy_wh,mean_collisions,fault_recovery_rate
+1,hauler_8w + mission-planner,35,70.91,79.424,0.857,15.714,887.049,208.749,0.0,0.683
+2,pathfinder_6w + mission-planner,35,60.492,68.071,0.714,13.0,1008.24,184.958,0.0,0.701
+3,scout_4w + mission-planner,35,26.333,33.839,0.114,5.689,1223.274,129.844,0.943,0.776
+4,scout_4w + reactive,35,0.0,0.0,0.0,0.0,1437.3,110.772,0.0,0.0
+5,pathfinder_6w + reactive,35,0.0,0.0,0.0,0.0,1553.157,158.098,0.0,0.0
+6,hauler_8w + reactive,35,0.0,0.0,0.0,0.0,1743.014,208.042,0.0,0.0

@@ -32,5 +32,5 @@ The adaptive planner is a baseline for this benchmark, not a research result.
 The adaptive planner was developed while looking at the benchmark's scenarios, with corrections made
 after seeing results, and the design missions were adjusted until the standard rovers differed. Results
 therefore show that the benchmark can tell these behaviors apart. They are not a held-out evaluation.
-Seeds were held out, but the scenarios were not. A real competition needs scenarios that no entrant
-has seen.
+Neither scenarios nor seeds were held out, as [the record of their use](scientific-benchmark.md#how-scenarios-and-seeds-were-used)
+shows. A real competition needs scenarios that no entrant has seen.

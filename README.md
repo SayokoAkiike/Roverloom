@@ -50,8 +50,8 @@ Run these from `python/`.
 | `uv run roverloom benchmark` | Measure simulation speed on this machine |
 | `uv run roverloom rover` | Compare rover designs and budgets |
 | `uv run roverloom rover scout_4w --explain` | Show a design's budgets, and what each part does |
-| `uv run roverloom design-study` | Change one design choice at a time, and rerun the missions |
-| `uv run roverloom study` | Compare planners over four tracks, with confidence intervals |
+| `uv run roverloom design-study --workers 2` | Change one design choice at a time, and rerun the missions |
+| `uv run roverloom study --workers 2` | Compare planners over four tracks, with intervals; about 35 minutes |
 | `uv run roverloom run --scenario science_campaign --agent mission-planner --rover hauler_8w` | Run a science mission on a chosen rover |
 | `uv run roverloom skills` | Print the skill contract |
 | `uv run roverloom league run` | Run all offline leagues, with CSV, JSON, and leaderboards |
@@ -91,6 +91,7 @@ Run these from `python/`.
 - [API Compatibility Policy](docs/api-compatibility.md)
 - [Scientific Benchmark](docs/scientific-benchmark.md)
 - [Model Assumptions](docs/model-assumptions.md)
+- [Project Status](docs/project-status.md)
 - [Evaluator Safety](docs/evaluator-safety.md)
 - [macOS Checklist](docs/macos-checklist.md)
 

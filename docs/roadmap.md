@@ -38,7 +38,8 @@ Checked items exist and are tested on the lightweight backend. Everything else i
 - [x] Mission Control E2E tests in a real browser
 - [x] Local evaluator limits and hostile submission tests, with its bypass documented
 - [x] Frames, units, protocol v1, conformance checks, and a stand-in backend for Unreal
-- [ ] Scenarios held out from planner development
+- [x] Final measurements recorded in [results/phase3](results/phase3/README.md)
+- [ ] Scenarios and seeds held out from planner development
 - [ ] Review of related work before any research claim
 
 ## Phase 1: Unreal vertical slice

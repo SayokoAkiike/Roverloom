@@ -58,7 +58,7 @@ revealing hidden data.
 
 ```json
 {
-  "mean_score": 68.358,
+  "mean_score": 68.03,
   "success_rate": 1.0,
   "mean_science_value": 7.35,
   "mean_time_s": 512.4,
