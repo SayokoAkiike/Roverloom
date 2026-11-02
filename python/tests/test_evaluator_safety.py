@@ -319,6 +319,10 @@ def test_memory_limit_is_what_stops_the_bomb(tmp_path: Path) -> None:
     assert attempt(tmp_path, "bytearray(8 * 1024 * 1024 * 1024)") == "MemoryError"
 
 
+def test_memory_limit_is_near_the_documented_size(tmp_path: Path) -> None:
+    assert attempt(tmp_path, "bytearray(2 * 1024 * 1024 * 1024)") == "MemoryError"
+
+
 def test_ordinary_memory_use_is_allowed(tmp_path: Path) -> None:
     assert attempt(tmp_path, "bytearray(64 * 1024 * 1024)") == "allowed"
 

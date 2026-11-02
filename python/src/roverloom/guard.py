@@ -46,6 +46,16 @@ def _within(path: Path, roots: list[Path]) -> bool:
     return any(path.is_relative_to(root) for root in roots)
 
 
+def _address_space_limit() -> int:
+    if sys.platform != "darwin":
+        return MAX_MEMORY_BYTES
+    # macOS maps hundreds of GiB per process before any Python runs, and refuses a limit below that.
+    import subprocess
+
+    command = ["/bin/ps", "-o", "vsz=", "-p", str(os.getpid())]
+    return int(subprocess.check_output(command)) * 1024 + MAX_MEMORY_BYTES
+
+
 def apply_resource_limits() -> str:
     """Limit memory, CPU, and file size. Returns which mechanism applied on this platform."""
     if sys.platform == "win32":
@@ -54,7 +64,7 @@ def apply_resource_limits() -> str:
         import resource
 
         for limit, value in (
-            (resource.RLIMIT_AS, MAX_MEMORY_BYTES),
+            (resource.RLIMIT_AS, _address_space_limit()),
             (resource.RLIMIT_CPU, MAX_CPU_S),
             (resource.RLIMIT_FSIZE, MAX_FILE_BYTES),
             (resource.RLIMIT_CORE, 0),

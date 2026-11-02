@@ -33,7 +33,7 @@ that is what happened in the first version of these tests.
 | Traversal, links, or compiled files in a zip | Refused before running | Extraction |
 | Missing or malformed metadata | Refused before running | Schema |
 | Plain rover parameters, or a design over budget | Refused before running | Builder |
-| Memory over 1 GiB | `MemoryError` in the agent | Job object or `RLIMIT_AS` |
+| Memory over 1 GiB (on macOS, 1 GiB more address space than at startup) | `MemoryError` in the agent | Job object or `RLIMIT_AS` |
 | CPU over 600 s, or files over 16 MiB (POSIX only) | Process ends | `rlimit` |
 | Reading reference data, scenarios, terrain, or results | Refused | Guard |
 | Writing outside the submission | Refused | Guard |
@@ -48,7 +48,9 @@ A failed run scores what it had sent before failing. A run that crashed at the s
 
 - **Isolation:** agents can defeat the guard, as shown above. No container, no user separation.
 - **Limits differ by platform:** the CPU and file size limits apply on POSIX only, and the process limit
-  on Windows only. Only the Windows and Linux paths run in CI. macOS has not been run.
+  on Windows only. Only the Windows and Linux paths run in CI, and macOS results are recorded by hand in
+  the [checklist](macos-checklist.md). macOS rejects a 1 GiB `RLIMIT_AS`, because each process already
+  maps hundreds of GiB, so its limit is measured from startup and counts address space, not physical memory.
 - **Log integrity:** hashes detect accidents and simple edits. Anyone can recompute them, so logs do
   not prove what produced them. In the real design, the agent must have no write access to them.
 - **Derived seed:** an agent receives a hash of the run's seed. Hashing a small seed can be reversed by
