@@ -138,7 +138,15 @@ def test_angular_velocity_conversion_matches_quaternion_change() -> None:
 
 
 def test_golden_vectors_are_committed_and_current() -> None:
-    assert load_json_file(VECTORS) == json.loads(json.dumps(golden_vectors()))
+    # Sine and cosine can differ in the last bit between platforms, so exact equality is wrong.
+    committed, current = load_json_file(VECTORS), golden_vectors()
+    assert committed.keys() == current.keys()
+    for section, cases in current.items():
+        assert len(committed[section]) == len(cases)
+        for saved, case in zip(committed[section], cases, strict=True):
+            assert saved.keys() == case.keys()
+            for key, value in case.items():
+                assert saved[key] == pytest.approx(value, abs=1e-12), (section, key)
 
 
 def test_golden_vectors_catch_the_classic_mistakes() -> None:

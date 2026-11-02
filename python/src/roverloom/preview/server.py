@@ -446,8 +446,13 @@ class _Handler(BaseHTTPRequestHandler):
         self._json({"ok": True})
 
 
+class _PreviewServer(ThreadingHTTPServer):
+    # The page polls and sends commands at once. The default queue of 5 refuses bursts on Windows.
+    request_queue_size = 128
+
+
 def make_server(live: LiveMission, port: int) -> ThreadingHTTPServer:
-    server = ThreadingHTTPServer((_HOST, port), _Handler)
+    server = _PreviewServer((_HOST, port), _Handler)
     actual = server.server_address[1]
     data = {
         "mode": "live",
