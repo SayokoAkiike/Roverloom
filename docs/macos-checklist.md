@@ -1,7 +1,7 @@
 # macOS setup and checklist
 
-**Sections 1 to 5 have run on one Mac. Section 6 has not.** Measured results are at the bottom of this file. Steps not listed
-there come from documentation and from checks on Windows. Target: Apple M4 with 16 GB or 32 GB.
+**All sections have run on one Mac.** Measured results are at the bottom of this file. Steps not listed there come from
+documentation and from checks on Windows. Target: Apple M4 with 16 GB or 32 GB.
 Requirements were reviewed 2026-11-02, and may have changed.
 
 ## Compatibility
@@ -19,7 +19,8 @@ Requirements were reviewed 2026-11-02, and may have changed.
 
 ### Newer macOS and Xcode
 
-Epic's page does not list macOS 26 or 27, though the Mac may ship with one of them. Reports conflict, and none is a guarantee:
+Epic's page does not list macOS 26 or 27, though the Mac may ship with one of them. Reports conflict, and none is a guarantee. One
+measured combination is in [Unreal results on this Mac](#unreal-results-on-this-mac):
 
 - [Forum, 5.8 on macOS 27 and Xcode 27](https://forums.unrealengine.com/t/ue5-8-unable-to-build-game-on-macos-27/2746676): Mac game builds failed at
   "Touch UBT generated tiles", and editor builds worked. Epic staff said building with **Xcode 26.6** works, which sits oddly with the 26.4
@@ -125,6 +126,7 @@ Do not install without the owner's approval in the current conversation. See [ma
 
 - An Epic Games account, and the Epic Games Launcher. Accepting the EULA is the owner's act.
 - Xcode, chosen as above. Open it once, and accept its license. Run `xcode-select -p` to check the active one.
+- The Metal Toolchain, a separate download: `xcodebuild -downloadComponent MetalToolchain`. `xcrun --find metal` returns a path even when it is missing. Check with `xcrun -sdk macosx metal -v`, which is what the editor runs.
 - Disk: read the sizes reported by the installers first. Epic's page states no figure, and shaders and caches add more. A 256 GB Mac may need an external SSD.
 - Packaging and signing: Epic's [modern Xcode page](https://dev.epicgames.com/documentation/unreal-engine/using-modern-xcode-in-unreal-engine) describes automatic signing with an Apple Developer account. Whether a free account is enough for local builds is unverified. The paid program needs the owner's approval.
 
@@ -133,7 +135,7 @@ Do not install without the owner's approval in the current conversation. See [ma
 | Item | Result | Date |
 | --- | --- | --- |
 | Model, chip, memory, free disk | `Mac16,10`, Apple M4, 10 CPU and 10 GPU cores, 16 GiB, 663 GiB free of 926 GiB | 2026-11-02 |
-| macOS, Xcode | macOS 27.0.1 (26A434). Xcode not installed; Command Line Tools 27.0 | 2026-11-02 |
+| macOS, Xcode | macOS 27.0.1 (26A434). Xcode 27.2 (27B52), Metal Toolchain 27B47 | 2026-11-03 |
 | Python, uv, tests passed, failed, skipped | uv 0.13.6. Python 3.13.1 and 3.14.10 each: 706 passed, 0 failed, 1 skipped | 2026-11-02 |
 | ruff, mypy, `check_repo`, `league verify` | All pass on both Python versions | 2026-11-02 |
 | `demo` | Exit 0. `score` on its `replanner` run exit 0 | 2026-11-02 |
@@ -149,3 +151,48 @@ Chrome. No person has driven the rover on this Mac, and Safari has not been trie
 - Against the Windows rows in [`study_runs.csv`](results/phase3/study_runs.csv), 1 of 12 is identical. Outcome, cause, achievement, and science value match in all 12.
   Score differs in 10 rows, by at most 0.145. Energy differs in 11, by at most 4.935 Wh. Mission time differs in 4, by at most 17.5 s.
 - The cause of these differences has not been investigated. Do not mix Mac and Windows runs in one comparison.
+
+## Unreal results on this Mac
+
+Measured 2026-11-03 on the machine above, with UE 5.8.4 (CL 58902052) from the Launcher, in a disposable project outside this
+repository. Evidence stays outside Git. **This is one machine, a minimal project, and short runs.** Epic does not list macOS 27 or
+Xcode 27 as supported, and these results do not change that. `Apple_SDK.json` in this engine allows Xcode up to 27.9.
+
+| Check | Result |
+| --- | --- |
+| Installed size | 43 GB for the Mac platform only. The Launcher had shown 15.6 GB |
+| Editor without Xcode | Fails. The editor shows "Xcode Not Found" and exits, unless started with `-nullrhi` |
+| Editor without the Metal Toolchain | Not run. Its check runs `xcrun -sdk macosx metal -v`, which failed here |
+| Editor on Metal | Works. Startup 41 s the first time, then about 15 s |
+| New material through MCP | Compiled and rendered on a cube |
+| C++ editor build | Succeeded in 20 s, with Mac SDK 27.2 and Clang 21.1.6 |
+| Mac packaging | `BuildCookRun` with `-package` succeeded in 87 s, 885 MB. The `.app` ran for 25 s on Metal and loaded the C++ module |
+| Mac packaging without `-package` | Reports success, but the archived `.app` has no content, and exits at startup |
+| Signing | Ad hoc only. Gatekeeper rejected the build that was checked. Distribution is unverified |
+| Stability | One editor crash, SIGSEGV, stack without symbols. **Cause unknown.** It did not recur in later runs |
+
+**Rendering, in the editor, not a packaged game.** Viewport about 1014 x 545, editor in front, 900 frames from `csvprofile`, except 529
+for Lumen. Nine meshes of 999,698 triangles each, about 9 million in all, with one flat-colored test scene and no scalability changes.
+
+| Profile | FPS | Frame ms, mean / p95 | GPU ms | Process memory peak |
+| --- | --- | --- | --- | --- |
+| No Nanite | 25.7 | 38.9 / 46.0 | 38.4 | 5.8 GB |
+| Lumen, software | 19.8 | 50.4 / 64.9 | 49.7 | 7.0 GB |
+| Nanite | 51.7 | 19.3 / 26.0 | 18.7 | 5.6 GB |
+| Virtual Shadow Maps | 44.4 | 22.5 / 29.3 | 22.0 | 6.5 GB |
+| Nanite, Lumen, Virtual Shadow Maps | 43.0 | 23.3 / 30.4 | 22.7 | 8.3 GB |
+
+- These numbers compare profiles on this scene only. They do not predict a Mars level, 1440p, or `Capture` quality.
+- Visual quality was not judged, because the scene has nothing to judge. Virtual Shadow Maps were confirmed by setting, not by a specific visual check.
+- Swap grew from 3.9 GB to 5.4 GB over the session, with other applications open. Free memory never fell below 25%, so the 10% stop rule did not trigger.
+
+**Log messages seen at startup:**
+
+| Message | Finding |
+| --- | --- |
+| `LogAutomationTest: Condition failed`, 19 times | An engine smoke test expecting English text. 0 times with `-culture=en`. Not a Mac problem |
+| `GameFeatureData` rule missing | Project setting. Matters only for game feature plugins, which this project does not use |
+| `idevice_id`, `Bad CPU type`, every 10 s | An x86 iOS tool without Rosetta. Not needed for Mac work |
+
+**Not tested:** a person driving the editor, long sessions, Movie Render Queue, hardware ray tracing, MegaLights, Lumen Lite, Mesh Terrain, Landscape, and a real terrain.
+
