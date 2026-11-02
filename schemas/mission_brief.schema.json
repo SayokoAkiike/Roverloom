@@ -179,6 +179,25 @@
     },
     "battery_capacity_wh": {
       "type": "number"
+    },
+    "declared_uncertainty": {
+      "description": "What the mission claims about sensor errors. May be wrong.",
+      "type": "object",
+      "properties": {
+        "inspection_noise_sd": {
+          "type": "number",
+          "minimum": 0
+        },
+        "pose_noise_m": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "inspection_noise_sd",
+        "pose_noise_m"
+      ],
+      "additionalProperties": false
     }
   },
   "required": [

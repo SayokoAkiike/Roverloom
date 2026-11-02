@@ -1,7 +1,7 @@
 # Rover Builder
 
 Compiles a rover design into simulator parameters. Rules are in
-[rover_builder.py](../python/src/roverloom/rover_builder.py), version `builder-0.1`.
+[rover_builder.py](../python/src/roverloom/rover_builder.py), version `builder-0.2`.
 **These are simplified game rules, not validated wheel, soil, or power models.**
 
 Standard designs (from `uv run roverloom rover`):
@@ -20,14 +20,45 @@ Standard designs (from `uv run roverloom rover`):
 | Control period (s) | 1.0 | 0.5 | 0.5 |
 | Sample arm | No | Yes | Yes |
 
-The legacy `rovers/standard_6w.json` is plain parameters, and still works.
+| Class | Light | Standard | Heavy |
+| Volume used (L) | 77 of 110 | 176 of 210 | 246 of 320 |
 
-See the [Custom Rover Tutorial](tutorials/custom-rover.md) and
-[measured comparison](benchmark-reproduction.md#measured-results).
+The legacy `rovers/standard_6w.json` is plain parameters. It still runs, but cannot enter a design league.
+
+## Constraints
+
+A design is refused with every rule it breaks listed:
+
+| Rule | Limit |
+| --- | --- |
+| Class budgets | light: cost 40, 600 kg; standard: cost 70, 1000 kg; heavy: cost 100, 1600 kg |
+| Volume | Parts must fit in 0.5 L per chassis kg |
+| Peak power | Driving or task load, within 2 W per battery Wh |
+| Compute | Low handles 9 beams, standard 21, high 32; precise pose needs more than low |
+| Sample arm | Chassis of at least 250 kg |
+| RTG | Chassis of at least 400 kg |
+| Structure, ground pressure | As before |
+
+All limits are invented game values. See [model assumptions](model-assumptions.md).
+
+## Cost and achievement stay apart
+
+Cost is never converted to points ([ADR 0010](decisions/0010-design-budgets-instead-of-cost-points.md)).
+Designs rank inside their class. A leaderboard shows achievement, worst-scenario robustness, cost, and whether
+a design is on the Pareto front of those three. Efficiency uses a fixed energy reference, so a bigger battery
+earns nothing by itself. Results by mission are in the
+[reproduction guide](benchmark-reproduction.md#measured-results).
+
+## From a result to its cause
+
+- `uv run roverloom rover NAME --explain` shows budgets, which part sets each limit, and what a 25% change to
+  each part does, including changes the rules refuse.
+- `uv run roverloom design-study` changes one design choice at a time, and reruns the missions. A
+  difference between finished designs cannot say which part caused it, and an intervention can.
 
 ## Known limits
 
-- The score ignores cost, so a more expensive rover tends to win.
+- Class limits were set where the standard rovers fall.
 - Solar output has no day and night cycle.
 - Wheel count affects only aggregated values. No wheel-level dynamics exist.
 - Plausibility checks are coarse, and a design can pass them and still be unrealistic.

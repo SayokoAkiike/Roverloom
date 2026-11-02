@@ -154,6 +154,10 @@
         "success_value": {
           "type": "number",
           "minimum": 0
+        },
+        "survey": {
+          "description": "Readings carry all the value, and no samples are collected.",
+          "type": "boolean"
         }
       },
       "required": [
@@ -162,6 +166,11 @@
         "success_value"
       ],
       "additionalProperties": false
+    },
+    "reference_energy_wh": {
+      "description": "Fixed energy reference for the efficiency part of the score, so that a bigger battery earns nothing by itself.",
+      "type": "number",
+      "exclusiveMinimum": 0
     }
   },
   "required": [

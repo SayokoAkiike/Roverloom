@@ -32,7 +32,7 @@ from roverloom.league import (
 )
 from roverloom.world import load_scenario
 
-BENCH = "roverloom-bench-v1"
+BENCH = "roverloom-bench-v2"
 SMALL = {
     "autonomy": {
         "scenarios": ["science_sprint"],

@@ -150,6 +150,50 @@
     },
     "design_report": {
       "type": "object"
+    },
+    "geometry": {
+      "description": "Wheel layout for backends that model wheels. Body frame: +X forward, +Y left, +Z up, origin on the ground.",
+      "type": "object",
+      "properties": {
+        "frame": {
+          "const": "body_flu"
+        },
+        "wheels": {
+          "type": "array",
+          "minItems": 4,
+          "items": {
+            "type": "object",
+            "properties": {
+              "wheel_id": {
+                "type": "string"
+              },
+              "position_m": {
+                "$ref": "common.schema.json#/$defs/vector3"
+              },
+              "radius_m": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "width_m": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              }
+            },
+            "required": [
+              "wheel_id",
+              "position_m",
+              "radius_m",
+              "width_m"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "frame",
+        "wheels"
+      ],
+      "additionalProperties": false
     }
   },
   "required": [

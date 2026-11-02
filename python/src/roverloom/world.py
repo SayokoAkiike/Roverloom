@@ -7,7 +7,15 @@ from functools import cached_property
 from pathlib import Path
 from typing import Any
 
-from roverloom.api import BaseSite, DataWindows, MissionBrief, Pose, ScienceTarget, Target
+from roverloom.api import (
+    BaseSite,
+    DataWindows,
+    DeclaredUncertainty,
+    MissionBrief,
+    Pose,
+    ScienceTarget,
+    Target,
+)
 from roverloom.contract import (
     ContractError,
     JsonDict,
@@ -233,10 +241,23 @@ class Scenario:
             sensor_max_range_m=self.rover.range_sensor["max_range_m"],
             extent_min_xy=(self.terrain.min_x, self.terrain.min_y),
             extent_max_xy=(self.terrain.max_x, self.terrain.max_y),
-            can_collect=self.rover.document.get("has_sample_tool", True),
+            can_collect=self._can_collect(),
             battery_capacity_wh=self.rover.battery_capacity_wh,
+            declared_uncertainty=self._declared_uncertainty(),
             **self._science_brief(),
         )
+
+    def _can_collect(self) -> bool:
+        science = self.mission.get("science") or {}
+        return bool(self.rover.document.get("has_sample_tool", True)) and not science.get("survey")
+
+    def _declared_uncertainty(self) -> DeclaredUncertainty | None:
+        # Only the declared claim leaves the scenario. The real errors stay hidden.
+        uncertainty = self.document.get("uncertainty")
+        if uncertainty is None:
+            return None
+        declared = uncertainty["declared"]
+        return DeclaredUncertainty(declared["inspection_noise_sd"], declared["pose_noise_m"])
 
     def _science_brief(self) -> JsonDict:
         science = self.mission.get("science")
@@ -336,7 +357,7 @@ def _check_science(scenario_id: str, science: JsonDict, terrain: Terrain, radius
 
 def scenario_search_dirs() -> list[Path]:
     root = repo_root()
-    return [root / "scenarios" / "practice", root / "scenarios"]
+    return [root / "scenarios" / "practice", root / "scenarios" / "benchmark", root / "scenarios"]
 
 
 def resolve_scenario_path(name: str) -> Path:

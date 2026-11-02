@@ -32,6 +32,8 @@ class Metrics:
     watchdog_stops: int = 0
     rover_id: str = ""
     design_cost: float | None = None
+    # Share of the mission's goal achieved, 0 to 100. Contains no efficiency and no cost.
+    achievement: float = 0.0
 
     def to_dict(self) -> JsonDict:
         return asdict(self)
@@ -116,7 +118,12 @@ def evaluate_run(run: LoadedRun) -> Metrics:
     energy = telemetry[-1]["energy_used_wh"] if telemetry else 0.0
     collisions = sum(1 for event in events if event["type"] == "collision")
     success = ended["outcome"] == "success"
-    budget = scenario.mission.get("energy_limit_wh") or scenario.rover.battery_capacity_wh
+    # A fixed reference keeps a bigger battery from earning a better efficiency score.
+    budget = (
+        scenario.mission.get("energy_limit_wh")
+        or scenario.mission.get("reference_energy_wh")
+        or scenario.rover.battery_capacity_wh
+    )
     time_limit = float(scenario.mission["time_limit_s"])
     science_spec = scenario.mission.get("science")
     science_value = float(ended.get("science_value", 0.0))
@@ -142,6 +149,10 @@ def evaluate_run(run: LoadedRun) -> Metrics:
             success, fraction, returned, time_s, time_limit, energy, float(budget), collisions
         )
     report = scenario.rover.document.get("design_report") or {}
+    if science_spec is not None:
+        achievement = 100.0 * fraction
+    else:
+        achievement = 100.0 * ended["targets_reached"] / max(len(scenario.targets), 1)
     return Metrics(
         outcome=ended["outcome"],
         success=success,
@@ -162,6 +173,7 @@ def evaluate_run(run: LoadedRun) -> Metrics:
         watchdog_stops=sum(1 for event in events if event["type"] == "watchdog_stop"),
         rover_id=str(scenario.rover.document["rover_id"]),
         design_cost=report.get("cost"),
+        achievement=round(achievement, 2),
     )
 
 
@@ -180,6 +192,7 @@ def aggregate(metrics: Sequence[Metrics]) -> JsonDict:
         "runs": len(metrics),
         "success_rate": round(len(wins) / len(metrics), 3),
         "mean_score": _mean(m.score for m in metrics),
+        "mean_achievement": _mean(m.achievement for m in metrics),
         "mean_success_time_s": _mean(m.mission_time_s for m in wins),
         "mean_distance_m": _mean(m.distance_m for m in metrics),
         "mean_success_energy_wh": _mean(m.energy_used_wh for m in wins),

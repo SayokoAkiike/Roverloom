@@ -1,0 +1,25 @@
+{
+  "schema_version": 0,
+  "terrain_id": "bench_scarp",
+  "source": {
+    "kind": "procedural",
+    "note": "Rolling ground with slopes near the climbing limit of heavier rovers. Not a real location."
+  },
+  "extent_m": {
+    "min_xy": [
+      -20,
+      -70
+    ],
+    "max_xy": [
+      200,
+      70
+    ]
+  },
+  "grid_spacing_m": 2,
+  "height": {
+    "seed": 62,
+    "amplitude_m": 6,
+    "feature_size_m": 28,
+    "octaves": 2
+  }
+}

@@ -1,6 +1,6 @@
 [project]
 name = "roverloom"
-version = "0.1.0"
+version = "0.2.0"
 description = "Mission core, agents, and lightweight preview for Roverloom."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -10,7 +10,13 @@ dependencies = ["jsonschema>=4.23"]
 roverloom = "roverloom.cli:main"
 
 [dependency-groups]
-dev = ["mypy>=1.13", "pytest>=8", "ruff>=0.8", "types-jsonschema>=4.23"]
+dev = [
+    "mypy>=1.13",
+    "playwright>=1.64.1",
+    "pytest>=8",
+    "ruff>=0.8",
+    "types-jsonschema>=4.23",
+]
 
 [build-system]
 requires = ["uv_build>=0.12,<0.13"]
@@ -18,6 +24,7 @@ build-backend = "uv_build"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = ["e2e: drives Mission Control in a real browser"]
 
 [tool.ruff]
 line-length = 100

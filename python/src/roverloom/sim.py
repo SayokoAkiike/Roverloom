@@ -269,6 +269,9 @@ class Sensors:
         )
         self._rng = random.Random(f"sensors:{seed}")
         self._pose_scale = float(scenario.rover.document.get("pose_noise_scale", 1.0))
+        uncertainty = scenario.document.get("uncertainty", {})
+        self._pose_bias: tuple[float, float] = tuple(uncertainty.get("pose_bias_m", (0.0, 0.0)))
+        self._range_bias = float(uncertainty.get("range_bias_m", 0.0))
 
     def observe(
         self,
@@ -290,8 +293,8 @@ class Sensors:
         }
         # Every random draw happens regardless of faults, so draws stay aligned between runs.
         estimated = Pose(
-            pose.x_m + rng.gauss(0.0, noise["pose_noise_m"]),
-            pose.y_m + rng.gauss(0.0, noise["pose_noise_m"]),
+            pose.x_m + self._pose_bias[0] + rng.gauss(0.0, noise["pose_noise_m"]),
+            pose.y_m + self._pose_bias[1] + rng.gauss(0.0, noise["pose_noise_m"]),
             pose.z_m + rng.gauss(0.0, noise["pose_noise_m"]),
             wrap_angle(pose.yaw_rad + rng.gauss(0.0, noise["yaw_noise_rad"])),
         )
@@ -304,7 +307,7 @@ class Sensors:
             jitter = rng.gauss(0.0, noise["range_noise_m"])
             reading = None
             if range_available and distance is not None:
-                reading = max(0.0, distance + jitter)
+                reading = max(0.0, distance + jitter + self._range_bias)
             scan.append(RangeReading(bearing, reading))
         return Observation(
             time_s=time_s,

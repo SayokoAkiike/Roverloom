@@ -23,7 +23,7 @@ All three are implemented in `roverloom league run`. Only built-in entries and l
 - Rerun finalists, and compare only results from the same backend.
 - Lightweight and future Unreal results are separate competitions.
 
-## Scoring (`score-0.2`)
+## Scoring (`score-0.3`)
 
 Science missions, out of 100:
 
@@ -41,7 +41,8 @@ Rank: mean score, then success rate, then lower energy, then name.
 
 ## Rover budgets
 
-Mass up to 1600 kg, and cost up to 100, plus plausibility checks. See [Custom Rover](tutorials/custom-rover.md).
+Designs must be real designs, not plain parameters, and fit a class. Entries are ranked inside their class,
+and cost never becomes points. See [Rover Builder](rover-builder.md) and [ADR 0010](decisions/0010-design-budgets-instead-of-cost-points.md).
 
 ## Conduct
 
@@ -52,7 +53,6 @@ Mass up to 1600 kg, and cost up to 100, plus plausibility checks. See [Custom Ro
 ## Open before any public event
 
 - [ ] A real sandbox, with no network and resource limits. The local mock is not one.
-- [ ] Design cost in the Rover Design score, since the most expensive rover currently wins.
 - [ ] More evaluation scenarios, kept private.
 - [ ] Prize, eligibility, and intellectual property terms. Legal review.
 - [ ] Unreal Engine and asset licensing, if Unreal is used. See [licensing review](licensing-review.md).

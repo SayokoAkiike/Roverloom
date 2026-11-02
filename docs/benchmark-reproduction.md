@@ -8,7 +8,7 @@ uv run roverloom league run
 ```
 
 `verify` refuses to continue if any scenario, terrain, rover, built-in agent source, or model, scoring,
-or builder version differs from [the benchmark file](../benchmarks/roverloom-bench-v1.json).
+or builder version differs from [the benchmark file](../benchmarks/roverloom-bench-v2.json).
 
 Outputs for each league, in `runs/league/<league>/`:
 
@@ -29,34 +29,47 @@ Check a run: `uv run roverloom score RUN_DIR`, or `uv run roverloom replay RUN_D
 
 ## Measured results
 
-Benchmark `roverloom-bench` 1.0.0, model `kinematic-0.2`, scoring `score-0.2`, five public seeds,
-measured 2026-11-02 on the development laptop. **All of it is an unvalidated game model.**
+Benchmark `roverloom-bench` 2.0.0, model `kinematic-0.3`, scoring `score-0.3`, five public seeds, measured
+2026-11-02 on the development laptop. **All of it is an unvalidated game model.** The Full Mission League
+did not finish in that session, as the system stopped it for low memory, so it has no numbers here.
 
-Rover Design League, standard agent `mission-planner`:
+Rover Design League, standard agent `mission-planner`. Ranks are inside each class.
 
-| Rank | Rover | Score | Success | Science sent | Energy (Wh) | Fault recovery |
-| --- | --- | --- | --- | --- | --- | --- |
-| 1 | `hauler_8w` | 79.3 | 100% | 11.7 | 151.7 | 81% |
-| 2 | `pathfinder_6w` | 69.3 | 100% | 10.4 | 126.9 | 83% |
-| 3 | `scout_4w` | 12.3 | 0% | 1.7 | 82.5 | 91% |
+| Class | Rover | Cost | Achievement | Worst scenario | Score | Success | Pareto |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| light | `scout_4w` | 27.6 | 33.8 | 2.2 | 26.3 | 11% | Yes |
+| standard | `pathfinder_6w` | 58.6 | 68.1 | 0.0 | 60.5 | 71% | Yes |
+| heavy | `hauler_8w` | 84.1 | 79.4 | 0.0 | 70.9 | 86% | Yes |
 
-The scout has no sample arm, so it cannot reach the science thresholds. This table shows that design
-changes results. It does not show a best design: the score ignores design cost, so the most expensive
-rover currently wins. Balancing this is open work.
+Achievement by mission:
+
+| Mission | `scout_4w` | `pathfinder_6w` | `hauler_8w` | What decides it |
+| --- | --- | --- | --- | --- |
+| `frugal_survey` | **80.0** | 0.0 | 0.0 | Hard energy cap, one late data window: low idle power |
+| `dust_season` | 2.2 | 55.0 | **94.5** | Almost no sun, heavy load: battery and RTG |
+| `stress_blackout` | 15.0 | 60.0 | **100.0** | Speed and spare wheels |
+| `steep_traverse` | 65.3 | **100.0** | **100.0** | Control rate and speed |
+| `canyon_survey` | 48.0 | **100.0** | **100.0** | Speed |
+| `science_campaign` | 8.4 | **89.5** | **89.5** | Sample arm |
+| `science_sprint` | 18.0 | **72.0** | **72.0** | Sample arm |
+
+The most expensive rover has the best average, but it no longer wins everything, and the cheapest rover is
+the only one to score on `frugal_survey`. These missions were written to create these trade-offs, so this shows
+the benchmark can express them. It does not show that any design is best.
 
 Autonomy League, `pathfinder_6w`:
 
-| Rank | Agent | Score | Success | Science sent |
+| Rank | Agent | Score | Achievement | Success |
 | --- | --- | --- | --- | --- |
-| 1 | `cap-mock` | 75.5 | 100% | 6.22 |
-| 1 | `mission-planner` | 75.5 | 100% | 6.22 |
-| 3 | `replanner` | 33.9 | 40% | 0.0 |
-| 4 | `reactive` | 19.5 | 24% | 0.0 |
-| 5 | `waypoint` | 1.9 | 0% | 0.0 |
-| 6 | `stop` | 0.0 | 0% | 0.0 |
+| 1 | `cap-mock` | 75.2 | 84.3 | 100% |
+| 2 | `mission-planner` | 75.2 | 84.3 | 100% |
+| 3 | `replanner` | 33.9 | 40.0 | 40% |
+| 4 | `reactive` | 19.5 | 24.0 | 24% |
+| 5 | `waypoint` | 1.9 | 6.7 | 0% |
+| 6 | `stop` | 0.0 | 0.0 | 0% |
 
-`cap-mock` matches `mission-planner` because it uses the same rules (tied entries rank by name).
-`replanner`, `reactive`, and `waypoint` score only on waypoint missions, since they do no science.
+`cap-mock` uses the same rules as `mission-planner`, and says nothing about a real language model.
+For planner comparisons, see the [scientific benchmark](scientific-benchmark.md).
 
 ## Private seeds
 

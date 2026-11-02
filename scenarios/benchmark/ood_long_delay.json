@@ -1,0 +1,111 @@
+{
+  "schema_version": 0,
+  "scenario_id": "ood_long_delay",
+  "version": "1.0.0",
+  "tier": "practice",
+  "seed": 31,
+  "rover_id": "pathfinder_6w",
+  "provenance": {
+    "author": "Roverloom project",
+    "license": "NOASSERTION",
+    "derived_from": null,
+    "derived_from_commit": null,
+    "source_url": null,
+    "notes": "Original test scenario with game values. Rates and severities are invented, not from any mission."
+  },
+  "mission": {
+    "schema_version": 0,
+    "mission_id": "ood_long_delay",
+    "terrain_id": "practice_highlands",
+    "start_pose": {
+      "position_m": [
+        0,
+        0,
+        0
+      ],
+      "orientation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    "time_limit_s": 2200,
+    "reference_energy_wh": 400,
+    "objectives": [],
+    "science": {
+      "targets": [
+        {
+          "id": "ridge",
+          "position_m": [
+            50,
+            18,
+            0
+          ],
+          "radius_m": 4,
+          "prior_value": 4,
+          "true_value": 7,
+          "inspect_s": 20,
+          "collect_s": 60
+        },
+        {
+          "id": "basin",
+          "position_m": [
+            105,
+            -15,
+            0
+          ],
+          "radius_m": 4,
+          "prior_value": 9,
+          "true_value": 3,
+          "inspect_s": 20,
+          "collect_s": 60
+        },
+        {
+          "id": "outcrop",
+          "position_m": [
+            155,
+            10,
+            0
+          ],
+          "radius_m": 4,
+          "prior_value": 6,
+          "true_value": 10,
+          "inspect_s": 20,
+          "collect_s": 60
+        }
+      ],
+      "data_windows": {
+        "period_s": 300,
+        "open_s": 100,
+        "offset_s": 40
+      },
+      "transmit_s_per_item": 6,
+      "success_value": 6.0,
+      "base": {
+        "position_m": [
+          0,
+          0,
+          0
+        ],
+        "radius_m": 6,
+        "required": true
+      }
+    }
+  },
+  "environment": {
+    "gravity_mps2": 3.71,
+    "solar_factor": 0.5
+  },
+  "faults": [],
+  "comms": {
+    "latency_s": 2.5,
+    "loss_probability": 0.2
+  },
+  "sensors": {
+    "pose_noise_m": 0.1,
+    "yaw_noise_rad": 0.01,
+    "speed_noise_mps": 0.01,
+    "range_noise_m": 0.05
+  }
+}

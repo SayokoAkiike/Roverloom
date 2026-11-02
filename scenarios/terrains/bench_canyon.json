@@ -1,0 +1,204 @@
+{
+  "schema_version": 0,
+  "terrain_id": "bench_canyon",
+  "source": {
+    "kind": "procedural",
+    "note": "Hand-placed wall with one narrow gap. A wide rover cannot plan through it and must fail or detour. Not a real location."
+  },
+  "extent_m": {
+    "min_xy": [
+      -20,
+      -70
+    ],
+    "max_xy": [
+      180,
+      70
+    ]
+  },
+  "grid_spacing_m": 2,
+  "height": {
+    "seed": 61,
+    "amplitude_m": 0.5,
+    "feature_size_m": 40,
+    "octaves": 1
+  },
+  "rocks": {
+    "explicit": [
+      {
+        "center_xy": [
+          40,
+          -65
+        ],
+        "radius_m": 3
+      },
+      {
+        "center_xy": [
+          40,
+          -60
+        ],
+        "radius_m": 3
+      },
+      {
+        "center_xy": [
+          40,
+          -55
+        ],
+        "radius_m": 3
+      },
+      {
+        "center_xy": [
+          40,
+          -50
+        ],
+        "radius_m": 3
+      },
+      {
+        "center_xy": [
+          40,
+          -45
+        ],
+        "radius_m": 3
+      },
+      {
+        "center_xy": [
+          40,
+          -40
+        ],
+        "radius_m": 3
+      },
+      {
+        "center_xy": [
+          40,
+          -35
+        ],
+        "radius_m": 3
+      },
+      {
+        "center_xy": [
+          40,
+          -30
+        ],
+        "radius_m": 3
+      },
+      {
+        "center_xy": [
+          40,
+          -25
+        ],
+        "radius_m": 3
+      },
+      {
+        "center_xy": [
+          40,
+          -20
+        ],
+        "radius_m": 3
+      },
+      {
+        "center_xy": [
+          40,
+          -15
+        ],
+        "radius_m": 3
+      },
+      {
+        "center_xy": [
+          40,
+          -10
+        ],
+        "radius_m": 3
+      },
+      {
+        "center_xy": [
+          40,
+          9
+        ],
+        "radius_m": 3
+      },
+      {
+        "center_xy": [
+          40,
+          14
+        ],
+        "radius_m": 3
+      },
+      {
+        "center_xy": [
+          40,
+          19
+        ],
+        "radius_m": 3
+      },
+      {
+        "center_xy": [
+          40,
+          24
+        ],
+        "radius_m": 3
+      },
+      {
+        "center_xy": [
+          40,
+          29
+        ],
+        "radius_m": 3
+      },
+      {
+        "center_xy": [
+          40,
+          34
+        ],
+        "radius_m": 3
+      },
+      {
+        "center_xy": [
+          40,
+          39
+        ],
+        "radius_m": 3
+      },
+      {
+        "center_xy": [
+          40,
+          44
+        ],
+        "radius_m": 3
+      },
+      {
+        "center_xy": [
+          40,
+          49
+        ],
+        "radius_m": 3
+      },
+      {
+        "center_xy": [
+          40,
+          54
+        ],
+        "radius_m": 3
+      },
+      {
+        "center_xy": [
+          40,
+          59
+        ],
+        "radius_m": 3
+      },
+      {
+        "center_xy": [
+          40,
+          64
+        ],
+        "radius_m": 3
+      },
+      {
+        "center_xy": [
+          40,
+          69
+        ],
+        "radius_m": 3
+      }
+    ]
+  }
+}

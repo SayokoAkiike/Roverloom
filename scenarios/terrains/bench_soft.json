@@ -1,0 +1,43 @@
+{
+  "schema_version": 0,
+  "terrain_id": "bench_soft",
+  "source": {
+    "kind": "procedural",
+    "note": "Large soft soil fields on steep ground. Not a real location."
+  },
+  "extent_m": {
+    "min_xy": [
+      -20,
+      -60
+    ],
+    "max_xy": [
+      180,
+      60
+    ]
+  },
+  "grid_spacing_m": 2,
+  "height": {
+    "seed": 64,
+    "amplitude_m": 5,
+    "feature_size_m": 32,
+    "octaves": 2
+  },
+  "soft_soil": [
+    {
+      "center_xy": [
+        50,
+        10
+      ],
+      "radius_m": 28,
+      "slip_fraction": 0.55
+    },
+    {
+      "center_xy": [
+        120,
+        0
+      ],
+      "radius_m": 32,
+      "slip_fraction": 0.6
+    }
+  ]
+}

@@ -234,6 +234,49 @@
     },
     "provenance": {
       "$ref": "provenance.schema.json"
+    },
+    "uncertainty": {
+      "description": "Real sensor errors, and what the agent is told about them. They may disagree on purpose. Only 'declared' reaches agents.",
+      "type": "object",
+      "properties": {
+        "inspection_noise_sd": {
+          "type": "number",
+          "minimum": 0
+        },
+        "pose_bias_m": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "range_bias_m": {
+          "type": "number"
+        },
+        "declared": {
+          "type": "object",
+          "properties": {
+            "inspection_noise_sd": {
+              "type": "number",
+              "minimum": 0
+            },
+            "pose_noise_m": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "inspection_noise_sd",
+            "pose_noise_m"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "declared"
+      ],
+      "additionalProperties": false
     }
   },
   "required": [

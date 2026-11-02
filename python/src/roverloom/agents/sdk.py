@@ -8,7 +8,7 @@ is ever executed as code. See docs/agent-sdk.md.
 import json
 import math
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum
 from typing import Protocol
 
@@ -221,6 +221,14 @@ class SkillExecutor:
     def busy(self) -> bool:
         return self._call is not None
 
+    @property
+    def current_skill(self) -> str | None:
+        return self._call.skill if self._call is not None else None
+
+    def cancel(self, observation: Observation, reason: str) -> Action:
+        """Stop the running skill early, reporting the reason as its failure."""
+        return self._finish(observation, SkillStatus.FAILED, reason, {})
+
     def start(self, call: SkillCall, observation: Observation) -> None:
         self._call = call
         self._started = observation.time_s
@@ -402,7 +410,7 @@ class SkillAgent:
 
     def __init__(self, planner: SkillPlanner | None = None) -> None:
         self._planner = planner
-        self._decisions: list[str] = []
+        self._decisions: list[str | tuple[str, str]] = []
 
     def make_planner(self, brief: MissionBrief, seed: int) -> SkillPlanner:
         assert self._planner is not None, "SkillAgent needs a planner"
@@ -416,7 +424,7 @@ class SkillAgent:
         self._decisions = []
         self._done = False
 
-    def drain_decisions(self) -> list[str]:
+    def drain_decisions(self) -> list[str | tuple[str, str]]:
         decisions, self._decisions = self._decisions, []
         return decisions
 
@@ -425,8 +433,10 @@ class SkillAgent:
 
     def act(self, observation: Observation) -> Action:
         executor = self._executor
+        check = getattr(self._active_planner, "abort_reason", None)
+        reason = check(observation, executor.current_skill) if check and executor.busy else None
         if executor.busy:
-            action = executor.step(observation)
+            action = executor.cancel(observation, reason) if reason else executor.step(observation)
             if executor.busy:
                 return action
             outcome = executor.outcome
@@ -439,6 +449,9 @@ class SkillAgent:
         call = self._active_planner.next_call(
             PlanContext(self._brief, observation, tuple(self._history))
         )
+        drain_notes = getattr(self._active_planner, "drain_notes", None)
+        if drain_notes:
+            self._decisions.extend(drain_notes())
         if call is None:
             self._done = True
             self._note("planner finished")
@@ -602,6 +615,314 @@ class MissionPlannerAgent(SkillAgent):
 
     def make_planner(self, brief: MissionBrief, seed: int) -> SkillPlanner:
         return MissionPlanner(brief)
+
+
+_SEARCH_PATTERN = ((0.0, 0.0), (1.0, 1.0), (1.0, -1.0), (-1.0, 1.0), (-1.0, -1.0))
+
+
+class AdaptivePlanner(MissionPlanner):
+    """MissionPlanner that doubts its inputs: it measures again, replans, and withdraws.
+
+    Uses only the brief and observations. It estimates its real speed and power drain from what it
+    measures, and treats the brief's declared sensor errors as a claim to be checked.
+    The three behaviors can be switched off, to measure what each one contributes.
+    """
+
+    _MAX_READINGS = 3
+    _MAX_APPROACHES = 5
+    _MAX_RETRIES = 2
+    _NO_PROGRESS_S = 90.0
+    _BATTERY_RESERVE = 0.08
+    _DRAIN_WINDOW_S = 60.0
+
+    def __init__(
+        self,
+        brief: MissionBrief,
+        reobserve: bool = True,
+        replan: bool = True,
+        withdraw: bool = True,
+    ) -> None:
+        super().__init__(brief)
+        self._reobserve, self._replan, self._withdraw = reobserve, replan, withdraw
+        self._notes: list[tuple[str, str]] = []
+        self._measured_speed: float | None = None
+        self._leg_start: tuple[float, float] | None = None
+        self._readings: dict[str, list[float]] = {}
+        self._approaches = 0
+        self._retries = 0
+        self._offset = (0.0, 0.0)
+        self._search_offset = (0.0, 0.0)
+        self._assumed_sd = (
+            brief.declared_uncertainty.inspection_noise_sd if brief.declared_uncertainty else 0.0
+        )
+        self._mismatch_noted = False
+        self._drain_per_s = 0.0
+        self._drain_mark: tuple[float, float] | None = None
+        self._progress_mark: tuple[float, float, float] | None = None
+
+    def drain_notes(self) -> list[tuple[str, str]]:
+        notes, self._notes = self._notes, []
+        return notes
+
+    def _speed(self) -> float:
+        return self._measured_speed or super()._speed()
+
+    def _track(self, observation: Observation) -> None:
+        now, battery = observation.time_s, observation.battery_fraction
+        if self._drain_mark is None:
+            self._drain_mark = (now, battery)
+        elif now - self._drain_mark[0] >= self._DRAIN_WINDOW_S:
+            elapsed = now - self._drain_mark[0]
+            self._drain_per_s = (self._drain_mark[1] - battery) / elapsed
+            self._drain_mark = (now, battery)
+
+    def _must_withdraw(self, observation: Observation) -> str | None:
+        """A reason to stop exploring now, judged from measured speed and drain."""
+        if not self._withdraw or self._stage.startswith("wrap") or self._stage == "ended":
+            return None
+        pose = observation.estimated_pose
+        home = self._time_to_base(pose.x_m, pose.y_m) * 1.2
+        if observation.time_s + home + self._RESERVE_S >= self._brief.time_limit_s:
+            return f"time: {home:.0f} s home, {observation.time_s:.0f} s used"
+        left = observation.battery_fraction - self._drain_per_s * home
+        if left < self._BATTERY_RESERVE:
+            return f"battery: {observation.battery_fraction:.2f} now, {left:.2f} after going home"
+        return None
+
+    def abort_reason(self, observation: Observation, skill: str | None) -> str | None:
+        """Checked at every step of a running skill, so a plan can change while under way."""
+        self._track(observation)
+        if skill != "navigate_to":
+            self._progress_mark = None
+            return None
+        withdraw = self._must_withdraw(observation)
+        if withdraw:
+            self._notes.append(("withdraw", f"turning back: {withdraw}"))
+            self._stage = "wrap_transmit"
+            return "withdraw"
+        if not self._replan:
+            return None
+        pose, now = observation.estimated_pose, observation.time_s
+        mark = self._progress_mark
+        if mark is None or math.hypot(pose.x_m - mark[0], pose.y_m - mark[1]) >= 1.5:
+            self._progress_mark = (pose.x_m, pose.y_m, now)
+        elif now - mark[2] >= self._NO_PROGRESS_S:
+            self._progress_mark = None
+            self._notes.append(("replan", f"no progress for {self._NO_PROGRESS_S:.0f} s"))
+            return "no_progress"
+        return None
+
+    def _learn_speed(self, context: PlanContext) -> None:
+        last = context.history[-1] if context.history else None
+        pose = context.observation.estimated_pose
+        if (
+            last is not None
+            and last.skill == "navigate_to"
+            and last.status is SkillStatus.SUCCEEDED
+            and self._leg_start is not None
+            and last.elapsed_s >= 10.0
+        ):
+            measured = _distance(pose.x_m, pose.y_m, *self._leg_start) / last.elapsed_s
+            low, high = 0.1 * self._brief.max_speed_mps, self._brief.max_speed_mps
+            speed = max(low, min(high, measured))
+            # One slow leg should not condemn the rest of the mission, so blend with what is known.
+            self._measured_speed = 0.5 * (self._speed() + speed)
+        self._leg_start = (pose.x_m, pose.y_m)
+
+    def _judge_reading(self, target_id: str, value: float, prior: float) -> bool:
+        """Whether to measure this site again."""
+        readings = self._readings.setdefault(target_id, [])
+        readings.append(value)
+        count = len(readings)
+        mean = sum(readings) / count
+        if count >= 2:
+            spread = math.sqrt(sum((r - mean) ** 2 for r in readings) / (count - 1))
+            declared = self._assumed_sd
+            if spread > 3.0 * declared and spread > self._assumed_sd:
+                self._assumed_sd = spread
+                if not self._mismatch_noted:
+                    self._mismatch_noted = True
+                    self._notes.append(
+                        (
+                            "uncertainty_mismatch",
+                            f"readings at {target_id} spread {spread:.2f}, "
+                            f"far more than the declared {declared:.2f}",
+                        )
+                    )
+        if count >= self._MAX_READINGS:
+            return False
+        threshold = prior * self._SAMPLE_VALUE_RATIO
+        sd = self._assumed_sd
+        near_threshold = abs(mean - threshold) < 2.0 * sd / math.sqrt(count)
+        surprising = count == 1 and sd > 0 and abs(value - prior) > 3.0 * sd
+        return near_threshold or surprising
+
+    def _approach(self, target: ScienceTarget, reason: str) -> SkillCall | None:
+        """Look for a spot that the rover itself accepts as in range of a site.
+
+        Being refused while the estimate says "here" means the estimate is off. First get closer,
+        then try the four diagonals, which covers an unknown offset of up to the site's radius.
+        """
+        if self._approaches >= self._MAX_APPROACHES:
+            return None
+        attempt = self._approaches
+        self._approaches += 1
+        reach = target.radius_m * 0.75
+        dx, dy = _SEARCH_PATTERN[attempt]
+        self._search_offset = (dx * reach, dy * reach)
+        self._stage = "travel"
+        self._notes.append(("replan", f"{target.id}: {reason}; approach attempt {attempt + 1}"))
+        return SkillCall(
+            "navigate_to",
+            {
+                "x_m": target.x_m + self._offset[0] + self._search_offset[0],
+                "y_m": target.y_m + self._offset[1] + self._search_offset[1],
+                "radius_m": target.radius_m * 0.2,
+            },
+            "search around the site",
+        )
+
+    def _corrected(self, call: SkillCall | None) -> SkillCall | None:
+        """Apply what the rover has learned about its position error to where it drives."""
+        if call is None or self._offset == (0.0, 0.0):
+            return call
+        if call.skill == "navigate_to":
+            args = {
+                **call.args,
+                "x_m": call.args["x_m"] + self._offset[0],
+                "y_m": call.args["y_m"] + self._offset[1],
+            }
+            return replace(call, args=args)
+        base = self._brief.base
+        if call.skill == "return_to_base" and base is not None:
+            return SkillCall(
+                "navigate_to",
+                {
+                    "x_m": base.x_m + self._offset[0],
+                    "y_m": base.y_m + self._offset[1],
+                    "radius_m": base.radius_m * 0.4,
+                },
+                "go home, correcting for position error",
+            )
+        return call
+
+    def next_call(self, context: PlanContext) -> SkillCall | None:
+        self._track(context.observation)
+        self._learn_speed(context)
+        last = context.history[-1] if context.history else None
+        current = self._current
+        reason = self._must_withdraw(context.observation)
+        if reason:
+            self._notes.append(("withdraw", f"ending exploration: {reason}"))
+            self._stage = "wrap_transmit"
+        if (
+            self._replan
+            and self._stage == "travel"
+            and current is not None
+            and last is not None
+            and last.reason == "no_progress"
+            and self._retries < self._MAX_RETRIES
+        ):
+            # The cause may pass, such as a storm or a temporary fault. Try again before giving up.
+            self._retries += 1
+            return self._corrected(
+                SkillCall(
+                    "navigate_to",
+                    {"x_m": current.x_m, "y_m": current.y_m, "radius_m": current.radius_m * 0.7},
+                    "try again after no progress",
+                )
+            )
+        if (
+            self._replan
+            and self._stage == "wrap_final"
+            and last is not None
+            and last.status is SkillStatus.FAILED
+            and last.reason == "timeout"
+            and last.skill in ("return_to_base", "navigate_to")
+            and context.observation.time_s < self._brief.time_limit_s
+        ):
+            self._notes.append(("replan", "still not home; keep driving"))
+            return self._corrected(SkillCall("return_to_base", {}, "keep going home"))
+        if self._stage == "inspect" and last is not None and current is not None:
+            if self._replan and last.status is SkillStatus.FAILED and last.reason == "out_of_range":
+                call = self._approach(current, "refused as out of range")
+                if call is not None:
+                    return call
+            if last.status is SkillStatus.SUCCEEDED and self._search_offset != (0.0, 0.0):
+                # This spot worked, so the position error is about this size from now on.
+                self._offset = (
+                    self._offset[0] + self._search_offset[0],
+                    self._offset[1] + self._search_offset[1],
+                )
+                self._search_offset = (0.0, 0.0)
+                self._notes.append(
+                    (
+                        "replan",
+                        f"position error estimate now {self._offset[0]:.1f}, "
+                        f"{self._offset[1]:.1f} m",
+                    )
+                )
+            readings = self._readings.get(current.id)
+            if last.reason == "already_done" and readings:
+                # This rover cannot measure twice here. What it has is the best it can get.
+                self._notes.append(("reobserve", f"{current.id} cannot be measured again"))
+                last = replace(
+                    last,
+                    status=SkillStatus.SUCCEEDED,
+                    reason=None,
+                    outputs={"target_id": current.id, "value": readings[-1]},
+                )
+                context = replace(context, history=(*context.history[:-1], last))
+                readings.clear()
+                readings.extend([last.outputs["value"]] * self._MAX_READINGS)
+            value = last.outputs.get("value")
+            if last.status is SkillStatus.SUCCEEDED and value is not None and self._reobserve:
+                if self._judge_reading(current.id, value, current.prior_value):
+                    self._notes.append(("reobserve", f"{current.id} read {value}; measuring again"))
+                    return SkillCall(
+                        "inspect_target", {"target_id": current.id}, "reading is not conclusive"
+                    )
+                readings = self._readings[current.id]
+                mean = round(sum(readings) / len(readings), 3)
+                patched = replace(last, outputs={**last.outputs, "value": mean})
+                context = replace(context, history=(*context.history[:-1], patched))
+        if self._stage == "choose" or self._stage.startswith("wrap"):
+            self._approaches = 0
+            self._retries = 0
+            self._search_offset = (0.0, 0.0)
+        call = super().next_call(context)
+        if call is not None and call.skill == "navigate_to" and self._stage == "travel":
+            self._approaches = 0
+            self._retries = 0
+            self._search_offset = (0.0, 0.0)
+        return self._corrected(call)
+
+
+class AdaptivePlannerAgent(SkillAgent):
+    """Re-observes, replans, and withdraws. See AdaptivePlanner."""
+
+    OPTIONS: JsonDict = {}
+
+    def make_planner(self, brief: MissionBrief, seed: int) -> SkillPlanner:
+        return AdaptivePlanner(brief, **self.OPTIONS)
+
+
+class NoReobserveAgent(AdaptivePlannerAgent):
+    """Ablation: the adaptive planner without measuring again."""
+
+    OPTIONS = {"reobserve": False}
+
+
+class NoReplanAgent(AdaptivePlannerAgent):
+    """Ablation: the adaptive planner without replanning."""
+
+    OPTIONS = {"replan": False}
+
+
+class NoWithdrawAgent(AdaptivePlannerAgent):
+    """Ablation: the adaptive planner without withdrawing."""
+
+    OPTIONS = {"withdraw": False}
 
 
 class LanguageModel(Protocol):

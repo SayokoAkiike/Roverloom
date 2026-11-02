@@ -18,6 +18,15 @@
     "text": {
       "type": "string",
       "maxLength": 500
+    },
+    "kind": {
+      "description": "Machine-readable class of decision, when an agent gives one.",
+      "enum": [
+        "reobserve",
+        "replan",
+        "withdraw",
+        "uncertainty_mismatch"
+      ]
     }
   },
   "required": [

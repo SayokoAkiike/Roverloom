@@ -14,13 +14,14 @@ from roverloom.agents.skills import SkillPlanAgent, load_plan
 from roverloom.contract import ContractError, JsonDict, dump_json, repo_root
 from roverloom.evaluate import evaluate_run
 from roverloom.replay import Replay
-from roverloom.rover_builder import list_designs, load_rover_document
+from roverloom.rover_builder import explain_design, list_designs, load_rover_document
 from roverloom.runlog import LoadedRun, load_run, logs_digest
 from roverloom.runner import Comparison, compare_agents, run_mission
 from roverloom.session import MissionSession
 from roverloom.world import SIM_STEP_S, list_practice_scenarios, load_scenario
 
 DEFAULT_AGENTS = "stop,waypoint,reactive,replanner"
+DEFAULT_BENCHMARK = "roverloom-bench-v2"
 
 
 def _runs_dir() -> Path:
@@ -206,8 +207,45 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
     return 0
 
 
+def _print_rows(rows: Sequence[JsonDict]) -> None:
+    fields = list(dict.fromkeys(key for row in rows for key in row))
+    table = [fields] + [[str(row.get(f, "-")) for f in fields] for row in rows]
+    widths = [max(len(line[i]) for line in table) for i in range(len(fields))]
+    for line in table:
+        print("  ".join(cell.ljust(width) for cell, width in zip(line, widths, strict=True)))
+
+
+def _explain_rovers(names: Sequence[str]) -> int:
+    from roverloom.contract import load_json_file
+    from roverloom.rover_builder import designs_dir
+
+    for name in names:
+        path = Path(name) if Path(name).is_file() else designs_dir() / f"{name}.json"
+        if not path.is_file():
+            raise ContractError(f"{name} is not a rover design")
+        design = load_json_file(path)
+        report = load_rover_document(str(path))["design_report"]
+        print(f"\n{design['design_id']}: class {report['design_class']}, cost {report['cost']}")
+        print(f"  mass parts (kg): {report['mass_parts_kg']}")
+        print(f"  cost parts:      {report['cost_parts']}")
+        print(f"  volume:          {report['volume_l']} of {report['volume_capacity_l']} L")
+        print(f"  peak power:      {report['peak_power_w']} of {report['peak_power_limit_w']} W")
+        print(f"  idle balance:    {report['net_idle_power_w']} W")
+        print(f"  limited by:      {report['limited_by']}")
+        rows = [
+            {k: v for k, v in row.items() if k != "refused"}
+            | ({"refused": row["refused"]} if "refused" in row else {})
+            for row in explain_design(design)
+        ]
+        _print_rows(rows)
+    print("\nSimplified game model. Not a validated wheel, soil, or power model.")
+    return 0
+
+
 def cmd_rover(args: argparse.Namespace) -> int:
     names = args.designs or list_designs()
+    if args.explain:
+        return _explain_rovers(names)
     rows = []
     for name in names:
         rover = load_rover_document(name)
@@ -216,8 +254,10 @@ def cmd_rover(args: argparse.Namespace) -> int:
             {
                 "rover": rover["rover_id"],
                 "wheels": len(rover["wheels"]),
+                "class": report["design_class"],
                 "mass_kg": report["mass_kg"],
                 "cost": report["cost"],
+                "volume_l": f"{report['volume_l']}/{report['volume_capacity_l']}",
                 "speed_mps": rover["max_speed_mps"],
                 "climb": rover["max_climb_slope"],
                 "soil_scale": rover["soil_slip_scale"],
@@ -282,6 +322,44 @@ def cmd_league(args: argparse.Namespace) -> int:
         )
         print(f"\n{league} ({len(result.runs)} runs), saved to {result.out_dir}")
         print(format_board(result.board))
+    return 0
+
+
+def cmd_study(args: argparse.Namespace) -> int:
+    from roverloom.league import load_benchmark
+    from roverloom.study import TRACKS, format_study, run_study
+
+    benchmark = load_benchmark(args.benchmark)
+    tracks = args.tracks.split(",") if args.tracks else list(TRACKS)
+    unknown = set(tracks) - set(TRACKS)
+    if unknown:
+        raise ContractError(f"unknown tracks: {sorted(unknown)}")
+    out = Path(args.out) if args.out else _runs_dir() / "study"
+    report = run_study(
+        benchmark,
+        out,
+        tracks,
+        args.agents.split(",") if args.agents else None,
+        args.rover,
+        args.seeds,
+        args.workers,
+    )
+    print(format_study(report))
+    print(f"\nSaved: {out / 'study.json'}")
+    return 0
+
+
+def cmd_design_study(args: argparse.Namespace) -> int:
+    from roverloom.league import load_benchmark
+    from roverloom.study import design_study
+
+    benchmark = load_benchmark(args.benchmark)
+    out = Path(args.out) if args.out else _runs_dir() / "design-study"
+    report = design_study(
+        benchmark, args.designs or list_designs(), out, seed_count=args.seeds, workers=args.workers
+    )
+    print(json.dumps(report, indent=2))
+    print(f"\nSaved: {out / 'design_study.json'}")
     return 0
 
 
@@ -362,6 +440,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     rover = commands.add_parser("rover", help="compile rover designs and compare their budgets")
     rover.add_argument("designs", nargs="*", help="names or design files; all standard by default")
+    rover.add_argument(
+        "--explain", action="store_true", help="show budgets and what each part does"
+    )
     rover.set_defaults(func=cmd_rover)
 
     skills = commands.add_parser("skills", help="print the skill contract as JSON")
@@ -369,7 +450,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     league = commands.add_parser("league", help="run or check offline leagues")
     league.add_argument("action", choices=["run", "verify", "lock", "show"])
-    league.add_argument("--benchmark", default="roverloom-bench-v1")
+    league.add_argument("--benchmark", default=DEFAULT_BENCHMARK)
     league.add_argument(
         "--league", default="all", choices=["all", "autonomy", "rover_design", "full_mission"]
     )
@@ -378,6 +459,24 @@ def build_parser() -> argparse.ArgumentParser:
     league.add_argument("--add-rover", action="append", default=[], help="repeatable")
     league.add_argument("--out")
     league.set_defaults(func=cmd_league)
+
+    study = commands.add_parser("study", help="compare planners over tracks, with intervals")
+    study.add_argument("--benchmark", default=DEFAULT_BENCHMARK)
+    study.add_argument("--tracks", help="comma separated; all by default")
+    study.add_argument("--agents", help="comma separated; the first is the baseline")
+    study.add_argument("--rover")
+    study.add_argument("--seeds", type=int, help="number of seeds")
+    study.add_argument("--workers", type=int, help="parallel processes")
+    study.add_argument("--out")
+    study.set_defaults(func=cmd_study)
+
+    design = commands.add_parser("design-study", help="change one design choice at a time")
+    design.add_argument("designs", nargs="*")
+    design.add_argument("--benchmark", default=DEFAULT_BENCHMARK)
+    design.add_argument("--seeds", type=int, default=5)
+    design.add_argument("--workers", type=int)
+    design.add_argument("--out")
+    design.set_defaults(func=cmd_design_study)
 
     competition = commands.add_parser("competition", help="local mock of a Codabench submission")
     competition.add_argument("submission", help="submission directory or zip")

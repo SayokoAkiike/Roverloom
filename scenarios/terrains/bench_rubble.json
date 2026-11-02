@@ -1,0 +1,63 @@
+{
+  "schema_version": 0,
+  "terrain_id": "bench_rubble",
+  "source": {
+    "kind": "procedural",
+    "note": "Dense rock field, far denser than the standard set. Not a real location."
+  },
+  "extent_m": {
+    "min_xy": [
+      -20,
+      -60
+    ],
+    "max_xy": [
+      180,
+      60
+    ]
+  },
+  "grid_spacing_m": 2,
+  "height": {
+    "seed": 63,
+    "amplitude_m": 1.5,
+    "feature_size_m": 40,
+    "octaves": 2
+  },
+  "rocks": {
+    "generated": {
+      "seed": 63,
+      "count": 260,
+      "min_radius_m": 0.5,
+      "max_radius_m": 1.8
+    },
+    "keep_clear": [
+      {
+        "center_xy": [
+          0,
+          0
+        ],
+        "radius_m": 10
+      },
+      {
+        "center_xy": [
+          50,
+          18
+        ],
+        "radius_m": 7
+      },
+      {
+        "center_xy": [
+          105,
+          -15
+        ],
+        "radius_m": 7
+      },
+      {
+        "center_xy": [
+          155,
+          10
+        ],
+        "radius_m": 7
+      }
+    ]
+  }
+}

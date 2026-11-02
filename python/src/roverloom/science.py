@@ -3,6 +3,7 @@
 Values are game points for comparing strategies. They do not represent real science return.
 """
 
+import random
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -32,6 +33,8 @@ class ScienceSystem:
         has_tool: bool,
         power_w: float,
         emit: Callable[[str, JsonDict], None],
+        inspection_noise_sd: float = 0.0,
+        rng: random.Random | None = None,
     ) -> None:
         self.enabled = spec is not None
         spec = spec or {"targets": [], "transmit_s_per_item": 1.0, "success_value": 0.0}
@@ -40,9 +43,13 @@ class ScienceSystem:
         self._transmit_s: float = spec["transmit_s_per_item"]
         self.success_value: float = spec["success_value"]
         self.base: JsonDict | None = spec.get("base")
-        self._has_tool = has_tool
+        # A survey mission counts readings only, so that sampling hardware earns nothing.
+        self._survey = bool(spec.get("survey"))
+        self._has_tool = has_tool and not self._survey
         self._power = power_w
         self._emit = emit
+        self._inspection_noise = inspection_noise_sd
+        self._rng = rng or random.Random(0)
         self.inspected: dict[str, float] = {}
         self.collected: list[str] = []
         self._stored: list[tuple[str, str, float]] = []
@@ -111,7 +118,8 @@ class ScienceSystem:
         tx, ty, _ = target["position_m"]
         if (x - tx) ** 2 + (y - ty) ** 2 > target["radius_m"] ** 2:
             return "out_of_range"
-        if kind == "inspect" and target_id in self.inspected:
+        # With noisy readings, measuring again is a real choice. It adds no more data.
+        if kind == "inspect" and target_id in self.inspected and not self._inspection_noise:
             return "already_done"
         if kind == "collect":
             if not self._has_tool:
@@ -176,8 +184,14 @@ class ScienceSystem:
         target_id = active.target_id or ""
         value = float(self._targets[target_id]["true_value"])
         if active.type == "inspect":
-            self.inspected[target_id] = value
-            self._stored.append((target_id, "inspect", value * INSPECT_SHARE))
+            first = target_id not in self.inspected
+            reading = value
+            if self._inspection_noise:
+                reading = round(max(0.0, self._rng.gauss(value, self._inspection_noise)), 3)
+            self.inspected[target_id] = reading
+            if first:
+                share = 1.0 if self._survey else INSPECT_SHARE
+                self._stored.append((target_id, "inspect", value * share))
         else:
             self.collected.append(target_id)
             self._stored.append((target_id, "collect", value * COLLECT_SHARE))

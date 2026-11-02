@@ -146,6 +146,77 @@
         "type": "string",
         "pattern": "^[0-9a-f]{64}$"
       }
+    },
+    "tracks": {
+      "description": "Scientific study tracks. A scenario's track states what it is evidence for.",
+      "type": "object",
+      "properties": {
+        "standard": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "stress": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "out_of_distribution": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "misestimated_uncertainty": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "standard",
+        "stress",
+        "out_of_distribution",
+        "misestimated_uncertainty"
+      ],
+      "additionalProperties": false
+    },
+    "study": {
+      "type": "object",
+      "properties": {
+        "rover": {
+          "type": "string"
+        },
+        "agents": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "seed_count": {
+          "type": "integer",
+          "minimum": 2
+        },
+        "first_seed": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "rover",
+        "agents",
+        "seed_count",
+        "first_seed"
+      ],
+      "additionalProperties": false
     }
   },
   "required": [

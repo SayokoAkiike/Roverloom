@@ -1,0 +1,112 @@
+{
+  "schema_version": 0,
+  "scenario_id": "steep_traverse",
+  "version": "1.0.0",
+  "tier": "practice",
+  "seed": 31,
+  "rover_id": "pathfinder_6w",
+  "provenance": {
+    "author": "Roverloom project",
+    "license": "NOASSERTION",
+    "derived_from": null,
+    "derived_from_commit": null,
+    "source_url": null,
+    "notes": "Original test scenario with game values. Rates and severities are invented, not from any mission."
+  },
+  "mission": {
+    "schema_version": 0,
+    "mission_id": "steep_traverse",
+    "terrain_id": "bench_scarp",
+    "start_pose": {
+      "position_m": [
+        0,
+        0,
+        0
+      ],
+      "orientation_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    "time_limit_s": 2400,
+    "reference_energy_wh": 400,
+    "objectives": [],
+    "science": {
+      "targets": [
+        {
+          "id": "spur",
+          "position_m": [
+            55,
+            20,
+            0
+          ],
+          "radius_m": 4,
+          "prior_value": 5,
+          "true_value": 5,
+          "inspect_s": 20,
+          "collect_s": 60
+        },
+        {
+          "id": "crest",
+          "position_m": [
+            110,
+            -20,
+            0
+          ],
+          "radius_m": 4,
+          "prior_value": 7,
+          "true_value": 7,
+          "inspect_s": 20,
+          "collect_s": 60
+        },
+        {
+          "id": "gully",
+          "position_m": [
+            160,
+            15,
+            0
+          ],
+          "radius_m": 4,
+          "prior_value": 7,
+          "true_value": 7,
+          "inspect_s": 20,
+          "collect_s": 60
+        }
+      ],
+      "data_windows": {
+        "period_s": 300,
+        "open_s": 100,
+        "offset_s": 40
+      },
+      "transmit_s_per_item": 6,
+      "success_value": 10,
+      "base": {
+        "position_m": [
+          0,
+          0,
+          0
+        ],
+        "radius_m": 6,
+        "required": true
+      },
+      "survey": true
+    }
+  },
+  "environment": {
+    "gravity_mps2": 3.71,
+    "solar_factor": 0.5
+  },
+  "faults": [],
+  "comms": {
+    "latency_s": 0.5,
+    "loss_probability": 0.02
+  },
+  "sensors": {
+    "pose_noise_m": 0.1,
+    "yaw_noise_rad": 0.01,
+    "speed_noise_mps": 0.01,
+    "range_noise_m": 0.05
+  }
+}

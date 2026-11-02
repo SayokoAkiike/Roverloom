@@ -270,6 +270,14 @@ class DataWindows:
 
 
 @dataclass(frozen=True, slots=True)
+class DeclaredUncertainty:
+    """What a mission claims about its sensor errors. The claim may be wrong."""
+
+    inspection_noise_sd: float
+    pose_noise_m: float
+
+
+@dataclass(frozen=True, slots=True)
 class MissionBrief:
     """Everything an agent may know before the mission starts."""
 
@@ -292,6 +300,7 @@ class MissionBrief:
     success_value: float | None = None
     can_collect: bool = True
     battery_capacity_wh: float = 0.0
+    declared_uncertainty: DeclaredUncertainty | None = None
 
     def to_dict(self) -> JsonDict:
         data: JsonDict = {
@@ -314,6 +323,11 @@ class MissionBrief:
         }
         if not self.can_collect:
             data["can_collect"] = False
+        if self.declared_uncertainty is not None:
+            data["declared_uncertainty"] = {
+                "inspection_noise_sd": self.declared_uncertainty.inspection_noise_sd,
+                "pose_noise_m": self.declared_uncertainty.pose_noise_m,
+            }
         if self.science_targets:
             windows, base = self.data_windows, self.base
             data["science_targets"] = [
@@ -392,6 +406,11 @@ class MissionBrief:
             success_value=data.get("success_value"),
             can_collect=data.get("can_collect", True),
             battery_capacity_wh=data.get("battery_capacity_wh", 0.0),
+            declared_uncertainty=DeclaredUncertainty(
+                declared["inspection_noise_sd"], declared["pose_noise_m"]
+            )
+            if (declared := data.get("declared_uncertainty"))
+            else None,
         )
 
 

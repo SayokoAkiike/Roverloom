@@ -1,0 +1,151 @@
+{
+  "schema_version": 0,
+  "benchmark_id": "roverloom-bench",
+  "version": "2.0.0",
+  "model_version": "kinematic-0.3",
+  "scoring_version": "score-0.3",
+  "builder_version": "builder-0.2",
+  "seeds": [
+    101,
+    102,
+    103,
+    104,
+    105
+  ],
+  "leagues": {
+    "autonomy": {
+      "scenarios": [
+        "science_sprint",
+        "science_campaign",
+        "stress_blackout",
+        "boulder_gap",
+        "demo_traverse"
+      ],
+      "rovers": [
+        "pathfinder_6w"
+      ],
+      "agents": [
+        "stop",
+        "waypoint",
+        "reactive",
+        "replanner",
+        "mission-planner",
+        "cap-mock"
+      ]
+    },
+    "rover_design": {
+      "scenarios": [
+        "science_sprint",
+        "science_campaign",
+        "stress_blackout",
+        "canyon_survey",
+        "dust_season",
+        "steep_traverse",
+        "frugal_survey"
+      ],
+      "rovers": [
+        "scout_4w",
+        "pathfinder_6w",
+        "hauler_8w"
+      ],
+      "agents": [
+        "mission-planner"
+      ]
+    },
+    "full_mission": {
+      "scenarios": [
+        "science_sprint",
+        "science_campaign",
+        "stress_blackout",
+        "canyon_survey",
+        "dust_season",
+        "steep_traverse",
+        "frugal_survey"
+      ],
+      "rovers": [
+        "scout_4w",
+        "pathfinder_6w",
+        "hauler_8w"
+      ],
+      "agents": [
+        "reactive",
+        "mission-planner"
+      ]
+    }
+  },
+  "tracks": {
+    "standard": [
+      "science_sprint",
+      "science_campaign"
+    ],
+    "stress": [
+      "stress_blackout",
+      "compound_drive_power",
+      "compound_late_cascade",
+      "compound_random"
+    ],
+    "out_of_distribution": [
+      "ood_rubble",
+      "ood_long_delay",
+      "ood_soft_steep"
+    ],
+    "misestimated_uncertainty": [
+      "mis_inspection",
+      "mis_pose_bias",
+      "mis_both"
+    ]
+  },
+  "study": {
+    "rover": "pathfinder_6w",
+    "agents": [
+      "mission-planner",
+      "adaptive-planner",
+      "adaptive-no-reobserve",
+      "adaptive-no-replan",
+      "adaptive-no-withdraw"
+    ],
+    "seed_count": 20,
+    "first_seed": 1000
+  },
+  "pins": {
+    "agent:adaptive-no-reobserve": "5fe5a15bfe62d287423a963712db41e411e1fffcc245731b895c8fd7a9082bde",
+    "agent:adaptive-no-replan": "5fe5a15bfe62d287423a963712db41e411e1fffcc245731b895c8fd7a9082bde",
+    "agent:adaptive-no-withdraw": "5fe5a15bfe62d287423a963712db41e411e1fffcc245731b895c8fd7a9082bde",
+    "agent:adaptive-planner": "5fe5a15bfe62d287423a963712db41e411e1fffcc245731b895c8fd7a9082bde",
+    "agent:cap-mock": "5fe5a15bfe62d287423a963712db41e411e1fffcc245731b895c8fd7a9082bde",
+    "agent:mission-planner": "5fe5a15bfe62d287423a963712db41e411e1fffcc245731b895c8fd7a9082bde",
+    "agent:reactive": "5fe5a15bfe62d287423a963712db41e411e1fffcc245731b895c8fd7a9082bde",
+    "agent:replanner": "5fe5a15bfe62d287423a963712db41e411e1fffcc245731b895c8fd7a9082bde",
+    "agent:stop": "5fe5a15bfe62d287423a963712db41e411e1fffcc245731b895c8fd7a9082bde",
+    "agent:waypoint": "5fe5a15bfe62d287423a963712db41e411e1fffcc245731b895c8fd7a9082bde",
+    "code:core": "c466a4b32014d86b3d31a79aead0adfde7bb8e7294cc103653eebe8ef80615de",
+    "rover:hauler_8w": "1018acd049447f80398df9cb5bef87987b5323435783cdd72925bff35fb52bf9",
+    "rover:pathfinder_6w": "c327bb96abfa4411ea2eb64f70ea9f442b21e3a4dad1deb677f80729ca85bda2",
+    "rover:scout_4w": "56247d276e1cfd694ae4f33468c552e63aafe84ca4a3c5fe67c037a7a1f719ff",
+    "scenario:boulder_gap": "1c884aea96bb88f461553d54729a42cd711cb3e453d9832963fa224b17c73db7",
+    "scenario:canyon_survey": "1a93fbda9b1422b99ccb3ea1b491687f8e7dcade0598f6bc6c7308c4f84defc8",
+    "scenario:compound_drive_power": "8ab32874e9b5bac5b30d0503d8a6c98b77d35dc2565e999d724550842ca07e6d",
+    "scenario:compound_late_cascade": "8c13fa40300bc5e519595ab76861f6791d7081c9fdf6590fcfcf8e667fc186ed",
+    "scenario:compound_random": "88dc0a3c6be506784ffcd34a93529d1ae619a096117080ec9c47fdd0271a32ac",
+    "scenario:demo_traverse": "a2ad93cdcf4ade5c5782e9e5bf7eeaed3be13619ac1ce6e2c33cc2d73dc6712a",
+    "scenario:dust_season": "bfefebf3468066e69f2d1eb396117927b3069a6b4d73b936c256e22763eceba6",
+    "scenario:frugal_survey": "45b8785ae863549d58f14c1c0cb01dca47209138b396d0307c422cb450e6cb1f",
+    "scenario:mis_both": "3cffb06f6ffea52027fa023c882dc0f42ae61ee8fa98d9710fb1d1c58c2d06a5",
+    "scenario:mis_inspection": "4bcef30120c7ca596cfb5752ba65bf1ee28d24cb84759623bb9c5202725e9e72",
+    "scenario:mis_pose_bias": "cadd7c62d6fb1109bdd9a7b98567ee815804085121bc6321545f67262f47641e",
+    "scenario:ood_long_delay": "0e9d6a15c882a1dd5a23bb608819c4a8e7ae619a4f2cc4dcdb07c84acadfbdce",
+    "scenario:ood_rubble": "3538040a8764cc491236f00f473dcee5eda01d0aaedbe7a08bdc4f17ce3bcfc1",
+    "scenario:ood_soft_steep": "188a78921800111ff812e58fe642b54e001df945815855bacd760de1f64cd207",
+    "scenario:science_campaign": "5e180571797c0ad1f781b6c7bb9f27cb207ecd015a1da5de7920925a7a7c92bd",
+    "scenario:science_sprint": "33c0a43ea61654d151e9c22d52dcf9def8a372b69a2495022ff01ed2ef06d373",
+    "scenario:steep_traverse": "2f11ea8ff0290434285dd054d48aac6c11c8486fae2d1247da2062db91d6ba37",
+    "scenario:stress_blackout": "b82dda1b9d0018087962c316b274bb04e60d361790d4019c67a78d026128976e",
+    "terrain:bench_canyon": "00469c1f153fa14e7dc558be0bd3d2b93d078174b351287e1e46b9bc25e6bbe1",
+    "terrain:bench_rubble": "67db94acfbf499ac2088fd732f44e056900bc3679fba30cc4c8bb28ff3fd3ec0",
+    "terrain:bench_scarp": "e88cb517672e608dc85ac1b3d92dcdd7c4d194a0d7a0fff0f9575a87b86e13bd",
+    "terrain:bench_soft": "0b446da04833ad070126c86ffc1fe7d1a58486482cecf8f6e53f3dd6ac9b18cc",
+    "terrain:flat_test": "dcd75f0bdf7709b1c5cc5c1821e75e94f0506f2a41930dd9b1894d88c9aa7e2e",
+    "terrain:practice_boulder_wall": "8369615d112d0ac341e8f7e84478cb11102f9d0896f23846acaa5624e8ba0fd3",
+    "terrain:practice_highlands": "e8c1988bad51e6c13d1a8b9076426735f3804d20e356cb16c44d82add02d43a1"
+  }
+}

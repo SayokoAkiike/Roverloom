@@ -116,11 +116,14 @@ class MissionSession:
         self._time_limit = float(scenario.mission["time_limit_s"])
         self._energy_limit: float | None = scenario.mission.get("energy_limit_wh")
         rover_doc = scenario.rover.document
+        uncertainty = scenario.document.get("uncertainty", {})
         self.science = ScienceSystem(
             scenario.mission.get("science"),
             rover_doc.get("has_sample_tool", True),
             float(rover_doc.get("instrument_power_w", 100.0)),
             self._emit,
+            float(uncertainty.get("inspection_noise_sd", 0.0)),
+            random.Random(f"inspection:{self.seed}"),
         )
         self._emit("mission_started", {"scenario": scenario.scenario_id, "seed": self.seed})
         for name, source in sources.items():
@@ -162,15 +165,17 @@ class MissionSession:
         drain = getattr(self._sources[name], "drain_decisions", None)
         if drain is None:
             return
-        for text in drain():
-            self._on_decision(
-                {
-                    "schema_version": SCHEMA_VERSION,
-                    "time_s": round(self.time_s, 6),
-                    "source": name,
-                    "text": str(text)[:500],
-                }
-            )
+        for item in drain():
+            kind, text = item if isinstance(item, tuple) else (None, item)
+            record: JsonDict = {
+                "schema_version": SCHEMA_VERSION,
+                "time_s": round(self.time_s, 6),
+                "source": name,
+                "text": str(text)[:500],
+            }
+            if kind is not None:
+                record["kind"] = kind
+            self._on_decision(record)
 
     def _update_faults(self) -> None:
         now = self.time_s + 1e-9
@@ -295,7 +300,8 @@ class MissionSession:
         self._finish(MissionOutcome.ABORTED)
 
     def set_active_source(self, source: str) -> None:
-        if source != self.router.active:
+        # Nothing may follow mission_ended, or the log would no longer load.
+        if source != self.router.active and not self.mission.finished:
             self.router.set_active(source)
             self._emit("source_changed", {"source": source})
 

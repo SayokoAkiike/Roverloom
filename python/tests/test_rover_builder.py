@@ -246,7 +246,7 @@ def test_manifest_records_versions(tmp_path: Path) -> None:
         load_scenario("science_sprint"), create_agent("mission-planner"), "m", tmp_path / "r", 1
     )
     assert result.manifest["rover_version"] == "1.0.0"
-    assert result.manifest["scenario_version"] == "1.0.0"
+    assert result.manifest["scenario_version"] == "1.1.0"
     assert result.manifest["agent_version"] == "1.0.0"
     assert result.metrics.design_cost is not None
 
