@@ -1,8 +1,9 @@
 """A local mock of Codabench-style evaluation: ingestion, then separate scoring.
 
-This has never run on Codabench. Agents run in a separate process with a time limit per reply, but
-THAT IS NOT A SANDBOX: the process has normal access to this machine. Only use it on code you
-trust. See docs/competition-io.md.
+This has never run on Codabench. Agents run in a separate process with reply and total time limits,
+memory and file limits, and a guard that refuses common forbidden actions. THAT IS NOT A SANDBOX:
+Python's own documentation says that hooks like this cannot contain malicious code, and native code
+can bypass them. Only use this on code you trust. See docs/evaluator-safety.md.
 """
 
 import os
@@ -15,6 +16,8 @@ from pathlib import Path
 from roverloom.bridge import RemoteAgent
 from roverloom.contract import ContractError, JsonDict, dump_json, load_json_file, validate
 from roverloom.evaluate import aggregate, evaluate_run
+from roverloom.guard import GUARD_ROOT_VARIABLE
+from roverloom.rover_builder import require_design
 from roverloom.runlog import load_run
 from roverloom.runner import run_mission
 from roverloom.world import load_scenario
@@ -22,6 +25,8 @@ from roverloom.world import load_scenario
 MAX_SUBMISSION_BYTES = 20 * 1024 * 1024
 MAX_SUBMISSION_FILES = 200
 REPLY_TIMEOUT_S = 10.0
+TOTAL_THINKING_S = 300.0
+_ALLOWED_SUFFIXES = {".py", ".json", ".txt", ".md", ".csv", ".yaml", ".yml"}
 SCORE_KEYS = (
     "mean_score",
     "success_rate",
@@ -49,6 +54,11 @@ def extract_submission(archive: Path, destination: Path) -> Path:
                 target = (root / name).resolve()
                 if is_link or not target.is_relative_to(root) or Path(name).is_absolute():
                     raise ContractError(f"unsafe path in submission: {name}")
+                if member.is_dir():
+                    continue
+                # Compiled code would skip every review of the source.
+                if Path(name).suffix.lower() not in _ALLOWED_SUFFIXES:
+                    raise ContractError(f"file type not allowed in submission: {name}")
             bundle.extractall(root)
     except zipfile.BadZipFile as error:
         raise ContractError(f"submission is not a valid zip: {error}") from error
@@ -61,8 +71,12 @@ def load_submission(directory: Path) -> JsonDict:
     validate("submission_metadata", metadata, "metadata.json")
     if not (directory / "agent.py").is_file():
         raise ContractError("submission has no agent.py")
-    if metadata["league"] != "autonomy" and not (directory / "rover.json").is_file():
-        raise ContractError(f"{metadata['league']} submissions need a rover.json")
+    if metadata["league"] != "autonomy":
+        path = directory / "rover.json"
+        if not path.is_file():
+            raise ContractError(f"{metadata['league']} submissions need a rover.json")
+        # Plain rover parameters would skip every design budget.
+        require_design(str(path))
     return metadata
 
 
@@ -97,15 +111,18 @@ def ingest(submission: Path, reference_dir: Path, output_dir: Path) -> list[Json
     for name in reference["scenarios"]:
         scenario = load_scenario(_scenario_name(reference_dir, name), rover=rover)
         for seed in reference["seeds"]:
-            remote = RemoteAgent(timeout_s=REPLY_TIMEOUT_S)
+            remote = RemoteAgent(timeout_s=REPLY_TIMEOUT_S, total_budget_s=TOTAL_THINKING_S)
             process = subprocess.Popen(
-                [sys.executable, "-m", "roverloom.bridge", spec, str(remote.port)],
+                [sys.executable, "-m", "roverloom.bridge", spec, str(remote.port), "--guarded"],
                 cwd=submission,
                 # A minimal environment, so that secrets in variables are not handed over.
                 env={
-                    k: os.environ[k]
-                    for k in ("PATH", "SYSTEMROOT", "HOME", "PYTHONPATH", "ROVERLOOM_HOME")
-                    if k in os.environ
+                    **{
+                        k: os.environ[k]
+                        for k in ("PATH", "SYSTEMROOT", "HOME", "PYTHONPATH", "ROVERLOOM_HOME")
+                        if k in os.environ
+                    },
+                    GUARD_ROOT_VARIABLE: str(submission),
                 },
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
@@ -118,12 +135,13 @@ def ingest(submission: Path, reference_dir: Path, output_dir: Path) -> list[Json
                         "scenario": scenario.scenario_id,
                         "seed": seed,
                         "outcome": result.metrics.outcome,
+                        "thinking_s": round(remote.thinking_s, 3),
                     }
                 )
             finally:
                 remote.close()
                 try:
-                    process.wait(timeout=5)
+                    process.wait(timeout=2)
                 except subprocess.TimeoutExpired:
                     process.kill()
                     process.wait()

@@ -14,16 +14,17 @@ been done.**
 | Agent loading | Explicit user action only | **Runs the file's code with your permissions** |
 | Skill calls and plans | Fixed skill list and strict schema; model text is parsed, never executed | Only a mock model exists |
 | Mission Control | Only published scenario, rover, and agent choices; bodies always read | Local programs can still control it |
-| Mock submissions | Safe zip extraction, separate process, minimal environment, reply limit | **Not a sandbox**: files and network stay reachable |
+| Mock submissions | Safe zip extraction, file type check, separate process, minimal environment, time and memory limits, guard hook | **Not a sandbox**: [a few lines of Python defeat the guard](evaluator-safety.md) |
 | Leagues | Pinned hashes; private seeds left out of shareable files; CSV formula escaping | Run directories still contain seeds |
 
 ## Unresolved
 
 - [ ] No sandbox for untrusted agents, so do not run agents from people you do not trust.
-- [ ] No time limit per `act()` for in-process agents. A hung agent hangs the run. Bridge agents have one.
+- [ ] No time limit per `act()` for in-process agents. A hung agent hangs the run. Bridge agents have limits.
 - [ ] Information boundaries prevent accidents, not deliberate cheating in the same process.
 - [ ] Logs are not signed.
-- [ ] A dependency vulnerability and license audit has not been run.
+- [ ] Declared dependency licenses were listed, and a vulnerability check was run once. See
+      [licensing review](licensing-review.md). Neither is continuous, and neither replaces a legal review.
 - [ ] Generated viewer HTML embeds scenario text and is designed to escape it, but has not been
       independently reviewed. Only open reports you generated.
 - [ ] Unreal bridge and Unreal MCP, when added, will need their own review. Epic's MCP server has no

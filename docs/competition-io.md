@@ -73,14 +73,15 @@ This is real output from the example submission. Leaderboard keys are in `compet
 
 ## What the local mock does
 
-- Validates metadata and zip contents, refusing traversal, links, and oversized archives.
+- Validates metadata and zip contents, refusing traversal, links, compiled files, and oversized archives.
+- Requires a real rover design, so that plain parameters cannot skip the budgets.
 - Runs each scenario and seed with the agent in a separate process over the bridge, with a minimal
-  environment and a reply time limit. A crash or hang ends that run as `agent_error`.
+  environment, limits on time and memory, and a guard hook. A crash or hang ends that run as `agent_error`.
 - Scores in a separate step, without running submitted code. Missing or modified runs score zero.
 
 ## Security requirements before running anyone else's code
 
-**The mock is not a sandbox.** The agent process can still read files and use the network.
+**The mock is not a sandbox.** Its guard catches accidents, and [a few lines of Python defeat it](evaluator-safety.md).
 Required before opening:
 
 - Container with no network, limited CPU, memory, disk, and time, and no hidden data mounted where
