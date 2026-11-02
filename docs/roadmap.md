@@ -44,6 +44,8 @@ Checked items exist and are tested on the lightweight backend. Everything else i
 
 ## Phase 1: Unreal vertical slice
 
+The current order of work on the Mac is in [mac-unreal-plan.md](mac-unreal-plan.md).
+
 Goal: a real Martian site you can drive a six-wheeled rover across. Details are in
 [vertical-slice-plan.md](vertical-slice-plan.md) and
 [unreal-production-plan.md](unreal-production-plan.md).

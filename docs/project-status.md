@@ -42,6 +42,8 @@ The state of the project at the end of Windows verification, 2026-11-02, for who
 
 ## Before continuing
 
+Start with [HANDOFF.md](HANDOFF.md).
+
 1. Follow the [macOS checklist](macos-checklist.md). Set the noreply `user.email` on the new machine.
-2. Install Unreal only by the owner's decision, following [the plan](unreal-production-plan.md).
+2. Install Unreal only by the owner's decision, following [the Mac plan](mac-unreal-plan.md).
 3. Write new scenarios and seeds before looking at results, if any planner claim is to be made.

@@ -6,6 +6,10 @@ or tool call has been attempted. Everything here comes from documentation.
 Reviewed 2026-11-02 against
 [Epic: Unreal MCP in Unreal Editor](https://dev.epicgames.com/documentation/unreal-engine/unreal-mcp-in-unreal-editor?lang=en-US).
 
+**macOS: unknown.** Epic's page, checked again 2026-11-02, neither lists nor excludes macOS. Check on the Mac, following
+[step 3 of the plan](mac-unreal-plan.md#3-connect-unreal-mcp-read-only). A third-party Fab tool states that it does not support Mac, which
+says nothing about Epic's plugin.
+
 ## Facts from Epic's documentation
 
 - Documented for Unreal Engine 5.8 and marked **Experimental**. APIs may change.

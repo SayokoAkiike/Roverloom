@@ -56,6 +56,8 @@ secrets.*
 /unreal/Packaged/
 /unreal/Windows/
 /unreal/Linux/
+/unreal/Mac/
+*.dSYM/
 
 # Assets whose license does not allow redistribution in this repository.
 # See docs/licensing-review.md before adding anything elsewhere under Content/.

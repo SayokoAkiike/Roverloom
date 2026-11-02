@@ -91,9 +91,11 @@ Run these from `python/`.
 - [API Compatibility Policy](docs/api-compatibility.md)
 - [Scientific Benchmark](docs/scientific-benchmark.md)
 - [Model Assumptions](docs/model-assumptions.md)
+- [Handoff](docs/HANDOFF.md)
 - [Project Status](docs/project-status.md)
 - [Evaluator Safety](docs/evaluator-safety.md)
-- [macOS Checklist](docs/macos-checklist.md)
+- [macOS Setup and Checklist](docs/macos-checklist.md)
+- [Mac Unreal Plan](docs/mac-unreal-plan.md)
 
 ## Repository layout
 

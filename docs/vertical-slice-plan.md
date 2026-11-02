@@ -3,7 +3,8 @@
 Status: plan for the Unreal slice. Not implemented, though the Python client, logs, and replay of
 milestone 0 now exist on the lightweight backend. Production detail is in
 [unreal-production-plan.md](unreal-production-plan.md). Reviewed 2026-11-02. Numbers are design targets to test,
-not measured results. Mars values below are widely cited approximations to confirm against
+not measured results. Order of work and machine are now set by [mac-unreal-plan.md](mac-unreal-plan.md). Log formats are set by
+[unreal-contract.md](unreal-contract.md). Mars values below are widely cited approximations to confirm against
 references during implementation.
 
 ## Goal

@@ -1,5 +1,8 @@
 # Graphics strategy
 
+**The owner has since chosen an Apple M4 Mac ([ADR 0012](decisions/0012-m4-mac-for-unreal.md)).** This comparison of Windows options is kept as a record,
+and for the case in which a separate machine is needed.
+
 Reviewed 2026-11-02. **No option has been benchmarked**; Unreal Engine is not installed.
 Prices are snapshots from the cited sources, exclude tax unless stated, and need a live
 quote. Machine details are in [development-environment.md](development-environment.md).

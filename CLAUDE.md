@@ -1,6 +1,6 @@
 # Roverloom: rules for Claude Code
 
-Read `docs/architecture.md` before structural changes. Past decisions live in
+New session? Read `docs/HANDOFF.md` first. Read `docs/architecture.md` before structural changes. Past decisions live in
 `docs/decisions/`; add an ADR rather than silently reversing one.
 
 ## Hard limits
@@ -66,9 +66,9 @@ run `uv run python ../scripts/capture_preview.py`, and look at the screenshots.
 - Inspect with read-only tools first. Save or commit only after reviewing changes.
 - Never report MCP or any integration as working without running it. State the
   engine version and the exact call you ran.
-- The primary dev machine is a low-power integrated-GPU laptop. See
-  `docs/development-environment.md`, and do not raise editor settings or claim
-  visual quality or performance results without measuring them.
+- The Unreal dev machine is an Apple M4 Mac (ADR 0012). Follow `docs/mac-unreal-plan.md`.
+  Keep `Dev` and `Capture` profiles separate, and do not claim visual quality or
+  performance results without measuring them.
 
 ## Documentation
 
