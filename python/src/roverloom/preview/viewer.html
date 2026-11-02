@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Roverloom Preview</title>
+<title>Roverloom Mission Control</title>
+<link rel="icon" href="data:,">
 <style>
 :root { color-scheme: dark; --bg:#17120f; --panel:#231b16; --line:#3d3027; --text:#efe6dc; --muted:#b5a596; --accent:#f0a35e; --good:#7fce8f; --bad:#ff7b6b; --warn:#f2c94c; }
 * { box-sizing: border-box; }
@@ -12,14 +13,26 @@ body { margin:0; background:var(--bg); color:var(--text); font:14px/1.45 system-
 header { padding:10px 16px; border-bottom:1px solid var(--line); display:flex; flex-wrap:wrap; gap:6px 16px; align-items:baseline; }
 h1 { font-size:17px; margin:0; }
 .notice { color:var(--warn); font-size:12.5px; }
-main { display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:12px; padding:12px 16px; }
+main { display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:12px; padding:12px 16px; align-items:start; }
 @media (max-width:900px) { main { grid-template-columns:minmax(0,1fr); } }
-canvas#map { width:100%; display:block; border:1px solid var(--line); border-radius:6px; background:#000; }
+canvas#map { width:100%; max-height:calc(100vh - 250px); min-height:220px; object-fit:contain; display:block; border:1px solid var(--line); border-radius:6px; background:#000; }
+#statusBar { display:grid; grid-template-columns:repeat(auto-fit,minmax(112px,1fr)); gap:1px; background:var(--line); border-bottom:1px solid var(--line); }
+#statusBar > div { background:var(--panel); padding:6px 12px; min-width:0; }
+#statusBar small { display:block; color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.05em; }
+#statusBar b { font-size:15px; font-weight:600; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+#statusBar .good { color:var(--good); } #statusBar .bad { color:var(--bad); } #statusBar .warn { color:var(--warn); }
+.banner { padding:7px 16px; font-weight:600; font-size:13.5px; }
+#faultBanner { background:#4a1a14; color:#ffd7d0; border-bottom:1px solid var(--bad); }
+#errorBanner { background:#4a3a10; color:#ffe9a8; border-bottom:1px solid var(--warn); }
+.group { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.group + .group { padding-left:10px; border-left:1px solid var(--line); }
+button:disabled { opacity:.45; cursor:not-allowed; border-color:#5a4739; }
+button.primary { background:#7a4a1f; border-color:var(--accent); }
 .panel { background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:10px 12px; margin-bottom:12px; }
 .panel h2 { font-size:12px; margin:0 0 6px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
 .stats { display:grid; grid-template-columns:1fr auto; gap:1px 12px; font-variant-numeric:tabular-nums; }
 .stats dt { color:var(--muted); } .stats dd { margin:0; text-align:right; }
-#events { max-height:250px; overflow:auto; font-size:12.5px; }
+#events { max-height:220px; overflow:auto; font-size:12.5px; }
 #events div { padding:2px 0 2px 7px; border-left:3px solid var(--line); margin-bottom:2px; font-variant-numeric:tabular-nums; }
 #events .fault { border-color:var(--bad); } #events .good { border-color:var(--good); } #events .future { opacity:.35; }
 .controls { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:8px; }
@@ -36,7 +49,7 @@ th:nth-child(-n+2),td:nth-child(-n+2) { text-align:left; } th { color:var(--mute
 .pill { font-size:12px; padding:2px 8px; border-radius:999px; border:1px solid var(--line); background:#2c221c; }
 .pill.ok { border-color:var(--good); color:var(--good); } .pill.bad { border-color:var(--bad); color:var(--bad); } .pill.warn { border-color:var(--warn); color:var(--warn); }
 .meter { height:8px; background:#120d0a; border-radius:4px; overflow:hidden; margin:2px 0 6px; } .meter div { height:100%; background:var(--good); }
-#decisions { max-height:170px; overflow:auto; font-size:12px; color:var(--muted); } #decisions div { padding:1px 0; border-bottom:1px solid #2e241d; }
+#decisions { max-height:150px; overflow:auto; font-size:12px; color:var(--muted); } #decisions div { padding:1px 0; border-bottom:1px solid #2e241d; }
 #objectives { font-size:13px; } #objectives div { padding:1px 0; } #objectives .done { color:var(--good); }
 label { color:var(--muted); font-size:12.5px; }
 footer { padding:0 16px 16px; color:var(--muted); font-size:12.5px; }
@@ -47,6 +60,17 @@ footer { padding:0 16px 16px; color:var(--muted); font-size:12.5px; }
   <h1>Roverloom Mission Control</h1>
   <span class="notice">Lightweight 2D preview, not the Unreal renderer. The model is an unvalidated approximation.</span>
 </header>
+<div id="statusBar" aria-label="Mission status">
+  <div><small>Mission</small><b id="stMission">-</b></div>
+  <div><small>Time</small><b id="stTime">-</b></div>
+  <div><small>Battery</small><b id="stBattery">-</b></div>
+  <div><small>Command link</small><b id="stLink">-</b></div>
+  <div><small>Data window</small><b id="stWindow">-</b></div>
+  <div><small>Driver</small><b id="stDriver">-</b></div>
+  <div><small>Science sent</small><b id="stScience">-</b></div>
+</div>
+<div class="banner" id="faultBanner" role="alert" hidden></div>
+<div class="banner" id="errorBanner" role="alert" hidden></div>
 <div class="table-wrap" id="tableWrap" hidden><table id="table"></table></div>
 <main>
   <section>
@@ -67,7 +91,7 @@ footer { padding:0 16px 16px; color:var(--muted); font-size:12.5px; }
       <button id="startButton" type="button">Start mission</button>
     </div>
     <div class="controls" id="liveControls" hidden>
-      <button id="modeButton" type="button"></button>
+      <button id="modeButton" type="button" class="primary"></button>
       <button id="stopButton" type="button">Stop mission</button>
       <button id="resetButton" type="button">Restart</button>
       <a id="replayLink" href="/replay" target="_blank" rel="noopener" hidden><button type="button">Open replay</button></a>
@@ -123,10 +147,11 @@ function setPills(items) {
 }
 
 function setDecisions(items) {
-  const box = $("decisions"); box.innerHTML = "";
-  if (!items.length) { box.textContent = "This driver reports no decisions."; return; }
-  for (const item of items.slice(-30)) { const row = document.createElement("div"); row.textContent = `${(item.t ?? item.time_s).toFixed(1)} s  ${item.text}`; box.append(row); }
-  box.scrollTop = box.scrollHeight;
+  const box = $("decisions"), shown = items.slice(-30);
+  fillList(box, `${items.length}:${shown[shown.length - 1]?.text ?? ""}`, () => {
+    if (!shown.length) { box.textContent = "This driver reports no decisions."; return; }
+    for (const item of shown) { const row = document.createElement("div"); row.textContent = `${(item.t ?? item.time_s).toFixed(1)} s  ${item.text}`; box.append(row); }
+  });
 }
 
 function setWorld(next) {
@@ -220,13 +245,42 @@ const WHEELS = [["front_left", .8, .75], ["front_right", .8, -.75], ["middle_lef
 function drawRover(x, y, yaw, failed) {
   const [a, b] = toScreen(x, y), size = Math.max(world.rover_radius * scale(), 9);
   ctx.save(); ctx.translate(a, b); ctx.rotate(-yaw);
-  for (const [name, fx, fy] of WHEELS) {
+  for (const [name, fx, fy] of world.wheels || WHEELS) {
     ctx.fillStyle = failed.includes(name) ? "#ff4d3d" : "#111";
     ctx.fillRect(fx * size - size * .24, -fy * size - size * .15, size * .48, size * .3);
   }
   ctx.fillStyle = "#f2f2ee"; ctx.strokeStyle = "#111"; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.moveTo(size * 1.05, 0); ctx.lineTo(-size * .8, size * .52); ctx.lineTo(-size * .8, -size * .52); ctx.closePath(); ctx.fill(); ctx.stroke();
   ctx.restore();
+}
+
+function setStatus(item) {
+  const set = (id, text, kind) => { const el = $(id); el.textContent = text; el.className = kind || ""; };
+  set("stMission", item.outcome, item.outcome === "success" ? "good" : item.outcome === "running" ? "" : "bad");
+  set("stTime", item.time);
+  set("stBattery", `${(item.battery * 100).toFixed(0)} %`, item.battery < 0.15 ? "bad" : item.battery < 0.3 ? "warn" : "good");
+  set("stLink", item.link ? "up" : "DOWN", item.link ? "good" : "bad");
+  set("stWindow", item.window ? "open" : "closed", item.window ? "good" : "warn");
+  set("stDriver", item.driver);
+  set("stScience", item.science);
+  $("faultBanner").hidden = !item.faults.length;
+  $("faultBanner").textContent = item.faults.length ? `Active faults: ${item.faults.join(", ")}` : "";
+}
+
+function showError(text) {
+  $("errorBanner").hidden = !text;
+  $("errorBanner").textContent = text || "";
+}
+
+// Rebuild a scrolling list only when it changes, and follow new rows only if already at the end.
+function fillList(box, signature, build) {
+  if (box.dataset.signature === signature) return;
+  const atEnd = box.scrollHeight - box.scrollTop - box.clientHeight < 24;
+  const previous = box.scrollTop;
+  box.dataset.signature = signature;
+  box.innerHTML = "";
+  build();
+  box.scrollTop = atEnd ? box.scrollHeight : previous;
 }
 
 function setStats(rows) {
@@ -265,16 +319,19 @@ function describeEvent(event) {
 }
 
 function setEvents(events, now) {
-  const box = $("events"); box.innerHTML = "";
-  for (const event of events) {
-    const row = document.createElement("div");
-    const time = event.t ?? event.time_s;
-    row.textContent = `${time.toFixed(1).padStart(6, " ")} s  ${describeEvent(event)}`;
-    if (/fault_started|collision|agent_error|watchdog_stop|task_rejected|task_failed/.test(event.type)) row.className = "fault";
-    if (/target_reached|mission_ended|task_completed/.test(event.type)) row.className = "good";
-    if (now !== undefined && time > now) row.classList.add("future");
-    box.append(row);
-  }
+  const box = $("events"), last = events[events.length - 1];
+  const reached = now === undefined ? 0 : events.filter((e) => (e.t ?? e.time_s) <= now).length;
+  fillList(box, `${events.length}:${last?.seq ?? last?.t ?? ""}:${reached}`, () => {
+    for (const event of events) {
+      const row = document.createElement("div");
+      const time = event.t ?? event.time_s;
+      row.textContent = `${time.toFixed(1).padStart(6, " ")} s  ${describeEvent(event)}`;
+      if (/fault_started|collision|agent_error|watchdog_stop|task_rejected|task_failed/.test(event.type)) row.className = "fault";
+      if (/target_reached|mission_ended|task_completed/.test(event.type)) row.className = "good";
+      if (now !== undefined && time > now) row.classList.add("future");
+      box.append(row);
+    }
+  });
 }
 
 function startReport() {
@@ -337,7 +394,8 @@ function startReport() {
       if (e.type === "fault_ended") active.delete(e.data.fault);
     }
     const linkDown = active.has("comm_blackout");
-    setPills([[linkDown ? "Command link down" : "Command link up", linkDown ? "bad" : "ok"], [now.window ? "Data window open" : "Data window closed", now.window ? "ok" : "warn"], ...[...active].map((f) => [f, "bad"]), [`Driver: ${run.agent}`, ""]]);
+    setPills([[`Replay of ${run.agent}`, ""], ...[...active].map((f) => [f, "bad"])]);
+    setStatus({ outcome: ended ? ended.outcome : "running", time: `${time.toFixed(0)} s`, battery: now.battery, link: !linkDown, window: !!now.window, driver: run.agent, science: now.value.toFixed(2), faults: [...active, ...failed.map((w) => `wheel ${w}`)] });
     $("battery").style.width = `${now.battery * 100}%`;
     setDecisions(run.decisions.filter((d) => d.t <= time));
     drawWorld(reached);
@@ -384,8 +442,17 @@ function startLive() {
   for (const id of ["liveControls", "setupControls", "taskControls", "keyHelp"]) $(id).hidden = false;
   $("keyHelp").innerHTML = "<span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or arrows drive, <kbd>Space</kbd> stop, <kbd>M</kbd> switch driver, <kbd>R</kbd> restart</span>";
   const keys = new Set();
-  let source = "manual", savedShown = null;
-  const post = (path, body) => fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  let source = "manual", savedShown = null, finished = false;
+  // Every control reports its failure on screen. A silent failure looks like a working button.
+  async function post(path, body) {
+    try {
+      const response = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!response.ok) { showError(`${path}: ${(await response.json()).error}`); return false; }
+      commandError = false;
+      return true;
+    } catch (error) { showError("The preview server is not responding. Restart it with: uv run roverloom play"); return false; }
+  }
+  let commandError = false;
 
   function fill(select, names, current) {
     select.innerHTML = "";
@@ -407,11 +474,20 @@ function startLive() {
     refillTargets();
   }
   $("startButton").addEventListener("click", async () => {
-    const response = await post("/api/configure", { scenario: $("scenarioSelect").value, rover: $("roverSelect").value, agent: $("agentSelect").value, speed: Number($("speedSelect").value) });
-    if (!response.ok) { $("footer").textContent = (await response.json()).error; return; }
-    setWorld(await (await fetch("/api/world")).json());
-    refillTargets();
+    const button = $("startButton");
+    button.disabled = true;  // A double click must not start two missions.
+    button.textContent = "Starting...";
+    const ok = await post("/api/configure", { scenario: $("scenarioSelect").value, rover: $("roverSelect").value, agent: $("agentSelect").value, speed: Number($("speedSelect").value) });
+    if (ok) {
+      showError("");
+      setWorld(await (await fetch("/api/world")).json());
+      refillTargets();
+    }
+    button.disabled = false;
+    button.textContent = "Start mission";
   });
+  // Give the keyboard back after a choice is made, or driving keys would change the list.
+  for (const id of ["scenarioSelect", "roverSelect", "agentSelect", "speedSelect", "taskTarget"]) $(id).addEventListener("change", (e) => e.target.blur());
   for (const button of document.querySelectorAll("[data-task]")) {
     button.addEventListener("click", () => {
       const type = button.dataset.task;
@@ -422,12 +498,15 @@ function startLive() {
     if (source !== "manual") return;
     const forward = (keys.has("KeyW") || keys.has("ArrowUp") ? 1 : 0) - (keys.has("KeyS") || keys.has("ArrowDown") ? 1 : 0);
     const turn = (keys.has("KeyA") || keys.has("ArrowLeft") ? 1 : 0) - (keys.has("KeyD") || keys.has("ArrowRight") ? 1 : 0);
-    post("/api/command", { schema_version: 0, linear_velocity_mps: forward * world.max_speed, yaw_rate_radps: turn * world.max_yaw }).catch(() => {});
+    if (finished) return;
+    fetch("/api/command", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ schema_version: 0, linear_velocity_mps: forward * world.max_speed, yaw_rate_radps: turn * world.max_yaw }) }).catch(() => {});
   }
   const toggle = () => post("/api/mode", { source: source === "manual" ? "agent" : "manual" });
   const restart = () => post("/api/reset", {});
   window.addEventListener("keydown", (e) => {
     if (/SELECT|INPUT/.test(e.target.tagName || "")) return;
+    // Browser shortcuts such as Ctrl+R stay with the browser, and must not restart the mission.
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (/^(Key[WASD]|Arrow|Space)/.test(e.code)) e.preventDefault();
     if (e.repeat) return;
     if (e.code === "KeyM") toggle();
@@ -444,12 +523,20 @@ function startLive() {
   $("declineButton").addEventListener("click", () => post("/api/approve", { approved: false }));
   setInterval(sendCommand, 100);
 
+  let lostContact = false;
   async function poll() {
     try {
       const c = (await (await fetch("/api/state")).json()).control;
       const r = c.rover, m = c.mission;
       source = c.driver;
+      finished = m.outcome !== "running";
       $("modeButton").textContent = source === "manual" ? `Driver: you (switch to ${c.agent})` : `Driver: ${c.agent} (switch to you)`;
+      for (const id of ["modeButton", "stopButton"]) $(id).disabled = finished;
+      for (const button of document.querySelectorAll("[data-task]")) button.disabled = finished || source !== "manual";
+      setStatus({ outcome: m.outcome, time: `${c.time_s.toFixed(0)} / ${m.time_limit_s} s`, battery: r.battery_fraction, link: c.comms.command_link_up, window: c.comms.data_window_open, driver: source === "manual" ? "you" : c.agent, science: m.success_value === null ? `${m.targets_reached} / ${m.targets_total} targets` : `${m.science_value.toFixed(1)} / ${m.success_value}`, faults: [...c.active_faults.filter((f) => f !== "wheel_drive_failure"), ...r.failed_wheels.map((w) => `wheel ${w}`)] });
+      if (c.fatal_error) showError(`The simulation stopped: ${c.fatal_error}`);
+      else if (lostContact) showError("");
+      lostContact = false;
       scienceState = { inspected: m.inspected, collected: m.collected, value: m.science_value, stored: m.stored_value, atBase: c.metrics?.returned_to_base };
       setObjectives(m.targets_reached, scienceState);
       drawWorld(m.targets_reached);
@@ -465,7 +552,7 @@ function startLive() {
       if (c.pending_approval) $("approveButton").textContent = `Approve ${c.pending_approval}`;
       $("replayLink").hidden = !c.saved_to;
       if (c.saved_to !== savedShown) { savedShown = c.saved_to; $("footer").textContent = c.saved_to ? `Run saved: ${c.saved_to}` : `Scenario ${world.scenario_id}: ${world.terrain_note}`; }
-    } catch (error) { $("footer").textContent = "The preview server is not responding."; }
+    } catch (error) { lostContact = true; showError("The preview server is not responding. Restart it with: uv run roverloom play"); }
     setTimeout(poll, 150);
   }
   loadOptions();

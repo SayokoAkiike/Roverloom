@@ -11,8 +11,12 @@ renderer. What carries over to Unreal is its information design and contracts:
 
 ## Display
 
-Objectives, rover state, command link, data windows, latency, battery, terrain, position, path, faults,
-events, agent decisions, score, and replay.
+A status bar shows what matters at a glance: mission state, time, battery, command link, data window,
+driver, and science sent. Active faults get a banner, and failures of the page or simulation get
+another. Panels hold objectives, rover state, events, agent decisions, and the score.
+
+The event and decision lists keep the reader's scroll position, and follow new rows only when already
+at the end. Controls that cannot work are disabled, such as Stop after a mission has ended.
 
 ## Controls
 
@@ -32,7 +36,28 @@ State: `GET /api/state` (its `control` key), `GET /api/world`, `GET /api/options
 The server is loopback-only, checks Host and Origin, and accepts only choices it published. Another
 program on the same machine can still control it, as there is no authentication.
 
+## Input rules
+
+- Keys are ignored while a list has focus, and choosing an option gives the keyboard back.
+- `Ctrl`, `Alt`, and `Cmd` combinations stay with the browser, so `Ctrl+R` does not restart the mission.
+- Losing window focus releases all keys. A closed tab stops the rover within 0.6 s.
+- Nothing can follow the end of a mission. Switching driver afterward does nothing, and the log stays valid.
+
 ## Verified, and not
 
-`scripts/capture_preview.py` runs real key events and clicks in a headless browser, and the API has
-integration tests. Testing by a person at a real keyboard, phones, and accessibility are not checked.
+[test_mission_control_e2e.py](../python/tests/e2e/test_mission_control_e2e.py) drives Edge or Chrome through
+Playwright, whose keyboard and mouse events reach the page as trusted input. Evidence from the latest
+saved run is in [`docs/e2e/`](e2e/e2e-log.jsonl), including screenshots.
+
+| Tested in a real browser | |
+| --- | --- |
+| Keyboard | Forward, left turn, arrows, Space, release, and focus rules |
+| Handover | By key and by button, with the rover at rest afterward |
+| Buttons | Start with a chosen setup, Restart, Stop, double click, 50 repeated presses |
+| Faults | Banner, link status, wheel, recovery, and event log |
+| Replay | Play, speed, scrubbing both ways |
+| Errors | Server lost and regained, a refused request, a failed simulation |
+| Window sizes | 320 to 1920 wide, resizing while running, and no sideways scrolling |
+
+Not tested: a person at a real keyboard, Safari, real phones, touch input, and accessibility tools. Touch
+input has no driving controls.

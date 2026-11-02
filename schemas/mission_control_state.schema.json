@@ -189,6 +189,13 @@
         "string",
         "null"
       ]
+    },
+    "fatal_error": {
+      "description": "Why the simulation stopped unexpectedly, if it did.",
+      "type": [
+        "string",
+        "null"
+      ]
     }
   },
   "required": [

@@ -74,12 +74,16 @@ class LiveMission:
         self.lock = threading.Lock()
         self.saved_to: str | None = None
         self.metrics: JsonDict | None = None
+        self.fatal_error: str | None = None
+        self._run_count = 0
         self._stopping = threading.Event()
         self._start_session()
         self._thread = threading.Thread(target=self._loop, daemon=True)
 
     def _start_session(self) -> None:
-        stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%f")
+        # The counter keeps two quick restarts from ever asking for the same directory.
+        self._run_count += 1
+        stamp = f"{datetime.now(UTC).strftime('%Y%m%dT%H%M%S%f')}-{self._run_count}"
         self.manual = ManualSource()
         self.agent = create_agent(self.agent_spec)
         self.events: list[JsonDict] = []
@@ -147,14 +151,18 @@ class LiveMission:
     def _loop(self) -> None:
         next_time = time.monotonic()
         while not self._stopping.is_set():
-            with self.lock:
-                if self.session.mission.finished:
-                    self._finalize()
-                else:
-                    self.session.step()
-                    pose = self.session.sim.state.pose
-                    if self.session.step_index % 5 == 0:
-                        self.trail.append([round(pose.x_m, 2), round(pose.y_m, 2)])
+            try:
+                with self.lock:
+                    if self.session.mission.finished:
+                        self._finalize()
+                    else:
+                        self.session.step()
+                        pose = self.session.sim.state.pose
+                        if self.session.step_index % 5 == 0:
+                            self.trail.append([round(pose.x_m, 2), round(pose.y_m, 2)])
+            except Exception as error:  # A frozen page with no reason would be worse.
+                self.fatal_error = f"{type(error).__name__}: {error}"[:500]
+                return
             next_time += SIM_STEP_S / self.speed
             delay = next_time - time.monotonic()
             if delay > 0:
@@ -248,6 +256,7 @@ class LiveMission:
             "pending_approval": pending.skill if pending is not None else None,
             "metrics": self.metrics,
             "saved_to": self.saved_to,
+            "fatal_error": self.fatal_error,
         }
 
     def snapshot(self) -> JsonDict:
@@ -298,7 +307,7 @@ class LiveMission:
 
 
 def _check_speed(speed: float) -> float:
-    if not isinstance(speed, int | float) or not 0.1 <= speed <= 50.0:
+    if isinstance(speed, bool) or not isinstance(speed, int | float) or not 0.1 <= speed <= 50.0:
         raise ContractError("speed must be between 0.1 and 50")
     return float(speed)
 

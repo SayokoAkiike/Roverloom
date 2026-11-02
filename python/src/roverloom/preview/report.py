@@ -31,10 +31,27 @@ def world_payload(scenario: Scenario) -> JsonDict:
         "science": _science_payload(scenario),
         "rover_id": scenario.rover.rover_id,
         "rover_radius": scenario.rover.body_radius_m,
+        "wheels": _wheel_payload(scenario),
         "max_speed": scenario.rover.max_speed_mps,
         "max_yaw": scenario.rover.max_yaw_rate_radps,
         "time_limit": scenario.mission["time_limit_s"],
     }
+
+
+def _wheel_payload(scenario: Scenario) -> list[list[object]] | None:
+    """Wheels as fractions of the body radius, for drawing. Legacy rovers use the default icon."""
+    geometry = scenario.rover.document.get("geometry")
+    if geometry is None:
+        return None
+    radius = scenario.rover.body_radius_m
+    return [
+        [
+            w["wheel_id"],
+            round(w["position_m"][0] / radius, 3),
+            round(w["position_m"][1] / radius, 3),
+        ]
+        for w in geometry["wheels"]
+    ]
 
 
 def _science_payload(scenario: Scenario) -> JsonDict | None:
