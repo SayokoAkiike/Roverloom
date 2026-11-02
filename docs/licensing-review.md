@@ -126,6 +126,20 @@ The situation **changed days before this review**.
 | Publish logs | No restriction found | Logs contain only our data |
 | AI training | Recently relaxed by Epic | Read current EULA; clean scenes only |
 
+## Python dependencies
+
+Declared licenses, listed by `uv run python ../scripts/audit_dependencies.py` on 2026-11-02. This reports
+what packages declare, and is not legal advice. `pip-audit` found no known vulnerabilities in the locked
+versions on the same day. Nothing runs this continuously.
+
+| Used by | Packages | Declared licenses |
+| --- | --- | --- |
+| Runtime | `jsonschema`, `jsonschema-specifications`, `referencing`, `rpds-py`, `attrs`, `typing_extensions` | MIT, PSF-2.0 |
+| Development only | `pytest`, `pluggy`, `iniconfig`, `Pygments`, `packaging`, `colorama`, `ruff`, `mypy`, `mypy_extensions`, `librt`, `ast_serialize`, `pathspec`, `types-jsonschema`, `playwright`, `pyee`, `greenlet` | MIT, BSD, Apache-2.0, PSF-2.0, MPL-2.0 (`pathspec`) |
+
+Nothing from the development group ships with the runtime package. Roverloom itself declares no license
+yet. Playwright drives a browser already on the machine, and no browser is downloaded or redistributed.
+
 ## Owner actions before public release or machine-learning use
 
 1. Read the current UE EULA and change history, and accept it knowingly.

@@ -41,3 +41,5 @@ jobs:
         run: uv run roverloom league run --league rover_design --out ../runs/league
       - name: Local mock submission
         run: uv run roverloom competition examples/submission --out ../runs/competition
+      - name: Small scientific study
+        run: uv run roverloom study --tracks misestimated_uncertainty --agents mission-planner,adaptive-planner --seeds 2 --out ../runs/study

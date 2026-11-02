@@ -26,9 +26,20 @@ Checked items exist and are tested on the lightweight backend. Everything else i
 - [x] Pinned benchmark, three leagues, private seeds, local leaderboards
 - [x] Local mock of Codabench-style ingestion and scoring
 - [x] Mission Control with setup, tasks, approvals, and replay
-- [ ] Balance: design cost in the Rover Design score
 - [ ] Connect and evaluate a real language model (optional)
 - [ ] Real sandbox and an actual Codabench run
+
+## Competition quality and evaluation (done on the lightweight backend)
+
+- [x] Design classes, volume, power, and compatibility rules; Pareto analysis; intervention studies
+- [x] Study tracks: standard, stress, out of distribution, misestimated uncertainty
+- [x] Confidence intervals, paired comparison, failure causes, recorded decisions
+- [x] Adaptive planner with ablations, and hidden-truth separation tests
+- [x] Mission Control E2E tests in a real browser
+- [x] Local evaluator limits and hostile submission tests, with its bypass documented
+- [x] Frames, units, protocol v1, conformance checks, and a stand-in backend for Unreal
+- [ ] Scenarios held out from planner development
+- [ ] Review of related work before any research claim
 
 ## Phase 1: Unreal vertical slice
 

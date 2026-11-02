@@ -38,8 +38,9 @@ uv run mypy
 uv run python ../scripts/check_repo.py
 ```
 
-Run all of these before committing. After changing the preview, also run
-`uv run python ../scripts/capture_preview.py` and look at the screenshots.
+Run all of these before committing. `pytest` includes browser tests, which skip if no browser exists.
+After changing the preview, save evidence with `ROVERLOOM_E2E_OUT=../docs/e2e uv run pytest tests/e2e`,
+run `uv run python ../scripts/capture_preview.py`, and look at the screenshots.
 
 ## Mission core rules
 
@@ -51,6 +52,11 @@ Run all of these before committing. After changing the preview, also run
 - Never commit evaluation scenarios.
 - After changing a pinned file, rerun `uv run roverloom league verify`. Lock only deliberately.
 - Label events `mars_inspired` or `stress_test`, and never attribute invented rates to NASA.
+- Never run the evaluator on code from people you do not trust. `guard.py` is a tripwire, not a sandbox.
+- A refusal test must prove that the refusal happened, not only that an agent failed.
+- Do not describe a planner or result as novel, or as better in general. See `docs/model-assumptions.md`.
+- Do not convert design cost into points. See ADR 0010.
+- Only `frames.py` knows both Unreal and contract units. Keep the golden vectors current.
 
 ## Unreal Engine
 

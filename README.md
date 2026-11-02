@@ -49,6 +49,9 @@ Run these from `python/`.
 | `uv run roverloom score RUN_DIR` | Recompute the score from logs only |
 | `uv run roverloom benchmark` | Measure simulation speed on this machine |
 | `uv run roverloom rover` | Compare rover designs and budgets |
+| `uv run roverloom rover scout_4w --explain` | Show a design's budgets, and what each part does |
+| `uv run roverloom design-study` | Change one design choice at a time, and rerun the missions |
+| `uv run roverloom study` | Compare planners over four tracks, with confidence intervals |
 | `uv run roverloom run --scenario science_campaign --agent mission-planner --rover hauler_8w` | Run a science mission on a chosen rover |
 | `uv run roverloom skills` | Print the skill contract |
 | `uv run roverloom league run` | Run all offline leagues, with CSV, JSON, and leaderboards |
@@ -59,18 +62,20 @@ Run these from `python/`.
 | Capability | State | Details |
 | --- | --- | --- |
 | Mission simulation | Works | Fixed-step 2.5D model. See [models](docs/lightweight-models.md) |
-| Rover Builder | Works | Designs, budgets, three standard rovers. See [guide](docs/rover-builder.md) |
+| Rover Builder | Works | Classes, volume, power, part rules, and Pareto analysis. See [guide](docs/rover-builder.md) |
+| Scientific study | Works | Four tracks, intervals, failure causes. See [benchmark](docs/scientific-benchmark.md) |
 | Science missions | Works | Inspect, sample, send in data windows, return to base |
 | Events, delay, loss, noise | Works | Eight event types, labeled as Mars-inspired or stress tests; seeded |
 | Manual driving and agents | Works | The same command path for both |
-| Agents and skills | Works | Reactive, classical, mission planner, human approval, seven typed skills |
+| Agents and skills | Works | Reactive, classical, mission and adaptive planners, human approval, seven typed skills |
 | CaP-ready interface | Mock only | Validated JSON skill calls. No real model is connected, and no code is executed |
 | Offline leagues | Works | Autonomy, Rover Design, Full Mission; pinned benchmark, private seeds |
-| Codabench-style evaluator | Local mock only | **Never run on Codabench**, and not a sandbox |
+| Codabench-style evaluator | Local mock only | **Never run on Codabench**, and [not a sandbox](docs/evaluator-safety.md) |
 | Logs, replay, scoring | Works | Tamper-evident JSONL; scored from files alone |
 | Reproducibility | Tested | Identical logs for identical inputs on the same platform |
-| Mission Control | Works locally | [Guide](docs/mission-control.md). No frontend framework |
-| Agent-to-simulator bridge | Works on the lightweight backend | Loopback JSON Lines |
+| Mission Control | Works locally | [Guide](docs/mission-control.md), tested in a real browser. No frontend framework |
+| Agent-to-simulator bridge | Works on the lightweight backend | Loopback JSON Lines, protocol version 1 |
+| Unreal contract | Specified and tested without Unreal | [Frames, units, time, safety](docs/unreal-contract.md) |
 | Unreal Engine project | **Not started** | [Production plan](docs/unreal-production-plan.md) |
 | Unreal MCP | **Not verified** | Engine is not installed |
 | Online competition | **Not started** | [Input and output draft](docs/competition-io.md) |
@@ -84,13 +89,17 @@ Run these from `python/`.
 - [Benchmark Reproduction Guide](docs/benchmark-reproduction.md)
 - [Competition Rules Draft](docs/competition-rules.md)
 - [API Compatibility Policy](docs/api-compatibility.md)
+- [Scientific Benchmark](docs/scientific-benchmark.md)
+- [Model Assumptions](docs/model-assumptions.md)
+- [Evaluator Safety](docs/evaluator-safety.md)
+- [macOS Checklist](docs/macos-checklist.md)
 
 ## Repository layout
 
 ```text
 python/      Mission core, agents, preview, and tests
 schemas/     Backend-neutral contracts for messages, logs, and configuration
-scenarios/   Practice missions, terrain definitions
+scenarios/   Practice and benchmark missions, terrain definitions
 rovers/      Rover parameters and designs
 benchmarks/  Pinned benchmark definitions
 competition/ Draft Codabench bundle files and public reference data

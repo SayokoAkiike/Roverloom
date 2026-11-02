@@ -11,7 +11,9 @@ are detected and explained. They become commitments at version 1.0.
 | Rover formulas | `BUILDER_VERSION` | Any change in compiled parameters |
 | Standard rover, scenario | Own `version` | Any change in its file |
 | Built-in agent | `VERSION` | Changed decisions |
-| Benchmark | `version` plus hash pins | Any change in pinned inputs |
+| Benchmark | `version` plus hash pins | Any change in pinned inputs, including core and agent source |
+| Bridge protocol | `PROTOCOL_VERSION` (1) | Any change a current client cannot read |
+| Coordinate conventions | `conventions` in the manifest, and [golden vectors](../schemas/conformance/frame_vectors.json) | Any change in the vectors |
 | Python API | Package version | See below |
 
 ## Stable surfaces, for now
@@ -31,6 +33,8 @@ Other modules are internal. A module's `sim`, `session`, or `Scenario` must not 
 - A breaking contract change increases `schema_version`, and is recorded in an ADR with a migration path.
 - A run records all versions and hashes. `load_run` rejects logs that fail integrity checks.
 - `roverloom league verify` detects incompatible changes before results can be mixed.
+
+Old benchmark files are kept in `benchmarks/archive/` as a record. They no longer verify against the code.
 
 ## Unreal
 
