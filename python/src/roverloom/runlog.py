@@ -20,6 +20,7 @@ from roverloom.contract import (
     sha256_bytes,
     validate,
 )
+from roverloom.frames import FRAME_NAME
 from roverloom.world import SIM_STEP_S, Scenario, build_scenario
 
 LOG_FILES = {"telemetry": "telemetry.jsonl", "commands": "commands.jsonl", "events": "events.jsonl"}
@@ -123,6 +124,7 @@ class RunWriter:
         steps: int,
         wall_time_s: float,
         agent_version: str | None = None,
+        backend: str = BACKEND_NAME,
     ) -> JsonDict:
         self.close_files()
         for name, document in (
@@ -135,7 +137,8 @@ class RunWriter:
             )
         manifest: JsonDict = {
             "schema_version": SCHEMA_VERSION,
-            "backend": BACKEND_NAME,
+            "backend": backend,
+            "conventions": {"frame": FRAME_NAME, "quaternion": "xyzw", "body": "flu"},
             "model_version": MODEL_VERSION,
             "scoring_version": SCORING_VERSION,
             "scenario_id": scenario.scenario_id,

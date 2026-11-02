@@ -64,9 +64,8 @@ Observations, and writes Telemetry. Three rules keep backends interchangeable:
 
 - SI units, stated in field names (`_m`, `_s`, `_mps`, `_radps`).
 - Site frame is right-handed: +X east, +Y north, +Z up. Quaternions are `[x, y, z, w]`.
-- Unreal uses left-handed centimeters. Conversion happens only inside `unreal/`:
-  `UE.X = 100 * x`, `UE.Y = -100 * y`, `UE.Z = 100 * z`. Rotations need the
-  matching handedness conversion and must be covered by tests when implemented.
+- Unreal uses left-handed centimeters. Conversion happens only at the boundary, following
+  [unreal-contract.md](unreal-contract.md), whose rules are tested in `frames.py` and golden vectors.
 - Each document carries `schema_version`. Breaking changes increase it.
 
 ## Python to Unreal transport (proposed)

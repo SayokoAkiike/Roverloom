@@ -149,6 +149,27 @@
         "string",
         "null"
       ]
+    },
+    "conventions": {
+      "description": "Declares the frame and rotation conventions of this log. See docs/unreal-contract.md.",
+      "type": "object",
+      "properties": {
+        "frame": {
+          "const": "site_enu_rh_si"
+        },
+        "quaternion": {
+          "const": "xyzw"
+        },
+        "body": {
+          "const": "flu"
+        }
+      },
+      "required": [
+        "frame",
+        "quaternion",
+        "body"
+      ],
+      "additionalProperties": false
     }
   },
   "required": [

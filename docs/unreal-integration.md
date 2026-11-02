@@ -1,6 +1,7 @@
 # Unreal integration
 
-Design only, reviewed 2026-11-02. **Nothing here has been run.** Editor MCP setup and
+Design only, reviewed 2026-11-02. **Nothing here has been run in Unreal.** The tested contract is in
+[unreal-contract.md](unreal-contract.md), which takes precedence over this page. Editor MCP setup and
 verification are in [unreal-mcp.md](unreal-mcp.md).
 
 ## Two separate paths
@@ -26,7 +27,7 @@ Neither path depends on the other. Simulation behavior never depends on MCP.
 validate against `schemas/`. If a spike shows Remote Control is clearly simpler and
 reliable in a packaged build, reconsider before writing more than the first command.
 
-## Bridge protocol v0
+## Bridge protocol
 
 This protocol is implemented and tested in `python/src/roverloom/bridge.py` against the lightweight
 backend, where it runs in lockstep. **No Unreal side exists yet.**
@@ -38,7 +39,7 @@ backend, where it runs in lockstep. **No Unreal side exists yet.**
 
 | Type | Direction | Body |
 | --- | --- | --- |
-| `start` | Simulator to agent | `{"seed": n, "brief": MissionBrief}` |
+| `start` | Simulator to agent | `{"protocol_version": 1, "seed": n, "brief": MissionBrief}` |
 | `observation` | Simulator to agent | [Observation](../schemas/observation.schema.json) |
 | `action` | Agent to simulator | [Action](../schemas/action.schema.json) |
 | `end` | Simulator to agent | `{}` |
