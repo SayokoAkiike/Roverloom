@@ -4,7 +4,7 @@ Start here if you have no memory of this project. It is written so that a new Cl
 Mac, needs nothing from earlier conversations. **The documents on GitHub `main` are the source of truth.**
 
 State at handoff, 2026-11-02: Windows development ended. Measured code is `2be6d9c`. Later commits contain only
-results and documents. **No Unreal code exists.** The Python project now runs on macOS. See the [checklist results](macos-checklist.md#results-on-this-mac).
+results and documents. **`unreal/` holds only a C++ skeleton.** The Python project now runs on macOS. See the [checklist results](macos-checklist.md#results-on-this-mac).
 
 | Next | Document |
 | --- | --- |

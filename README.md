@@ -76,8 +76,8 @@ Run these from `python/`.
 | Mission Control | Works locally | [Guide](docs/mission-control.md), tested in a real browser. No frontend framework |
 | Agent-to-simulator bridge | Works on the lightweight backend | Loopback JSON Lines, protocol version 1 |
 | Unreal contract | Specified and tested without Unreal | [Frames, units, time, safety](docs/unreal-contract.md) |
-| Unreal Engine project | **Not started** | [Production plan](docs/unreal-production-plan.md) |
-| Unreal MCP | **Not verified** | Engine is not installed |
+| Unreal Engine project | C++ skeleton only. Rover and terrain **not started** | [unreal/](unreal/README.md), [production plan](docs/unreal-production-plan.md) |
+| Unreal MCP | Verified in a disposable project on one Mac | [Measured results](docs/unreal-mcp.md#measured-results) |
 | Online competition | **Not started** | [Input and output draft](docs/competition-io.md) |
 
 ## Add your own
@@ -106,7 +106,7 @@ scenarios/   Practice and benchmark missions, terrain definitions
 rovers/      Rover parameters and designs
 benchmarks/  Pinned benchmark definitions
 competition/ Draft Codabench bundle files and public reference data
-unreal/      Placeholder for the future Unreal Engine project
+unreal/      Unreal Engine C++ project skeleton
 docs/        Design, decisions, plans, and guides
 scripts/     Repository checks and preview capture
 .github/     CI and templates

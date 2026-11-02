@@ -2,7 +2,7 @@
 
 **Goal:** an Unreal Engine 3D demo in which a six-wheeled rover drives across realistic Martian terrain, operated by a person and by a Python agent.
 
-**Plan only. Nothing here has been built or measured.** Design detail is in [unreal-production-plan.md](unreal-production-plan.md), the contract in
+**Plan. Steps 1 to 3 are measured; the rest has not been built.** See [the results](macos-checklist.md#unreal-results-on-this-mac). Design detail is in [unreal-production-plan.md](unreal-production-plan.md), the contract in
 [unreal-contract.md](unreal-contract.md), and compatibility in [macos-checklist.md](macos-checklist.md). This page sets order and gates. If it conflicts with
 [vertical-slice-plan.md](vertical-slice-plan.md), this page and the contract win. That plan's machine column predates the Mac.
 

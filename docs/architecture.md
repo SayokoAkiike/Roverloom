@@ -1,7 +1,7 @@
 # Architecture
 
 Status: the lightweight backend, evaluator, and sample agents exist and are tested. The Unreal
-backend does not exist yet.
+project builds as a skeleton, and is not yet a backend.
 
 ## Goals
 
@@ -37,7 +37,7 @@ backend does not exist yet.
 | `schemas/` | Messages, logs, scenario, terrain, rover, and plan contracts | Draft v0 |
 | `scenarios/`, `rovers/` | Declarative missions, terrain, faults, and rover parameters | Practice set |
 | `python/` | Mission core, agents, evaluator, bridge, 2D preview | Working; see [models](lightweight-models.md) |
-| `unreal/` | Terrain, physics, rendering, manual driving | Not started; see [plan](unreal-production-plan.md) |
+| `unreal/` | Terrain, physics, rendering, manual driving | C++ skeleton only; see [plan](unreal-production-plan.md) |
 | `scripts/` | Repository checks and preview capture | Working |
 | `benchmarks/`, `competition/` | Pinned leagues, draft Codabench files | Working offline; never run on Codabench |
 

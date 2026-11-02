@@ -29,6 +29,12 @@ been done.**
       independently reviewed. Only open reports you generated.
 - [ ] Unreal bridge and Unreal MCP, when added, will need their own review. Epic's MCP server has no
       authentication.
+- [ ] **UE Trace listens on all interfaces.** A Development `.app` from `unreal/` listens on `*:1985`, measured on
+      macOS with UE 5.8.4. The editor did too. No network setting or engine file has been changed. What the port
+      accepts, and whether Shipping builds open it, are unverified. Decide before any distribution or public
+      release. Until then, do not run these builds on untrusted networks.
+- [ ] `scripts/check_repo.py` does not detect the `SecurityToken` that `AndroidFileServer` writes. That plugin is
+      disabled in `unreal/`, and [the checklist](macos-checklist.md#unreal-results-on-this-mac) has the details.
 - [ ] Licensing questions in [licensing-review.md](licensing-review.md) remain open, including the
       unread Unreal and Fab EULA texts.
 

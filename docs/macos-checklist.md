@@ -194,5 +194,22 @@ for Lumen. Nine meshes of 999,698 triangles each, about 9 million in all, with o
 | `GameFeatureData` rule missing | Project setting. Matters only for game feature plugins, which this project does not use |
 | `idevice_id`, `Bad CPU type`, every 10 s | An x86 iOS tool without Rosetta. Not needed for Mac work |
 
+**The `unreal/` project,** same versions, 2026-11-03. It holds one C++ module and no content.
+
+| Check | Result |
+| --- | --- |
+| Editor build, from no generated files | Succeeded in 19 s |
+| `Roverloom.Module.Loaded` | `Result={Success}`, 1 test run |
+| Fresh clone, build and test | Succeeded, with no other project present in the clone |
+| `BuildCookRun` with `-package` | Succeeded in 89 s, 885 MB. The `.app` ran for 25 s on Metal, and logged `Roverloom module started` |
+| Python checks on this branch | 707 passed, 1 skipped. `league verify` passed |
+
+**Editor writes to `Config/`.** Without precautions, starting the editor changes tracked files. `AndroidFileServer`, enabled by default, adds its settings and a `SecurityToken`
+that differs on every start to `DefaultEngine.ini`, and a missing `DefaultInput.ini` is generated with 91 lines. `Roverloom.uproject` disables that plugin, and `DefaultInput.ini` is committed
+with only its two class settings. With both, `git status` did not change across editor runs and packaging. If iOS or Android work is ever needed, decide again, and never commit the token.
+`scripts/check_repo.py` does not detect this token, so review the diff of `Config/`.
+
+**Open security issue.** The packaged Development `.app` listens on `*:1985`, which the log names as the UE Trace control port. It listens on all interfaces, not loopback. See [security notes](security.md#unresolved).
+
 **Not tested:** a person driving the editor, long sessions, Movie Render Queue, hardware ray tracing, MegaLights, Lumen Lite, Mesh Terrain, Landscape, and a real terrain.
 

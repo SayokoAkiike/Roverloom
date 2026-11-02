@@ -1,6 +1,6 @@
 # Unreal MCP
 
-**Connection status: verified on one Mac, in a disposable project, not in `unreal/`.** See [Measured results](#measured-results).
+**Connection status: verified on one Mac.** Reads, edits, and saves in a disposable project. Reads only in `unreal/`. See [Measured results](#measured-results).
 The plugin remains Experimental, and is an editor tool, never a runtime or build dependency.
 
 Reviewed 2026-11-02 against
@@ -12,7 +12,7 @@ here. That is a measurement, not a statement of support by Epic.
 ## Facts from Epic's documentation
 
 - Documented for Unreal Engine 5.8 and marked **Experimental**. APIs may change.
-- Requires the **Unreal MCP** plugin (`ModelContextProtocol`) and **All Toolsets**.
+- Requires the **Unreal MCP** plugin (`ModelContextProtocol`) and **All Toolsets**. `unreal/` enables `EditorToolset` instead. See [Use from `unreal/`](#use-from-unreal).
   **Toolset Registry** is enabled as a dependency.
 - Runs inside the editor at `http://127.0.0.1:8000/mcp`. HTTP and SSE only.
 - No authentication. Loopback only; do not expose it beyond the local machine.
@@ -75,7 +75,20 @@ UE 5.8.4 (CL 58902052), macOS 27.0.1, Xcode 27.2, Apple M4, 16 GB, 2026-11-03. C
 
 Connect, read, create, change, save, and restart also worked with `-nullrhi`, without Metal, before Xcode was installed.
 
-**Not verified:** use from `unreal/`, any toolset not listed above, and a person comparing results with the Outliner.
+**Not verified:** edits and saves from `unreal/`, any toolset not listed above, and a person comparing results with the Outliner.
+
+### Use from `unreal/`
+
+Same machine and versions, 2026-11-03. `Roverloom.uproject` enables `ModelContextProtocol` and `EditorToolset` for the editor target only, which
+differs from Epic's page. The editor log reports 19 toolsets.
+
+| Check | Result |
+| --- | --- |
+| `claude -p --mcp-config .mcp.json --strict-mcp-config`, started from `unreal/` | `status: connected` |
+| `list_toolsets`, `describe_toolset`, `scene.SceneTools.get_current_level`, `find_actors`, `asset.AssetTools.is_dirty` | Succeeded. The editor log shows no other tool dispatched |
+| Tracked and generated files before start, after start, after the calls, after exit | Identical |
+| `GameFeatureData` error seen with All Toolsets | Not logged |
+| Packaged `.app` | No plugin files, and no plugin text in its executable. The `.uproject` copied into the `.pak` still names the plugin |
 
 ### Behavior worth knowing
 

@@ -1,6 +1,38 @@
 # Unreal project
 
-Placeholder. The Unreal Engine project will be created here in Phase 1 with UE 5.8,
-which is not yet installed. See
-[../docs/development-environment.md](../docs/development-environment.md) and
-[../docs/unreal-mcp.md](../docs/unreal-mcp.md).
+A C++ project skeleton for UE 5.8. **It has no rover, terrain, physics, bridge, logs, or content.** It only builds, loads one
+module, and packages. Results are in the [checklist](../docs/macos-checklist.md#unreal-results-on-this-mac).
+
+Planned contents and rules are in [unreal-integration.md](../docs/unreal-integration.md) and
+[unreal-contract.md](../docs/unreal-contract.md). Python keeps mission evaluation, scoring, and agents.
+
+## Build on a Mac
+
+Requires the tools recorded in [ADR 0013](../docs/decisions/0013-ue-5-8-4-on-macos-27.md). `UE_ROOT` is your engine directory.
+
+```shell
+"$UE_ROOT/Engine/Build/BatchFiles/Mac/Build.sh" RoverloomEditor Mac Development -project="$PWD/Roverloom.uproject" -WaitMutex
+```
+
+Package, always with `-package`, then run the `.app`:
+
+```shell
+"$UE_ROOT/Engine/Build/BatchFiles/RunUAT.sh" BuildCookRun -project="$PWD/Roverloom.uproject" -noP4 -platform=Mac \
+  -clientconfig=Development -build -cook -allmaps -stage -pak -package -archive -archivedirectory="$PWD/Packaged" \
+  -nocompileeditor -utf8output -unattended
+```
+
+Run the module test without rendering:
+
+```shell
+"$UE_ROOT/Engine/Binaries/Mac/UnrealEditor.app/Contents/MacOS/UnrealEditor" "$PWD/Roverloom.uproject" -nullrhi -unattended -nosplash \
+  -nosound -culture=en -ExecCmds="Automation RunTests Roverloom" -TestExit="Automation Test Queue Empty" -log
+```
+
+Unreal MCP is enabled for the editor target only, and is not a runtime dependency. See [Unreal MCP](../docs/unreal-mcp.md).
+
+## Editor changes to `Config/`
+
+Review `git diff Config/` before committing. `AndroidFileServer` is disabled because it writes a changing `SecurityToken` to `DefaultEngine.ini`.
+See [ADR 0013](../docs/decisions/0013-ue-5-8-4-on-macos-27.md). The Development build also listens on port 1985 on all interfaces, an
+[open security issue](../docs/security.md#unresolved).

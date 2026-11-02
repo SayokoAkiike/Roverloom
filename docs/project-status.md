@@ -13,11 +13,11 @@ The state of the project at the end of Windows verification, 2026-11-02, for who
 | Planners | Reactive, classical, mission, adaptive, human approval | Adaptive is a baseline, developed on these scenarios |
 | Mission Control | Works, with E2E tests in Edge or Chrome | No human, Safari, phone, or touch testing |
 | Local evaluator | Works, with hostile submission tests | [Not a sandbox](evaluator-safety.md). Never run on Codabench |
-| Unreal contract | [Specified](unreal-contract.md), and tested with a Python stand-in | No Unreal code exists |
+| Unreal contract | [Specified](unreal-contract.md), and tested with a Python stand-in | `unreal/` is a skeleton, and implements none of it |
 
 ## Not done
 
-- Unreal Engine and Visual Studio are not installed, and Unreal MCP is not verified.
+- `unreal/` has no rover, terrain, physics, bridge, or logs. UE 5.8.4 and Unreal MCP are [measured on one Mac](macos-checklist.md#unreal-results-on-this-mac), with one unexplained editor crash and an [open security issue](security.md#unresolved).
 - macOS is not in CI. Python results on one M4 Mac are recorded by hand in the [checklist](macos-checklist.md#results-on-this-mac).
 - No real language model is connected. `cap-mock` follows fixed rules.
 - No real sandbox, log signing, or Codabench run. Do not run anyone else's code.

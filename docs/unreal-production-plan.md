@@ -1,6 +1,6 @@
 # Unreal Engine 5.8 production plan
 
-**Plan only.** Unreal Engine is not installed, so nothing here has been built or measured, including
+**Plan only.** `unreal/` is only a skeleton, so nothing here has been built or measured, including
 all budgets. Reviewed 2026-11-02. See also [vertical slice plan](vertical-slice-plan.md),
 [graphics strategy](graphics-strategy.md), and [integration](unreal-integration.md).
 
