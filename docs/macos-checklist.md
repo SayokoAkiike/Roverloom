@@ -1,7 +1,7 @@
 # macOS setup and checklist
 
-**Roverloom has never run on macOS, and every step here is unverified on a Mac.** The steps come from documentation
-and from checks on Windows. Record real results at the bottom of this file. Target: Apple M4 with 16 GB or 32 GB.
+**Sections 1 to 5 have run on one Mac. Section 6 has not.** Measured results are at the bottom of this file. Steps not listed
+there come from documentation and from checks on Windows. Target: Apple M4 with 16 GB or 32 GB.
 Requirements were reviewed 2026-11-02, and may have changed.
 
 ## Compatibility
@@ -110,13 +110,13 @@ For comparison, the last Windows run had 706 passed, including one test per Mark
 
 ## Things likely to differ
 
-- [ ] `guard.py`: `RLIMIT_AS` on macOS is known to be unreliable. Check `test_memory_limit_is_what_stops_the_bomb` first. If it fails, record that memory is not limited.
-- [ ] Multiprocessing starts with `spawn`, as on Windows. `study --workers 2` should behave the same.
-- [ ] Paths: case-insensitive filesystems, and `/tmp` being a symbolic link to `/private/tmp`. The guard resolves paths, so its tests are the check.
+- [x] `guard.py`: macOS rejects a 1 GiB `RLIMIT_AS` with `EINVAL`, which stopped every guarded agent at startup. The limit is now 1 GiB above the process's address space at startup, and `test_memory_limit_is_what_stops_the_bomb` passes.
+- [x] Multiprocessing starts with `spawn`, as on Windows. `study --workers 2` exited 0, and matched a second run.
+- [x] Paths: case-insensitive filesystems, and `/tmp` being a symbolic link to `/private/tmp`. The guard resolves paths, and its tests pass.
 - [ ] Browser paths in `scripts/capture_preview.py`, and Playwright's `chrome` channel. Browser tests skip if no browser exists, so a skip is not a pass.
 - [ ] Keyboard: `Cmd` shortcuts must stay with the browser. The page ignores `metaKey`, which has not been exercised on a real Mac.
-- [ ] Port 8770 may already be in use. Use `--port`. Port 8000 is the Unreal MCP default.
-- [ ] Results: rerun a small case, such as `study --tracks misestimated_uncertainty --agents mission-planner,adaptive-planner --seeds 2 --out ../runs/mac-check`. Identical bytes across CPUs are not claimed. Record whether digests match.
+- [ ] Port 8770 **is** in use on the measured Mac, by the system's `sharingd`, so `roverloom play` stops with `OSError: [Errno 48]` unless given `--port`. Port 8000 is the Unreal MCP default.
+- [x] Results: rerun a small case, such as `study --tracks misestimated_uncertainty --agents mission-planner,adaptive-planner --seeds 2 --out ../runs/mac-check`. Identical bytes across CPUs are not claimed. Differences are recorded below.
 - [ ] Drive with a real keyboard in Safari and Chrome. Safari is not covered by any test.
 
 ## 6. Unreal prerequisites
@@ -130,14 +130,22 @@ Do not install without the owner's approval in the current conversation. See [ma
 
 ## Results on this Mac
 
-Fill this in, and commit it. Nothing has been recorded yet.
-
 | Item | Result | Date |
 | --- | --- | --- |
-| Model, chip, memory, free disk | | |
-| macOS, Xcode | | |
-| Python, uv, tests passed, failed, skipped | | |
-| ruff, mypy, `check_repo`, `league verify` | | |
-| `demo` | | |
-| Memory limit test | | |
-| Digest compared with Windows and Ubuntu | | |
+| Model, chip, memory, free disk | `Mac16,10`, Apple M4, 10 CPU and 10 GPU cores, 16 GiB, 663 GiB free of 926 GiB | 2026-11-02 |
+| macOS, Xcode | macOS 27.0.1 (26A434). Xcode not installed; Command Line Tools 27.0 | 2026-11-02 |
+| Python, uv, tests passed, failed, skipped | uv 0.13.6. Python 3.13.1 and 3.14.10 each: 706 passed, 0 failed, 1 skipped | 2026-11-02 |
+| ruff, mypy, `check_repo`, `league verify` | All pass on both Python versions | 2026-11-02 |
+| `demo` | Exit 0. `score` on its `replanner` run exit 0 | 2026-11-02 |
+| Memory limit test | Passes. `bytearray` of 2 GiB and 8 GiB gives `MemoryError`, and 64 MiB is allowed | 2026-11-02 |
+| Digest compared with Windows and Ubuntu | Digests not compared. See the study comparison below | 2026-11-02 |
+
+The skipped test covers a backslash in a zip path, which is an ordinary filename character on this platform. Browser tests ran in
+Chrome. No person has driven the rover on this Mac, and Safari has not been tried.
+
+**Study comparison,** using the command in the list above, 12 runs:
+
+- Two runs on Python 3.13.1, and one on 3.14.10, gave identical `study_runs.csv` rows.
+- Against the Windows rows in [`study_runs.csv`](results/phase3/study_runs.csv), 1 of 12 is identical. Outcome, cause, achievement, and science value match in all 12.
+  Score differs in 10 rows, by at most 0.145. Energy differs in 11, by at most 4.935 Wh. Mission time differs in 4, by at most 17.5 s.
+- The cause of these differences has not been investigated. Do not mix Mac and Windows runs in one comparison.

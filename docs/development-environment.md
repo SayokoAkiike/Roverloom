@@ -1,7 +1,7 @@
 # Development environment
 
-**This page describes the Windows laptop used until 2026-11-02.** Unreal work moves to an Apple M4 Mac, which has not been
-surveyed yet. See [the checklist](macos-checklist.md) and [ADR 0012](decisions/0012-m4-mac-for-unreal.md).
+**This page describes the Windows laptop used until 2026-11-02.** Unreal work moves to an Apple M4 Mac, surveyed in
+[the checklist](macos-checklist.md#results-on-this-mac) and [ADR 0012](decisions/0012-m4-mac-for-unreal.md).
 
 Surveyed 2026-11-02 on the primary development machine. Graphics recommendations
 below are starting points from Epic's published requirements. **They have not been

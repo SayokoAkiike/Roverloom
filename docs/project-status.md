@@ -18,13 +18,15 @@ The state of the project at the end of Windows verification, 2026-11-02, for who
 ## Not done
 
 - Unreal Engine and Visual Studio are not installed, and Unreal MCP is not verified.
-- macOS has never run the project. See the [checklist](macos-checklist.md).
+- macOS is not in CI. Python results on one M4 Mac are recorded by hand in the [checklist](macos-checklist.md#results-on-this-mac).
 - No real language model is connected. `cap-mock` follows fixed rules.
 - No real sandbox, log signing, or Codabench run. Do not run anyone else's code.
 - `LICENSE` is not selected, and EULA texts are unread. See [licensing review](licensing-review.md).
 
 ## Known problems
 
+- **Port on macOS:** `roverloom play` fails on the measured Mac unless given `--port`, because `sharingd` holds the default 8770.
+- **Cross-platform study results:** Mac and Windows differ in score, energy, and time, for an uninvestigated reason. See the [comparison](macos-checklist.md#results-on-this-mac).
 - **Withdrawal rule:** it lowers achievement outside the standard range. Not tuned further, because
   the final results must stay comparable. See [results](scientific-benchmark.md#what-each-behavior-contributes).
 - **`ood_long_delay`:** every planner scores 0 with 2.5 s delay and 20% loss.

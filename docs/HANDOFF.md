@@ -4,7 +4,7 @@ Start here if you have no memory of this project. It is written so that a new Cl
 Mac, needs nothing from earlier conversations. **The documents on GitHub `main` are the source of truth.**
 
 State at handoff, 2026-11-02: Windows development ended. Measured code is `2be6d9c`. Later commits contain only
-results and documents. **Nothing has ever run on macOS, and no Unreal code exists.**
+results and documents. **No Unreal code exists.** The Python project now runs on macOS. See the [checklist results](macos-checklist.md#results-on-this-mac).
 
 | Next | Document |
 | --- | --- |
@@ -48,7 +48,7 @@ Details and limits are in [project-status.md](project-status.md) and the README 
 | Logs, replay, scoring from files alone | Real sandbox, log signing, Codabench run, online service |
 | Mission Control in a browser, with E2E tests | Tests by a person, or in Safari, or by touch |
 | Bridge protocol v1, frame conversions, golden vectors, conformance checks, stand-in backend | C++ implementation of any of these |
-| | Anything on macOS. `LICENSE` is unselected, and EULA texts are unread |
+| | `LICENSE` is unselected, and EULA texts are unread |
 
 ## Unreal and Python responsibilities
 
