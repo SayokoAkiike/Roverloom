@@ -4,6 +4,8 @@
 #include "GameFramework/GameModeBase.h"
 #include "Math/RandomStream.h"
 
+#include "SpikeParameters.h"
+
 #include "SpikeGameMode.generated.h"
 
 class ASpikeRover;
@@ -38,6 +40,7 @@ private:
 	FString OutDir;
 	double SlopeDeg = 0.0;
 	double ObstacleCm = 0.0;
+	double DriveMaxTorqueUsed = RoverloomSpike::DriveMaxTorque;
 	double DurationS = 0.0;
 	int32 Seed = 42;
 	FRandomStream Random;

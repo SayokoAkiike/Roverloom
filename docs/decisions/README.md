@@ -18,3 +18,4 @@ accepted records. Supersede them with a new one.
 | [0011](0011-tripwire-guard-for-local-evaluation.md) | A tripwire for local evaluation, not a sandbox | Accepted |
 | [0012](0012-m4-mac-for-unreal.md) | Apple M4 Mac for Unreal development | Accepted, measured in [0013](0013-ue-5-8-4-on-macos-27.md) |
 | [0013](0013-ue-5-8-4-on-macos-27.md) | UE 5.8.4 with Xcode 27.2 on macOS 27 | Accepted, as the development base only; see its scope |
+| [0014](0014-chaos-rigid-body-rover-spike.md) | Chaos rigid bodies and joints for the rover physics spike | Proposed; R0 attempt 1 failed |

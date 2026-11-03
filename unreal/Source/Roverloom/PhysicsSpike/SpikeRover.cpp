@@ -56,7 +56,7 @@ ASpikeRover::ASpikeRover()
 	RootComponent->SetMobility(EComponentMobility::Movable);
 }
 
-void ASpikeRover::Build(UPhysicalMaterial* Material, bool bPinChassis)
+void ASpikeRover::Build(UPhysicalMaterial* Material, bool bPinChassis, double InDriveMaxTorque)
 {
 	const FTransform Origin = GetActorTransform();
 
@@ -72,6 +72,7 @@ void ASpikeRover::Build(UPhysicalMaterial* Material, bool bPinChassis)
 		Wheels.Add(MakeBody(this, *FString::Printf(TEXT("Wheel%d"), Index), SpherePath, WheelWorld, WheelMassKg, Material));
 	}
 	bPinned = bPinChassis;
+	DriveTorqueLimit = InDriveMaxTorque;
 }
 
 bool ASpikeRover::TryConnect()
@@ -113,7 +114,7 @@ bool ASpikeRover::TryConnect()
 		Axle->SetAngularDriveMode(EAngularDriveMode::TwistAndSwing);
 		Axle->SetAngularDriveAccelerationMode(false);
 		Axle->SetAngularVelocityDriveTwistAndSwing(true, false);
-		Axle->SetAngularDriveParams(0.0f, DriveDamping, DriveMaxTorque);
+		Axle->SetAngularDriveParams(0.0f, DriveDamping, DriveTorqueLimit);
 		Axle->SetAngularVelocityTarget(FVector::ZeroVector);
 		Axle->SetConstrainedComponents(Chassis, NAME_None, Wheels[Index], NAME_None);
 		Axles.Add(Axle);

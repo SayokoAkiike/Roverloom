@@ -65,6 +65,9 @@ Follow the production plan for look, data, and honesty rules.
 
 ### 5. Place and drive the six-wheeled rover
 
+**Order changed by the owner on 2026-11-03:** the physics spike, Step 5a, runs before Step 4, on flat test geometry. The rest of
+Step 5 still follows Step 4. Spike results are in [results/unreal-physics-spike](results/unreal-physics-spike/README.md).
+
 Build from `rovers/designs/pathfinder_6w` parameters and geometry. It is an original design, not a NASA replica.
 
 Run the physics spike, timeboxed, from the [vertical slice plan](vertical-slice-plan.md), and record the choice in an ADR. Then automate the plausibility tests in that plan: free fall at 3.71 m/s², static load, step response, yaw sign, slope, obstacle, time step, stability.

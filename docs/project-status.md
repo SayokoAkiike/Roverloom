@@ -17,7 +17,7 @@ The state of the project at the end of Windows verification, 2026-11-02, for who
 
 ## Not done
 
-- `unreal/` has no rover, terrain, physics, bridge, or logs. UE 5.8.4 and Unreal MCP are [measured on one Mac](macos-checklist.md#unreal-results-on-this-mac), with one unexplained editor crash and an [open security issue](security.md#unresolved).
+- `unreal/` has no terrain, bridge, or logs, and no working rover. A physics spike [failed its first R0 attempt](results/unreal-physics-spike/README.md) because of a drive setting, and is independent of the Mission Core. UE 5.8.4 and Unreal MCP are [measured on one Mac](macos-checklist.md#unreal-results-on-this-mac), with one unexplained editor crash and an [open security issue](security.md#unresolved).
 - macOS is not in CI. Python results on one M4 Mac are recorded by hand in the [checklist](macos-checklist.md#results-on-this-mac).
 - No real language model is connected. `cap-mock` follows fixed rules.
 - No real sandbox, log signing, or Codabench run. Do not run anyone else's code.

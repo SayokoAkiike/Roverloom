@@ -1,7 +1,7 @@
 # Unreal project
 
-A C++ project skeleton for UE 5.8. **It has no rover, terrain, physics, bridge, logs, or content.** It only builds, loads one
-module, and packages. Results are in the [checklist](../docs/macos-checklist.md#unreal-results-on-this-mac).
+A C++ project skeleton for UE 5.8, and a physics spike. **It has no terrain, bridge, logs, content, or working rover.** The
+spike's first R0 attempt [failed](../docs/results/unreal-physics-spike/README.md). Results are in the [checklist](../docs/macos-checklist.md#unreal-results-on-this-mac).
 
 Planned contents and rules are in [unreal-integration.md](../docs/unreal-integration.md) and
 [unreal-contract.md](../docs/unreal-contract.md). Python keeps mission evaluation, scoring, and agents.
@@ -27,6 +27,13 @@ Run the module test without rendering:
 ```shell
 "$UE_ROOT/Engine/Binaries/Mac/UnrealEditor.app/Contents/MacOS/UnrealEditor" "$PWD/Roverloom.uproject" -nullrhi -unattended -nosplash \
   -nosound -culture=en -ExecCmds="Automation RunTests Roverloom" -TestExit="Automation Test Queue Empty" -log
+```
+
+Run the physics spike from the repository root. Records go to `Saved/PhysicsSpike/`, which Git ignores:
+
+```shell
+python3 scripts/physics_spike.py run r0 --batch <name>
+python3 scripts/physics_spike.py analyze --batch <name>
 ```
 
 Unreal MCP is enabled for the editor target only, and is not a runtime dependency. See [Unreal MCP](../docs/unreal-mcp.md).

@@ -64,6 +64,55 @@ the engine log, and the runner's memory, crash, and port checks in `runs.jsonl`.
 3. With the drive sign assumed positive, the probe turned every wheel backward at exactly the commanded speed.
 4. The joint force output was unusable, as described above.
 
-## Results
+## Results: R0 attempt 1, 2026-11-03
 
-Not yet run.
+**R0 failed.** R1 was not started. Batch `r0-20261103`, at commit `84471d7`, 26 runs.
+
+| Test | Measured | Result |
+| --- | --- | --- |
+| Drive sign probe | +2.0003 and −2.0003 rad/s for ±2 | Pass |
+| Free fall | −371.0001 cm/s², no wheel touching | Pass |
+| Static | Height range 0.0000 cm; lowest wheel center 24.9992 cm | Pass |
+| Straight, 60 Hz | Peak 0.377 cm/s, mean 0.187 cm/s, for 50 cm/s commanded | **Fail** |
+| Turn, 60 Hz | Yaw rate −0.0000 °/s, for 28.178 °/s commanded | **Fail** |
+| Time step | End X differs by 50%; total yaw by 75% | **Fail** |
+| Stability | 600 s completed, speed ≤ 12.4 cm/s, wheel centers ≥ 24.996 cm, tilt ≤ 0.003° | Pass, but not meaningful: the rover barely moved |
+
+Reported without a threshold:
+
+| Item | Measured |
+| --- | --- |
+| Slope, holding with zero drive target | Slid downhill at 157, 354, 548, and 738 cm/s at 5°, 10°, 15°, and 20°; wheels rolled with the motion |
+| Slope, climbing | No angle climbed. Every rover moved downhill |
+| Obstacle | No step climbed. The rover moved 11.5 cm in 40 s and never reached the step at 300 cm |
+| Repeatability, `-Deterministic` | Five identical end poses, to the precision recorded. The rover moved only 5.8 cm, so this is weak evidence |
+| Repeatability, real time | End X 3.089 to 3.101 cm, a range of 0.012 cm |
+| Performance, real time | 111.7 FPS mean; frame time p50 8.9 ms, p95 10.2 ms, p99 11.3 ms, max 24.5 ms; 6,703 frames. `r.VSync = "0"` was applied. The scene is trivial, so this says nothing about Mars terrain |
+
+Runner checks over all 26 runs: every exit code 0, no new crash report, no forced stop, peak resident memory at most
+2,219 MB, free memory at least 41%, swap 3,429 MB before and 3,421 MB after. Every run listened on `*:1985`. 15 Python
+errors from the `EditorToolset` plugin's `init_unreal.py` appear in each `-game` log, and did not stop a run.
+
+### Cause, from diagnostic runs that are not gated
+
+The torque limit was set as if it were 100 N m, and was far too low in effect. Chaos converts the limit to a position
+impulse of `limit × dt²` (`PBDJointCachedSolverGaussSeidel.cpp`, `FAxisConstraintDatas::SetMaxForce`).
+Batch `diag-torque-20261103`, straight driving, with only the limit changed:
+
+| Limit | 60 Hz mean speed | 120 Hz mean speed |
+| --- | --- | --- |
+| 1e6 (the R0 value) | 0.187 cm/s | 0.094 cm/s |
+| 6e7 | 49.990 cm/s, 95% in 1.30 s, slip 0.000 | 49.992 cm/s, 95% in 1.28 s |
+| 0 (no limit) | Identical to 6e7 | Identical to 6e7 |
+
+At 6e7 the limit no longer binds. At 10° and 6e7, the rover climbed at 50.5 cm/s, but still slid downhill at 35 cm/s
+while holding a zero drive target. That remains unexplained. The exact relation between the setting and the torque
+delivered is not measured.
+
+These runs used a command-line override, `-SpikeDriveMaxTorque`, added after the gated runs. They change no
+threshold, and are not R0 results.
+
+### Next attempt, pending the owner's approval
+
+Choose and record the torque limit from a measured calibration before any rerun, then repeat all 26 runs with the same
+thresholds. Attempt 1 stays in this record as a failure.

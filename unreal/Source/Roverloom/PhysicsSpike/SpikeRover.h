@@ -21,7 +21,8 @@ public:
 	ASpikeRover();
 
 	// Creates bodies at the actor's transform. A pinned chassis does not simulate.
-	void Build(UPhysicalMaterial* Material, bool bPinChassis);
+	// The torque limit is RoverloomSpike::DriveMaxTorque unless a diagnostic run overrides it. 0 means no limit.
+	void Build(UPhysicalMaterial* Material, bool bPinChassis, double InDriveMaxTorque);
 
 	// Starts simulation and creates the joints once the bodies exist. Returns false until then.
 	// After it returns true, IsConnected says whether every joint was created.
@@ -56,5 +57,6 @@ private:
 
 	double TargetSpinRadps[RoverloomSpike::NumWheels] = {};
 	bool bPinned = false;
+	double DriveTorqueLimit = RoverloomSpike::DriveMaxTorque;
 	bool bConnected = false;
 };

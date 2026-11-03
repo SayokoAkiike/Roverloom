@@ -49,6 +49,7 @@ void ASpikeGameMode::StartPlay()
 	FParse::Value(CommandLine, TEXT("SpikeSlopeDeg="), SlopeDeg);
 	FParse::Value(CommandLine, TEXT("SpikeObstacleCm="), ObstacleCm);
 	FParse::Value(CommandLine, TEXT("SpikeSeed="), Seed);
+	FParse::Value(CommandLine, TEXT("SpikeDriveMaxTorque="), DriveMaxTorqueUsed);
 	if (!FParse::Value(CommandLine, TEXT("SpikeOut="), OutDir))
 	{
 		OutDir = FPaths::ProjectSavedDir() / TEXT("PhysicsSpike") / TEXT("manual");
@@ -133,7 +134,7 @@ void ASpikeGameMode::StartPlay()
 	FActorSpawnParameters Params;
 	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	Rover = World->SpawnActor<ASpikeRover>(ASpikeRover::StaticClass(), RoverLocation, RoverRotation, Params);
-	Rover->Build(Material, bPin);
+	Rover->Build(Material, bPin, DriveMaxTorqueUsed);
 
 	ADirectionalLight* Sun = World->SpawnActor<ADirectionalLight>(FVector::ZeroVector, FRotator(-40.0, 30.0, 0.0));
 	(void)Sun;
@@ -290,11 +291,11 @@ void ASpikeGameMode::Finish(const FString& Outcome)
 
 	const FString Meta = FString::Printf(
 		TEXT("{\n  \"experiment\": \"unreal_physics_spike_r0\",\n  \"not_for_scoring\": true,\n  \"outcome\": \"%s\",\n"
-			 "  \"scenario\": \"%s\",\n  \"slope_deg\": %.3f,\n  \"obstacle_cm\": %.3f,\n  \"seed\": %d,\n  \"duration_s\": %.3f,\n"
+			 "  \"scenario\": \"%s\",\n  \"drive_max_torque\": %.1f,\n  \"slope_deg\": %.3f,\n  \"obstacle_cm\": %.3f,\n  \"seed\": %d,\n  \"duration_s\": %.3f,\n"
 			 "  \"frames\": %lld,\n  \"sim_time_s\": %.6f,\n  \"wall_time_s\": %.3f,\n  \"fixed_time_step\": %s,\n"
 			 "  \"fixed_delta_s\": %.6f,\n  \"gravity_z\": %.3f,\n  \"engine\": \"%s\",\n  \"collision\": \"%s\",\n"
 			 "  \"command_line\": \"%s\"\n}\n"),
-		*Outcome, *Scenario, SlopeDeg, ObstacleCm, Seed, DurationS, Frame, SimTimeS, FPlatformTime::Seconds() - StartWallS,
+		*Outcome, *Scenario, DriveMaxTorqueUsed, SlopeDeg, ObstacleCm, Seed, DurationS, Frame, SimTimeS, FPlatformTime::Seconds() - StartWallS,
 		FApp::UseFixedTimeStep() ? TEXT("true") : TEXT("false"), FApp::GetFixedDeltaTime(), GetWorld()->GetGravityZ(),
 		*FEngineVersion::Current().ToString(), Rover ? *JsonEscape(Rover->DescribeCollision()) : TEXT(""),
 		*JsonEscape(FCommandLine::Get()));
