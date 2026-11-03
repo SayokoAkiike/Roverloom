@@ -338,10 +338,23 @@ def command_analyze(args: argparse.Namespace) -> int:
     return 0
 
 
+def diagnostic_plan(scenarios: list[str]) -> list[dict[str, Any]]:
+    """Runs that are not gated, at 60 Hz unless the name ends in _fps120."""
+    runs = []
+    for name in scenarios:
+        scenario, _, rate = name.partition("_fps")
+        flags = spike.FIXED_120 if rate == "120" else spike.FIXED_60
+        runs.append({"name": name, "scenario": scenario, "flags": flags})
+    for run in runs:
+        run["map"] = MAP_URL
+        run["scenario_arg"] = "WheelScenario"
+    return runs
+
+
 def command_run(args: argparse.Namespace) -> int:
     out_dir = RECORDS / args.batch
     out_dir.mkdir(parents=True, exist_ok=True)
-    runs = plan()
+    runs = diagnostic_plan(args.diagnostic) if args.diagnostic else plan()
     if args.only:
         runs = [spec for spec in runs if spec["name"] in args.only]
     for spec in runs:
@@ -361,6 +374,7 @@ def main() -> int:
     run = sub.add_parser("run", help="Run the phase A and B plan, or some of its runs")
     run.add_argument("--batch", required=True)
     run.add_argument("--only", nargs="*", help="Run names to include")
+    run.add_argument("--diagnostic", nargs="*", help="Scenarios to run instead, not gated")
     analyze = sub.add_parser("analyze", help="Judge a batch against the fixed thresholds")
     analyze.add_argument("--batch", required=True)
     args = parser.parse_args()

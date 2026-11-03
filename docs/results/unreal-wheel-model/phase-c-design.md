@@ -1,8 +1,9 @@
 # Wheel model, phase C: six wheels (design draft, not implemented)
 
-**Status.** This is a draft for the owner's review, written after phases A and B passed on attempt 2. Nothing here is
-implemented. The criteria below are proposals. They become fixed only after the owner approves them and they are
-committed before the first gated run. R1, the rocker-bogie, stays on hold. R0's verdicts are not rejudged.
+**Status, 2026-11-03.** The owner approved implementing this design. The six-wheel rig is built, and diagnostics found
+a defect in the friction model, so work stopped before any gated run, as the owner instructed. **The criteria below
+were not registered, and no gated run took place.** See [Diagnostics](#diagnostics-2026-11-03-stopped). R1, the
+rocker-bogie, stays on hold. R0's verdicts are not rejudged.
 
 The scientific limits in [the main page](README.md#what-this-model-covers-and-what-it-does-not) apply unchanged. This
 is a game-style model and never feeds the Python Mission Core.
@@ -81,3 +82,79 @@ the two can be compared. The wheel model's own thresholds apply where R0 had non
 - Phase C's plan and analyzers in `scripts/wheel_spike.py`.
 - About 400 lines, with no change to `WheelModel`'s equations.
 - A unit test of the free-body inverse inertia against a hand-computed box tensor, run before any gated run.
+
+## Diagnostics, 2026-11-03: stopped
+
+Not gated. Each batch ran at 60 Hz with a fixed step, on the six-wheel rig as designed above, with the attempt 2 solver
+unchanged.
+
+### Stage 1: free fall, landing, and load distribution. No problem found
+
+Batch `cdiag1-20261103`.
+
+| Run | Measured |
+| --- | --- |
+| `cd_freefall`, dropped from 5 m for 1.4 s | Vertical acceleration −371.0001 cm/s² over 0.1–0.6 s. No wheel in contact, and no force from any wheel |
+| Inertia, read in the same run | 1,714,112.6, 2,958,800.2, 4,445,313.0 kg cm². A 200 × 150 × 40 cm box of 853.5 kg gives 1,714,112.5, 2,958,800.0, 4,445,312.5. The inverse rows are diagonal |
+| `cd_drop`, 20 cm above ride height | Peak load 3.57 × static; least 0.89 ×. Settled: each wheel 1.000 × `M g / 6`, sum within 1.3e-6 of `M g`, height range 1 µm over 6–8 s. Box never touched the ground |
+| `cd_tilt`, 10 cm high with 3° roll and 2° pitch | Peak tilt 3.6°, then level to 1e-5°. Loads 0.065–2.99 × static during landing, then 1.000 ×. No roll or pitch growth |
+| `c1` static, sphere sweep | Loads 1.000 × each; sum within 1.2e-8; height range 0 over 10–15 s |
+| `c1r` static, ray | The same |
+
+Wheels out of contact never produced a force. Every run completed, with no NaN, no box contact, and no start-in-geometry
+trace. Wheel forces summed to `M g` at rest, with net torque below 1 N cm.
+
+**One numerical note.** In `cd_tilt`, 13 steps reached the 200-pass limit without meeting the 1e-7 cm/s stop rule. No
+wheel was saturated on those steps. The contacts' end-of-step velocities were at most 1e-6 cm/s, which is the CSV's
+resolution. This is slow Gauss-Seidel convergence on a system with more rows than body freedoms, not a wrong force.
+Neither the stop rule nor the pass limit was changed.
+
+### Stage 2: friction while sliding. Defect found
+
+Batch `cdiag2-20261103`. A saturated wheel is sliding, so Coulomb friction must act against the contact's sliding
+velocity, which is the rim's speed relative to the ground along `f` and the speed along `l`. The table gives the angle
+between the force on the body and that opposing direction, over every saturated wheel-step where the sliding speed
+exceeds 0.01 cm/s.
+
+| Run | Saturated wheel-steps | Angle: least, median, 90th percentile, most |
+| --- | --- | --- |
+| `cd_slide_brake`: diagonal push of 2 μ M g for 0.5 s, μ 0.3, braked | 411 | 0.1°, 29.3°, 47.2°, 52.0° |
+| `cd_slide_coast`: the same push, coasting | 253 | 9.0°, 47.6°, 57.2°, 72.6° |
+| `c3` run as a diagnostic: turn in place at 28.178 °/s | 4,804 | 47.0°, 54.4°, 56.3°, 56.3° |
+
+**This is a defect in the model.** The friction circle scales the force that would stop all sliding in one step. That
+demand is not parallel to the sliding velocity. The longitudinal row includes the wheel's spin, and the rows couple
+through the body's rotation. So a sliding wheel pushes partly sideways to its slip. This is the limit noted in attempt
+2, and these runs show it is large. Phases A and B could not show it: their sliding was in one direction, on bodies
+with rotation locked.
+
+**Its effect on the turn.**
+- **Yaw rate.** The measured yaw rate over 13–23 s was 1.64 °/s, against 28.178 °/s commanded.
+- **Corner wheels.** These are front and rear. Each spins at 2.04 rad/s, a rim speed of 51 cm/s, over ground moving
+  at about 3.5 cm/s. Their slip is almost all longitudinal. Coulomb friction would then point almost along `f`.
+  Instead the model applies about 15,500 along `f` and 27,600 along `l`, so the corners resist the yaw.
+- **Middle wheels.** They stay stuck at their motor's 60 N m limit.
+- **A limit cycle.** The yaw rate repeats every five steps: 0, 0.95, 1.45, 1.76, 1.96 °/s, and then exactly 0
+  again. This is a non-physical stick-slip cycle, so it counts as an abnormal contact force. Of its steps, 150
+  reached the 200-pass limit.
+
+### What was not done
+
+- The phase C criteria were not committed as registered, and no gated run took place.
+- The model's equations, the solver's settings, and the draft thresholds are unchanged.
+
+A fix needs the owner's approval. It would also need phases A and B to be rerun, because it changes the equations
+they test.
+
+### Possible fix, not applied
+
+- **Coulomb direction while sliding.** When a wheel's demand leaves the friction circle, set its force to `μ Fz`
+  against the contact's sliding velocity at the end of the step. That velocity includes the rim's speed after the
+  wheel torque. Solve this direction inside the same Gauss-Seidel pass, either with a few fixed-point updates or with
+  an exact local solve over the wheel's two rows and its spin.
+- **Unit tests before any run:**
+  - a sliding force anti-parallel to the slip, at any slip direction;
+  - a coasting wheel that slides sideways with almost no longitudinal force;
+  - no limit cycle in a turn-in-place test body.
+- **Then the gated runs:** phases A and B again with their 15 tests and thresholds, then phase C's diagnostics, and
+  only then phase C's registration.

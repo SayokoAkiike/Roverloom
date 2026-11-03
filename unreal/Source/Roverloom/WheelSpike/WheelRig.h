@@ -31,6 +31,7 @@ public:
 		RoverloomWheel::FWheelResult Result;
 		double SpinRadps = 0.0;
 		double TargetSpinRadps = 0.0;
+		bool bStartPenetrating = false; // The trace started inside geometry; compression is the full travel.
 	};
 
 	// Box size in cm, mass, wheels, and which rotation axes are locked. Bodies exist only after registration.
@@ -50,12 +51,23 @@ public:
 	UStaticMeshComponent* GetBody() const { return Body; }
 	const TArray<FWheelRecord>& GetRecords() const { return Records; }
 	const RoverloomWheel::FSolveStats& GetSolveStats() const { return Stats; }
+	// Sum of the wheels' forces on the body, and their torque about its center of mass, for the coming step.
+	const FVector& GetWheelForce() const { return WheelForce; }
+	const FVector& GetWheelTorque() const { return WheelTorque; }
+	// Rigid-body hits on the box itself, which the wheel solve does not know about.
+	int32 GetBodyHits() const { return BodyHits; }
+	// The inverse inertia rows the solve used on the last step.
+	const RoverloomWheel::FBodyState& GetLastBodyState() const { return LastBodyState; }
 	const RoverloomWheel::FWheelParams& GetParams() const { return Params; }
 	int32 NumWheels() const { return Wheels.Num(); }
 
 private:
 	// The body as Chaos will integrate it this step, with locked rotation axes removed from its inverse inertia.
 	RoverloomWheel::FBodyState BodyState() const;
+
+	UFUNCTION()
+	void OnBodyHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse,
+		const FHitResult& Hit);
 
 	UPROPERTY()
 	TObjectPtr<UStaticMeshComponent> Body;
@@ -68,6 +80,10 @@ private:
 	RoverloomWheel::FWheelParams Params;
 	RoverloomWheel::FSolveStats Stats;
 	FVector ExternalForce = FVector::ZeroVector;
+	FVector WheelForce = FVector::ZeroVector;
+	FVector WheelTorque = FVector::ZeroVector;
+	RoverloomWheel::FBodyState LastBodyState;
+	int32 BodyHits = 0;
 	double MassKg = 1.0;
 	bool bLockRollPitchAxes = false;
 	bool bLockYawAxis = false;

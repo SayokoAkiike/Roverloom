@@ -25,8 +25,9 @@ public:
 
 private:
 	void SpawnBlock(const FVector& Center, const FRotator& Rotation, const FVector& SizeCm);
-	void Command(double TimeS, TArray<double>& OutTargets, RoverloomWheel::EWheelMode& OutMode, FVector& OutPush) const;
-	void Record(double DeltaSeconds, const FVector& Push);
+	void Command(double TimeS, TArray<double>& OutTargets, RoverloomWheel::EWheelMode& OutMode, FVector& OutPush);
+	void CommandSix(double TimeS, TArray<double>& OutTargets, RoverloomWheel::EWheelMode& OutMode, FVector& OutPush);
+	void Record(double DeltaSeconds, double WallFrameMs, const FVector& Push);
 	void Finish(const FString& Outcome);
 
 	UPROPERTY()
@@ -38,6 +39,13 @@ private:
 	FString Scenario;
 	FString OutDir;
 	bool bPair = false;
+	bool bSix = false;
+	double StepCm = 0.0;
+	FRandomStream Random;
+	double NextRandomChangeS = 0.0;
+	double RandomForwardCmps = 0.0;
+	double RandomYawRateDegps = 0.0;
+	double LastWallS = 0.0;
 	bool bSweep = false;
 	double Friction = 0.6;
 	double SlopeDeg = 0.0;

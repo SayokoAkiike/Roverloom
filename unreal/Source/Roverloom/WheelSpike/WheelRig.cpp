@@ -57,6 +57,14 @@ void AWheelRig::Build(const FVector& SizeCm, double InMassKg, const TArray<FWhee
 	Body->SetLinearDamping(0.0f);
 	Body->SetAngularDamping(0.0f);
 	Body->SetMassOverrideInKg(NAME_None, MassKg, true);
+	Body->SetNotifyRigidBodyCollision(true);
+	Body->OnComponentHit.AddDynamic(this, &AWheelRig::OnBodyHit);
+}
+
+void AWheelRig::OnBodyHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse,
+	const FHitResult& Hit)
+{
+	++BodyHits;
 }
 
 bool AWheelRig::IsReady() const
@@ -186,9 +194,11 @@ void AWheelRig::StepWheels(double Dt)
 
 		FWheelContact& Contact = Contacts[Index];
 		Contact.bHit = bHit;
+		Records[Index].bStartPenetrating = bHit && Hit.bStartPenetrating;
 		if (bHit)
 		{
 			const FVector Normal = Hit.ImpactNormal.GetSafeNormal();
+			// A trace that starts inside geometry reports distance 0, which is full compression: a bump stop.
 			Contact.CompressionCm = bUseSweep ? Params.RestLengthCm - Hit.Distance : Reach - Hit.Distance;
 			Contact.CompressionRateCmps = -FVector::DotProduct(Body->GetPhysicsLinearVelocityAtPoint(Mount), Up);
 			Contact.Point = Hit.ImpactPoint;
@@ -200,7 +210,10 @@ void AWheelRig::StepWheels(double Dt)
 	}
 
 	TArray<FWheelResult> Results;
-	SolveWheels(Params, BodyState(), Contacts, Commands, Dt, Spins, Results, Stats);
+	LastBodyState = BodyState();
+	SolveWheels(Params, LastBodyState, Contacts, Commands, Dt, Spins, Results, Stats);
+	WheelForce = FVector::ZeroVector;
+	WheelTorque = FVector::ZeroVector;
 
 	for (int32 Index = 0; Index < Wheels.Num(); ++Index)
 	{
@@ -215,6 +228,8 @@ void AWheelRig::StepWheels(double Dt)
 			const FVector Force = Results[Index].NormalForce * Contact.Normal + Results[Index].LongForce * Contact.Forward
 				+ Results[Index].LatForce * Contact.Lateral;
 			Body->AddForceAtLocation(Force, Contact.Point);
+			WheelForce += Force;
+			WheelTorque += FVector::CrossProduct(Contact.Point - LastBodyState.CenterOfMass, Force);
 		}
 	}
 	if (!ExternalForce.IsZero())
