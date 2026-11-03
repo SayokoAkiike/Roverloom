@@ -1,8 +1,14 @@
-# Wheel model, phase C: six wheels (design draft, not implemented)
+# Wheel model, phase C: six wheels
 
-**Status, 2026-11-03.** The owner approved implementing this design. The six-wheel rig is built, and diagnostics found
-a defect in the friction model, so work stopped before any gated run, as the owner instructed. **The criteria below
-were not registered, and no gated run took place.** See [Diagnostics](#diagnostics-2026-11-03-stopped). R1, the
+**Status, 2026-11-03: phase C failed, 2 of 9 tests passed.** The sections below run in the order the work happened:
+- the design draft;
+- the first diagnostics, which found a friction defect;
+- the fix, which is attempt 3 on the main page;
+- new diagnostics and numerical checks;
+- the criteria registered at `cfca7ec`;
+- [the results](#results-2026-11-03-phase-c-failed-2-of-9-tests-passed).
+
+Earlier sections keep their wording from when they were written, with corrections marked where they appear. R1, the
 rocker-bogie, stays on hold. R0's verdicts are not rejudged.
 
 The scientific limits in [the main page](README.md#what-this-model-covers-and-what-it-does-not) apply unchanged. This
@@ -136,7 +142,8 @@ with rotation locked.
 - **Middle wheels.** They stay stuck at their motor's 60 N m limit.
 - **A limit cycle.** The yaw rate repeats every five steps: 0, 0.95, 1.45, 1.76, 1.96 °/s, and then exactly 0
   again. This is a non-physical stick-slip cycle, so it counts as an abnormal contact force. Of its steps, 150
-  reached the 200-pass limit.
+  reached the 200-pass limit. **Corrected later:** the zero steps were Chaos's sleep, not stick and slip; see
+  [Numerical checks](#numerical-checks-before-the-gated-runs-2026-11-03).
 
 ### What was not done
 
@@ -299,3 +306,90 @@ and judged by `analyze-c`. Each window is in simulated time, and the model and i
   - every run's numerical checks, sleep included.
 - **Batch** `wheel-c-20261103`, separate from the diagnostic batches.
 - **A failure stays a failure.**
+
+## Results, 2026-11-03: phase C failed, 2 of 9 tests passed
+
+Batch `wheel-c-20261103` at commit `cfca7ec`, 22 runs, judged against the criteria registered above, which were not
+changed. **Phase C fails.** C1 and C1r passed. The other seven failed, every one of them on the common rule that the
+solve converges on every step. C2 and C3 also missed their own thresholds.
+
+| Test | Measured | Result |
+| --- | --- | --- |
+| C1, sphere sweep | Height range 0.000 cm; load sum within 7e-9 of `M g`; each wheel within 6e-8 | Pass |
+| C1r, ray | The same, within 5e-9 | Pass |
+| C2, straight | Reached 47.5 cm/s in 0.33 s; **peak 55.29 cm/s, over 55**; mean 50.000 cm/s; yaw 0.000 °/s; **19 steps not converged** | **Fail** |
+| C3, turn in place | **18.980 °/s for 28.178 ± 2.818**; constant over 13–23 s; **974 steps not converged** | **Fail** |
+| C4, time step | End X differs 0.018%, total yaw 0.027%; the 120 Hz runs fail as C2 and C3 do | **Fail** |
+| C5, 10°, zero command | Mean drift 0.000 cm/s; **8 steps not converged** | **Fail** |
+| C5b, 10°, brake | Mean drift 0.000 cm/s; **7 steps not converged** | **Fail** |
+| C6, climb | 5°: 49.999 cm/s, tilt 6.3°; 10°: 49.998 cm/s, tilt 11.3°; **23 and 24 steps not converged** | **Fail** |
+| C7, 600 s random driving among blocks | Completed; speed at most 52.8 cm/s; tilt at most 2.8°; box never touched; **18,267 of 36,001 steps not converged**; **3 steps over the circle** | **Fail** |
+
+### Straight driving: where the 55.29 cm/s peak comes from
+
+| At the peak, 3.48 s | Value |
+| --- | --- |
+| Body center's forward speed | 55.29 cm/s |
+| Six wheels' mean ground speed | 50.000 cm/s, which is the target |
+| The difference, from the body pitching about its contacts | 5.29 cm/s, at 0.72° pitch; pitch rate up to 6.1 °/s |
+
+**The wheels never ran faster than 50.0003 cm/s.** The criterion, which comes from R0, judges the body center's speed,
+and the body's pitch on its suspension takes that over 55. The criterion was kept as it was.
+
+### Turning: the gap to the command
+
+| Item | Value |
+| --- | --- |
+| Commanded | 28.178 °/s |
+| Measured | 18.980 °/s, 67% of the command |
+| Middle wheels | Sticking, with ground force at 1.000 × the motor's limit, 600,000 kg cm²/s² over 25 cm |
+| Front and rear wheels | Sliding on the friction circle, at 0.604 × the motor's limit along `f` |
+| Net yaw torque | Below 5 N cm, so the turn is steady |
+
+The 60 N m motor limits the yaw rate. In the model, this rover cannot turn in place at the commanded rate.
+
+### Numerical checks, not gated
+
+| Check | C1 to C6 | C7 |
+| --- | --- | --- |
+| Steps not converged | 0 to 1,968 per run, the most in the 120 Hz turn | 18,267; the last pass changed contact velocity by at most 0.0155 cm/s, median 3e-6 |
+| Over the friction circle | Never | 3 steps, on wheels with limits of 68 to 410; the excess is 0.0003 to 0.001, the CSV's 0.001 rounding |
+| Friction power above 1e-6 cm/s × `μ Fz` | At most 3 steps per run, at most 8.9e-6 | 4,246 wheel-steps, at most 0.0033; **all on steps not converged** |
+| Sliding force more than 1° from opposing the slip | At most 2 steps, 1.12° | 186 wheel-steps, up to 128° where the slip was 0.002 cm/s; **all on steps not converged** |
+| Torque over its limit | Never | Never |
+| Chaos sleep zeroing velocity | 12 to 19 in each slope run, all while settling; none in C1, C2, or C3 | 132 |
+| Newton, sleep excluded | At most 0.6 cm/s², on near-sleep steps | 0.010 cm/s² |
+| Energy gained beyond the motor's work, per step | At most 0.00013 cm as a height | 0.149 cm |
+| NaN | None | None |
+
+**Steps, reported only.**
+- **Spikes in the records.** The 25 and 50 cm steps briefly gave energy gains of 2.5 and 29 cm as a height. The
+  50 cm step also gave loads up to 7.8 × static and a prediction error of 141 cm/s.
+- **The cause.** Contact is found only downward, and a trace that starts inside the step is read as full compression.
+  The model cannot handle a step's face, as the design expected.
+- **Where the rover ended.** All three runs ended 19 to 20 m on. Tilt reached 3.3°, 8.9°, and 29.9°.
+
+### Time step, repeatability, performance, resources
+
+- **Time step.** 60 against 120 Hz: end X 0.018% apart, total yaw 0.027%.
+- **Repeatability.** Five `-Deterministic` runs of C2 gave the same end X, 993.5175 cm, with spread 0.
+- **Performance.**
+  - In real time at 1280 × 720, `r.VSync 0`, the mean frame rate was 111.9 FPS: p50 8.92 ms, p95 10.17 ms, p99
+    11.24 ms, worst 29.37 ms.
+  - Steps there varied from 1.1 to 29.5 ms. On one step the measured acceleration differed from the model's forces by
+    18 cm/s². The model's `dt` and Chaos's step may differ when steps vary, so a fixed step is assumed for any
+    physics result.
+- **Resources.**
+  - Every exit code 0; no crash report; no forced stop.
+  - Peak resident memory 2,199 MB; free memory at least 39%.
+  - Swap 3,335 MB, unchanged; port 1985 unchanged.
+
+### What this does and does not show
+
+- **This is a game-style model on flat and tilted blocks.** It shows nothing about a real rover or regolith.
+- **The passes are in the model's own terms.** Holding, climbing, and steady turning behave as the equations say.
+- **The failures are:**
+  - the solver's convergence rule, on every motion test;
+  - the body center's overshoot from pitching;
+  - turning, limited by the motor.
+- **R0's results are not rejudged.** ADR 0014 stays Proposed.
