@@ -1,7 +1,7 @@
 # Unreal project
 
 A C++ project skeleton for UE 5.8, and a physics spike. **It has no terrain, bridge, logs, content, or working rover.** The
-spike's first R0 attempt [failed](../docs/results/unreal-physics-spike/README.md). Results are in the [checklist](../docs/macos-checklist.md#unreal-results-on-this-mac).
+spike has [failed R0 twice](../docs/results/unreal-physics-spike/README.md). Results are in the [checklist](../docs/macos-checklist.md#unreal-results-on-this-mac).
 
 Planned contents and rules are in [unreal-integration.md](../docs/unreal-integration.md) and
 [unreal-contract.md](../docs/unreal-contract.md). Python keeps mission evaluation, scoring, and agents.

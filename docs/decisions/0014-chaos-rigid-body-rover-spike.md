@@ -1,6 +1,6 @@
 # 0014: Chaos rigid bodies and joints for the rover physics spike
 
-Status: Proposed (2026-11-03). R0 attempt 1 failed. Not accepted until R0 and R1 pass.
+Status: Proposed (2026-11-03). R0 failed twice. Not accepted until R0 and R1 pass.
 
 ## Context
 
@@ -19,9 +19,11 @@ default. Rocker-bogie articulation and per-wheel faults are central to Roverloom
 
 ## Evidence
 
-[Results](../results/unreal-physics-spike/README.md). R0 attempt 1 failed straight driving, turning, and the time step
-test, because the drive torque limit was set far too low in effect. Diagnostic runs with a higher limit drove at the
-commanded speed.
+[Results](../results/unreal-physics-spike/README.md). R0 attempt 1 stalled on the ground with a 100 N m limit. A
+torque calibration showed the limit is correct on a free wheel, and that most drive torque is lost through sphere contact,
+more so at finer steps. Attempt 2, with no effective limit, passed straight driving and failed turning and the time step
+test. Slope holding slides for an unidentified reason. The results recommend replacing sphere contact with a C++ wheel
+model, or measuring Chaos Modular Vehicle, before R1.
 
 ## Consequences
 

@@ -52,7 +52,7 @@ Goal: a real Martian site you can drive a six-wheeled rover across. Details are 
 
 - [x] Create the UE 5.8 C++ project in `unreal/`, confirm a clean clone opens (recorded by hand)
 - [ ] Measure baseline frame rate on the target machines
-- [ ] Rover: physics spike, six wheels, rocker-bogie, plausibility tests. R0 attempt 1 [failed](results/unreal-physics-spike/README.md)
+- [ ] Rover: physics spike, six wheels, rocker-bogie, plausibility tests. R0 [failed twice](results/unreal-physics-spike/README.md)
 - [ ] Keyboard and Python driving through one input path; camera switching
 - [ ] Telemetry logs and kinematic replay
 - [ ] Terrain from a public Mars elevation tile, Landscape by default

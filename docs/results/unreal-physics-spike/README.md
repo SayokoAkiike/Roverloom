@@ -200,3 +200,52 @@ sliding versus rolling are also reported. The threshold is unchanged.
   roll across repeated runs. They judge nothing.
 - Records go to `unreal/Saved/PhysicsSpike/r0-attempt2-20261103/`. Attempt 1's records are kept unchanged.
 - R1 does not start automatically, even if R0 passes.
+
+## Results: R0 attempt 2, 2026-11-03
+
+**R0 failed again**, on turning and the time step test. R1 was not started. Batch `r0-attempt2-20261103`, at commit
+`017ce0c`, 26 runs.
+
+| Test | Attempt 1 (limit 1e6) | Attempt 2 (limit 6e7) | Attempt 2 result |
+| --- | --- | --- | --- |
+| Drive sign probe | ±2.0003 rad/s | ±2.0003 rad/s | Pass |
+| Free fall | −371.0001 cm/s² | −371.0001 cm/s² | Pass |
+| Static | Range 0.0000 cm, lowest wheel 24.9992 cm | The same | Pass |
+| Straight, 60 Hz | Mean 0.187 cm/s | Mean 49.990 cm/s, peak 49.999, 95% in 1.30 s, slip 0.0001 | Pass |
+| Turn, 60 Hz | −0.0000 °/s | 4.30 °/s for 28.178 commanded; sign correct | **Fail** |
+| Time step | Straight 50%, turn 75% | Straight 0.01%, turn 40% (4.30 against 2.68 °/s at 120 Hz) | **Fail** |
+| Stability | Passed while barely moving | 600 s, speed ≤ 101.6 cm/s, wheels ≥ 24.59 cm, tilt ≤ 22.6° | Pass |
+
+Reported without a threshold, attempt 2:
+
+| Item | Measured |
+| --- | --- |
+| Slope 5° | Hold: 10.1 cm/s downhill, 1.7 of it sliding. Climb: 40.3 cm/s uphill, heading within 2.5° |
+| Slope 10° | Hold: 35.3 cm/s downhill, 20.3 of it sliding. Climb: turned 90° and drove across the slope, 2.0 cm/s downhill |
+| Slope 15° and 20° | Tipped over during the hold, past 45° pitch at 3.1 s on 15°. Did not climb |
+| Obstacle 10, 25, 50 cm | Climbed none. On 25 cm, the front wheels rose up the step's face to 164 cm and the rover tipped backward at 14.9 s. All three ended upside down, 180° |
+| Repeatability, `-Deterministic`, 9.7 m driven | Five identical runs: end X, Y, yaw, speed, pitch, and roll all with range 0 at the recorded precision |
+| Repeatability, real time | End X range 0.28 cm, Y 0.10 cm, yaw 0.005°, speed 0.002 cm/s |
+| Performance | 112.1 FPS mean; p50 8.9 ms, p95 10.4 ms, p99 11.3 ms, max 29.0 ms; trivial scene |
+
+Runner checks over all 26 runs: every exit code 0, no new crash report, no forced stop, peak resident memory at most
+2,292 MB, free memory at least 42%, swap 3,405 MB before and 3,397 MB after. Every run listened on `*:1985`.
+
+### Reading of attempt 2
+
+- Skid turning loses most of its yaw rate, and loses more at the finer step. It is the same time-step-dependent loss
+  seen in straight driving at low limits, now in the wheels' sideways scrub. Its cause is not identified.
+- With no motor limit, the drive can lift the front of the rover up a vertical face and tip it backward. A real motor's
+  limit would stop that. This is a consequence of choosing 6e7, not a validated behavior.
+- Deterministic stepping reproduced a 9.7 m drive exactly, five times. Real time did not, by under 0.3 cm.
+- Slope sliding remains unresolved, as described above.
+
+### Technical judgment on R1
+
+Do not start R1 on this base. R1 adds rocker and bogie joints to the same sphere contact and joint drive, whose losses in
+turning, rolling, and holding are not understood. Options, for the owner to choose:
+
+1. Replace sphere contact with a C++ wheel model: a ray or shape cast per wheel, with forces from a simple tire model
+   applied to the body. This is the plan's third candidate in its fuller form, and avoids the contact behavior above.
+2. Measure Chaos Modular Vehicle, as ADR 0014 allows when this approach fails.
+3. Keep spheres, and study the contact behavior further. This has the least evidence of success.
