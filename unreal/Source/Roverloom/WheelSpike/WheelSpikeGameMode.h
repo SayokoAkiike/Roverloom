@@ -42,6 +42,9 @@ private:
 	bool bSix = false;
 	bool bSleepAllowed = true;
 	double DumpAtS = -1.0;
+	int32 DumpEvery = 0;
+	double DumpFromS = 0.0;
+	double DumpToS = 1.0e9;
 	FString SolverLabel;
 	double StepCm = 0.0;
 	FRandomStream Random;

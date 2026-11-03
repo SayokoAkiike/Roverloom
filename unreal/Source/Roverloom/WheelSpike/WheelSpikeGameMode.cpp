@@ -233,6 +233,9 @@ void AWheelSpikeGameMode::StartPlay()
 	Diagnostics.bWarmStart = FParse::Param(CommandLine, TEXT("WheelWarmStart"));
 	Diagnostics.bShadow = FParse::Param(CommandLine, TEXT("WheelShadow"));
 	FParse::Value(CommandLine, TEXT("WheelDumpAt="), DumpAtS);
+	FParse::Value(CommandLine, TEXT("WheelDumpEvery="), DumpEvery);
+	FParse::Value(CommandLine, TEXT("WheelDumpFrom="), DumpFromS);
+	FParse::Value(CommandLine, TEXT("WheelDumpTo="), DumpToS);
 	Rig->SetDiagnostics(Diagnostics);
 	SolverLabel = FString::Printf(TEXT("passes=%d order=%s warm=%d shadow=%d sleep=%d"), Diagnostics.Options.MaxPasses,
 		Order.IsEmpty() ? TEXT("forward") : *Order, Diagnostics.bWarmStart ? 1 : 0, Diagnostics.bShadow ? 1 : 0, bSleepAllowed ? 1 : 0);
@@ -389,6 +392,11 @@ void AWheelSpikeGameMode::Tick(float DeltaSeconds)
 	{
 		Rig->RequestDump(OutDir / Scenario + TEXT("_solver_input.json"));
 		DumpAtS = -1.0;
+	}
+	// -WheelDumpEvery=<n> with -WheelDumpFrom=<s> and -WheelDumpTo=<s> appends every n-th step in that window.
+	if (DumpEvery > 0 && SimTimeS >= DumpFromS && SimTimeS <= DumpToS && Frame % DumpEvery == 0)
+	{
+		Rig->RequestDump(OutDir / Scenario + TEXT("_solver_steps.jsonl"), true);
 	}
 	Rig->StepWheels(DeltaSeconds);
 	Record(DeltaSeconds, WallFrameMs, Push);

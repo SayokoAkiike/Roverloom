@@ -50,7 +50,8 @@ public:
 		RoverloomWheel::FSolverOptions Options;
 		bool bWarmStart = false;
 		bool bShadow = false;
-		FString DumpPath; // If set, the next step's solver input is written there as JSON, once.
+		FString DumpPath; // If set, the next step's solver input and result are written there as one JSON line, once.
+		bool bDumpAppend = false;
 	};
 	struct FShadowRecord
 	{
@@ -61,7 +62,11 @@ public:
 		int32 Passes = 0;
 	};
 	void SetDiagnostics(const FDiagnostics& InDiagnostics) { Diagnostics = InDiagnostics; }
-	void RequestDump(const FString& Path) { Diagnostics.DumpPath = Path; }
+	void RequestDump(const FString& Path, bool bAppend = false)
+	{
+		Diagnostics.DumpPath = Path;
+		Diagnostics.bDumpAppend = bAppend;
+	}
 	const FShadowRecord& GetShadow() const { return Shadow; }
 	double GetSolveMicros() const { return SolveMicros; }
 
@@ -87,8 +92,9 @@ public:
 private:
 	// The body as Chaos will integrate it this step, with locked rotation axes removed from its inverse inertia.
 	RoverloomWheel::FBodyState BodyState() const;
-	void DumpSolverInput(const FString& Path, TConstArrayView<RoverloomWheel::FWheelContact> Contacts,
-		TConstArrayView<RoverloomWheel::FWheelCommand> Commands, double Dt) const;
+	void DumpSolverStep(const FString& Path, bool bAppend, TConstArrayView<RoverloomWheel::FWheelContact> Contacts,
+		TConstArrayView<RoverloomWheel::FWheelCommand> Commands, double Dt, TConstArrayView<double> SpinsBefore,
+		TConstArrayView<RoverloomWheel::FWheelResult> Results) const;
 
 	UFUNCTION()
 	void OnBodyHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse,

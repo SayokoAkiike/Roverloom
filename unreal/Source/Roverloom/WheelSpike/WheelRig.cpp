@@ -229,14 +229,14 @@ void AWheelRig::StepWheels(double Dt)
 		}
 	}
 	const TArray<double> SpinsBefore = Spins;
-	if (!Diagnostics.DumpPath.IsEmpty())
-	{
-		DumpSolverInput(Diagnostics.DumpPath, Contacts, Commands, Dt);
-		Diagnostics.DumpPath.Empty();
-	}
 	const double Begin = FPlatformTime::Seconds();
 	SolveWheels(Params, LastBodyState, Contacts, Commands, Dt, Spins, Results, Stats, Diagnostics.Options, Start);
 	SolveMicros = 1.0e6 * (FPlatformTime::Seconds() - Begin);
+	if (!Diagnostics.DumpPath.IsEmpty())
+	{
+		DumpSolverStep(Diagnostics.DumpPath, Diagnostics.bDumpAppend, Contacts, Commands, Dt, SpinsBefore, Results);
+		Diagnostics.DumpPath.Empty();
+	}
 	if (Diagnostics.bShadow)
 	{
 		FSolverOptions Strong;
@@ -291,25 +291,32 @@ void AWheelRig::StepWheels(double Dt)
 	}
 }
 
-void AWheelRig::DumpSolverInput(const FString& Path, TConstArrayView<FWheelContact> Contacts, TConstArrayView<FWheelCommand> Commands,
-	double Dt) const
+void AWheelRig::DumpSolverStep(const FString& Path, bool bAppend, TConstArrayView<FWheelContact> Contacts,
+	TConstArrayView<FWheelCommand> Commands, double Dt, TConstArrayView<double> SpinsBefore, TConstArrayView<FWheelResult> Results) const
 {
+	// One line of JSON: the solver's input before the step, and what the engine's solve gave.
 	auto Vec = [](const FVector& V) { return FString::Printf(TEXT("[%.17g, %.17g, %.17g]"), V.X, V.Y, V.Z); };
-	FString Json = FString::Printf(TEXT("{\n \"dt\": %.17g,\n \"params\": {\"radius\": %.17g, \"inertia\": %.17g, \"spring\": %.17g, "
-		"\"damper\": %.17g, \"friction\": %.17g, \"motor\": %.17g, \"brake\": %.17g},\n"), Dt, Params.RadiusCm, Params.InertiaKgCm2,
-		Params.SpringRate, Params.DamperRate, Params.Friction, Params.MotorMaxTorque, Params.BrakeMaxTorque);
+	FString Json = FString::Printf(TEXT("{\"time\": %.17g, \"frame\": %lld, \"dt\": %.17g, \"params\": {\"radius\": %.17g, \"inertia\": %.17g, "
+		"\"spring\": %.17g, \"damper\": %.17g, \"friction\": %.17g, \"motor\": %.17g, \"brake\": %.17g}, "), GetWorld()->GetTimeSeconds(),
+		static_cast<long long>(GFrameCounter), Dt, Params.RadiusCm, Params.InertiaKgCm2, Params.SpringRate, Params.DamperRate, Params.Friction,
+		Params.MotorMaxTorque, Params.BrakeMaxTorque);
 	const FBodyState& B = LastBodyState;
-	Json += FString::Printf(TEXT(" \"body\": {\"inv_mass\": %.17g, \"inv_inertia\": [%s, %s, %s], \"com\": %s, \"v\": %s, \"w\": %s, "
-		"\"acc\": %s, \"ext\": %s},\n \"wheels\": ["), B.InvMass, *Vec(B.InvInertia[0]), *Vec(B.InvInertia[1]), *Vec(B.InvInertia[2]),
+	Json += FString::Printf(TEXT("\"body\": {\"inv_mass\": %.17g, \"inv_inertia\": [%s, %s, %s], \"com\": %s, \"v\": %s, \"w\": %s, "
+		"\"acc\": %s, \"ext\": %s}, \"wheels\": ["), B.InvMass, *Vec(B.InvInertia[0]), *Vec(B.InvInertia[1]), *Vec(B.InvInertia[2]),
 		*Vec(B.CenterOfMass), *Vec(B.LinearVelocity), *Vec(B.AngularVelocity), *Vec(B.Acceleration), *Vec(B.ExternalForce));
 	for (int32 Index = 0; Index < Contacts.Num(); ++Index)
 	{
 		const FWheelContact& C = Contacts[Index];
-		Json += FString::Printf(TEXT("%s\n  {\"hit\": %s, \"comp\": %.17g, \"comp_rate\": %.17g, \"point\": %s, \"normal\": %s, "
-			"\"forward\": %s, \"lateral\": %s, \"mode\": %d, \"target\": %.17g, \"spin\": %.17g}"), Index ? TEXT(",") : TEXT(""),
-			C.bHit ? TEXT("true") : TEXT("false"), C.CompressionCm, C.CompressionRateCmps, *Vec(C.Point), *Vec(C.Normal), *Vec(C.Forward),
-			*Vec(C.Lateral), static_cast<int32>(Commands[Index].Mode), Commands[Index].TargetSpinRadps, Spins[Index]);
+		const FWheelResult& R = Results[Index];
+		Json += FString::Printf(TEXT("%s{\"hit\": %s, \"comp\": %.17g, \"comp_rate\": %.17g, \"point\": %s, \"normal\": %s, \"forward\": %s, "
+			"\"lateral\": %s, \"mode\": %d, \"target\": %.17g, \"spin\": %.17g, \"result\": {\"f_long\": %.17g, \"f_lat\": %.17g, "
+			"\"motor\": %.17g, \"brake\": %.17g, \"spin\": %.17g}}"), Index ? TEXT(", ") : TEXT(""), C.bHit ? TEXT("true") : TEXT("false"),
+			C.CompressionCm, C.CompressionRateCmps, *Vec(C.Point), *Vec(C.Normal), *Vec(C.Forward), *Vec(C.Lateral),
+			static_cast<int32>(Commands[Index].Mode), Commands[Index].TargetSpinRadps, SpinsBefore[Index], R.LongForce, R.LatForce,
+			R.MotorTorque, R.BrakeTorque, Spins[Index]);
 	}
-	Json += TEXT("\n ]\n}\n");
-	FFileHelper::SaveStringToFile(Json, *Path);
+	Json += FString::Printf(TEXT("], \"stats\": {\"passes\": %d, \"converged\": %s, \"last_change\": %.17g, \"natural\": %.17g}}\n"),
+		Stats.Iterations, Stats.bConverged ? TEXT("true") : TEXT("false"), Stats.LastChangeCmps, Stats.NaturalResidual);
+	FFileHelper::SaveStringToFile(Json, *Path, FFileHelper::EEncodingOptions::AutoDetect, &IFileManager::Get(),
+		bAppend ? FILEWRITE_Append : FILEWRITE_None);
 }
