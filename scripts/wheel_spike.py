@@ -751,13 +751,13 @@ def command_numerics(args: argparse.Namespace) -> int:
     return 0
 
 
-def diagnostic_plan(scenarios: list[str]) -> list[dict[str, Any]]:
+def diagnostic_plan(scenarios: list[str], extra: list[str] | None = None) -> list[dict[str, Any]]:
     """Runs that are not gated, at 60 Hz unless the name ends in _fps120."""
     runs = []
     for name in scenarios:
         scenario, _, rate = name.partition("_fps")
         flags = spike.FIXED_120 if rate == "120" else spike.FIXED_60
-        runs.append({"name": name, "scenario": scenario, "flags": flags})
+        runs.append({"name": name, "scenario": scenario, "flags": flags, "extra": extra or []})
     for run in runs:
         run["map"] = MAP_URL
         run["scenario_arg"] = "WheelScenario"
@@ -768,7 +768,7 @@ def command_run(args: argparse.Namespace) -> int:
     out_dir = RECORDS / args.batch
     out_dir.mkdir(parents=True, exist_ok=True)
     if args.diagnostic:
-        runs = diagnostic_plan(args.diagnostic)
+        runs = diagnostic_plan(args.diagnostic, args.extra.split())
     else:
         runs = plan_c() if args.phase == "c" else plan()
     if args.only:
@@ -792,6 +792,11 @@ def main() -> int:
     run.add_argument("--only", nargs="*", help="Run names to include")
     run.add_argument("--diagnostic", nargs="*", help="Scenarios to run instead, not gated")
     run.add_argument("--phase", choices=["ab", "c"], default="ab", help="Which gated plan")
+    run.add_argument(
+        "--extra",
+        default="",
+        help='Engine flags for diagnostic runs, as one string: "-WheelPasses=2000"',
+    )
     analyze = sub.add_parser("analyze", help="Judge a batch against the fixed thresholds")
     analyze.add_argument("--batch", required=True)
     analyze_c = sub.add_parser(

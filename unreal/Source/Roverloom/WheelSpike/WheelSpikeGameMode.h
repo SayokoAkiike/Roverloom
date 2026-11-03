@@ -40,6 +40,9 @@ private:
 	FString OutDir;
 	bool bPair = false;
 	bool bSix = false;
+	bool bSleepAllowed = true;
+	double DumpAtS = -1.0;
+	FString SolverLabel;
 	double StepCm = 0.0;
 	FRandomStream Random;
 	double NextRandomChangeS = 0.0;

@@ -5,6 +5,8 @@
 #include "Engine/CollisionProfile.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
+#include "HAL/PlatformTime.h"
+#include "Misc/FileHelper.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "PhysicsEngine/BodyInstance.h"
 
@@ -211,7 +213,57 @@ void AWheelRig::StepWheels(double Dt)
 
 	TArray<FWheelResult> Results;
 	LastBodyState = BodyState();
-	SolveWheels(Params, LastBodyState, Contacts, Commands, Dt, Spins, Results, Stats);
+	LastTraction.SetNumZeroed(Wheels.Num());
+	TArray<FVector2D> Start;
+	if (Diagnostics.bWarmStart)
+	{
+		// Last step's force, onto this step's contact plane. A wheel without contact on either step starts from zero.
+		Start.SetNumZeroed(Wheels.Num());
+		for (int32 Index = 0; Index < Wheels.Num(); ++Index)
+		{
+			if (Contacts[Index].bHit)
+			{
+				Start[Index] = FVector2D(FVector::DotProduct(LastTraction[Index], Contacts[Index].Forward),
+					FVector::DotProduct(LastTraction[Index], Contacts[Index].Lateral));
+			}
+		}
+	}
+	const TArray<double> SpinsBefore = Spins;
+	if (!Diagnostics.DumpPath.IsEmpty())
+	{
+		DumpSolverInput(Diagnostics.DumpPath, Contacts, Commands, Dt);
+		Diagnostics.DumpPath.Empty();
+	}
+	const double Begin = FPlatformTime::Seconds();
+	SolveWheels(Params, LastBodyState, Contacts, Commands, Dt, Spins, Results, Stats, Diagnostics.Options, Start);
+	SolveMicros = 1.0e6 * (FPlatformTime::Seconds() - Begin);
+	if (Diagnostics.bShadow)
+	{
+		FSolverOptions Strong;
+		Strong.MaxPasses = 20000;
+		Strong.ToleranceCmps = 1e-10;
+		Strong.Order = ESolveOrder::Reverse;
+		TArray<double> ShadowSpins = SpinsBefore;
+		TArray<FWheelResult> ShadowResults;
+		FSolveStats ShadowStats;
+		SolveWheels(Params, LastBodyState, Contacts, Commands, Dt, ShadowSpins, ShadowResults, ShadowStats, Strong);
+		Shadow = FShadowRecord();
+		for (int32 Index = 0; Index < Wheels.Num(); ++Index)
+		{
+			const double Difference = FVector2D(Results[Index].LongForce - ShadowResults[Index].LongForce,
+				Results[Index].LatForce - ShadowResults[Index].LatForce).Size();
+			Shadow.ForceDifference = FMath::Max(Shadow.ForceDifference,
+				Difference / FMath::Max(Results[Index].FrictionLimit, UE_DOUBLE_SMALL_NUMBER));
+		}
+		Shadow.NetForceDifference = (Stats.NetForce - ShadowStats.NetForce).Size();
+		Shadow.NetTorqueDifference = (Stats.NetTorque - ShadowStats.NetTorque).Size();
+		Shadow.NaturalResidual = ShadowStats.NaturalResidual;
+		Shadow.Passes = ShadowStats.Iterations;
+	}
+	for (FVector& Traction : LastTraction)
+	{
+		Traction = FVector::ZeroVector;
+	}
 	WheelForce = FVector::ZeroVector;
 	WheelTorque = FVector::ZeroVector;
 
@@ -228,6 +280,7 @@ void AWheelRig::StepWheels(double Dt)
 			const FVector Force = Results[Index].NormalForce * Contact.Normal + Results[Index].LongForce * Contact.Forward
 				+ Results[Index].LatForce * Contact.Lateral;
 			Body->AddForceAtLocation(Force, Contact.Point);
+			LastTraction[Index] = Results[Index].LongForce * Contact.Forward + Results[Index].LatForce * Contact.Lateral;
 			WheelForce += Force;
 			WheelTorque += FVector::CrossProduct(Contact.Point - LastBodyState.CenterOfMass, Force);
 		}
@@ -236,4 +289,27 @@ void AWheelRig::StepWheels(double Dt)
 	{
 		Body->AddForce(ExternalForce);
 	}
+}
+
+void AWheelRig::DumpSolverInput(const FString& Path, TConstArrayView<FWheelContact> Contacts, TConstArrayView<FWheelCommand> Commands,
+	double Dt) const
+{
+	auto Vec = [](const FVector& V) { return FString::Printf(TEXT("[%.17g, %.17g, %.17g]"), V.X, V.Y, V.Z); };
+	FString Json = FString::Printf(TEXT("{\n \"dt\": %.17g,\n \"params\": {\"radius\": %.17g, \"inertia\": %.17g, \"spring\": %.17g, "
+		"\"damper\": %.17g, \"friction\": %.17g, \"motor\": %.17g, \"brake\": %.17g},\n"), Dt, Params.RadiusCm, Params.InertiaKgCm2,
+		Params.SpringRate, Params.DamperRate, Params.Friction, Params.MotorMaxTorque, Params.BrakeMaxTorque);
+	const FBodyState& B = LastBodyState;
+	Json += FString::Printf(TEXT(" \"body\": {\"inv_mass\": %.17g, \"inv_inertia\": [%s, %s, %s], \"com\": %s, \"v\": %s, \"w\": %s, "
+		"\"acc\": %s, \"ext\": %s},\n \"wheels\": ["), B.InvMass, *Vec(B.InvInertia[0]), *Vec(B.InvInertia[1]), *Vec(B.InvInertia[2]),
+		*Vec(B.CenterOfMass), *Vec(B.LinearVelocity), *Vec(B.AngularVelocity), *Vec(B.Acceleration), *Vec(B.ExternalForce));
+	for (int32 Index = 0; Index < Contacts.Num(); ++Index)
+	{
+		const FWheelContact& C = Contacts[Index];
+		Json += FString::Printf(TEXT("%s\n  {\"hit\": %s, \"comp\": %.17g, \"comp_rate\": %.17g, \"point\": %s, \"normal\": %s, "
+			"\"forward\": %s, \"lateral\": %s, \"mode\": %d, \"target\": %.17g, \"spin\": %.17g}"), Index ? TEXT(",") : TEXT(""),
+			C.bHit ? TEXT("true") : TEXT("false"), C.CompressionCm, C.CompressionRateCmps, *Vec(C.Point), *Vec(C.Normal), *Vec(C.Forward),
+			*Vec(C.Lateral), static_cast<int32>(Commands[Index].Mode), Commands[Index].TargetSpinRadps, Spins[Index]);
+	}
+	Json += TEXT("\n ]\n}\n");
+	FFileHelper::SaveStringToFile(Json, *Path);
 }

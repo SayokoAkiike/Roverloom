@@ -4,9 +4,6 @@ namespace RoverloomWheel
 {
 	namespace
 	{
-		const int32 MaxPasses = 200;
-		const double ToleranceCmps = 1e-7;
-
 		// One tangent direction at one contact. Each wheel has a longitudinal row and a lateral row.
 		struct FRow
 		{
@@ -70,7 +67,7 @@ namespace RoverloomWheel
 
 	void SolveWheels(const FWheelParams& Params, const FBodyState& Body, TConstArrayView<FWheelContact> Contacts,
 		TConstArrayView<FWheelCommand> Commands, double Dt, TArrayView<double> InOutSpinRadps, TArray<FWheelResult>& OutResults,
-		FSolveStats& OutStats)
+		FSolveStats& OutStats, const FSolverOptions& Options, TConstArrayView<FVector2D> InitialForces)
 	{
 		const int32 Count = Contacts.Num();
 		const double R = Params.RadiusCm;
@@ -151,11 +148,48 @@ namespace RoverloomWheel
 			Solved[Row] += Change;
 		};
 
+		// A warm start: begin from given forces, clamped to the current circle, for wheels in contact now.
+		if (InitialForces.Num() == Count)
+		{
+			for (int32 Index = 0; Index < Count; ++Index)
+			{
+				if (FirstRow[Index] != INDEX_NONE)
+				{
+					FVector2D Start = InitialForces[Index];
+					const double Limit = OutResults[Index].FrictionLimit;
+					if (Start.Size() > Limit)
+					{
+						Start *= Limit > 0.0 ? Limit / Start.Size() : 0.0;
+					}
+					Apply(FirstRow[Index], Start.X);
+					Apply(FirstRow[Index] + 1, Start.Y);
+				}
+			}
+		}
+		TArray<int32> Order;
+		for (int32 Index = 0; Index < Count; ++Index)
+		{
+			Order.Add(Index);
+		}
+		FRandomStream Shuffle(1);
+
 		// Projected Gauss-Seidel over the wheels: each pass re-solves one wheel against all the others' current forces.
-		for (int32 Pass = 0; Pass < MaxPasses && RowCount > 0; ++Pass)
+		for (int32 Pass = 0; Pass < Options.MaxPasses && RowCount > 0; ++Pass)
 		{
 			double LargestChange = 0.0;
-			for (int32 Index = 0; Index < Count; ++Index)
+			const bool bBackward = Options.Order == ESolveOrder::Reverse || (Options.Order == ESolveOrder::Alternate && Pass % 2 == 1);
+			for (int32 Slot = 0; Slot < Count; ++Slot)
+			{
+				Order[Slot] = bBackward ? Count - 1 - Slot : Slot;
+			}
+			if (Options.Order == ESolveOrder::Shuffle)
+			{
+				for (int32 Slot = Count - 1; Slot > 0; --Slot)
+				{
+					Order.Swap(Slot, Shuffle.RandRange(0, Slot));
+				}
+			}
+			for (const int32 Index : Order)
 			{
 				const int32 Long = FirstRow[Index];
 				if (Long == INDEX_NONE)
@@ -207,7 +241,7 @@ namespace RoverloomWheel
 			}
 			OutStats.Iterations = Pass + 1;
 			OutStats.LastChangeCmps = LargestChange;
-			if (LargestChange < ToleranceCmps)
+			if (LargestChange < Options.ToleranceCmps)
 			{
 				OutStats.bConverged = true;
 				break;
@@ -240,6 +274,40 @@ namespace RoverloomWheel
 			}
 			(Command.Mode == EWheelMode::Brake ? Out.BrakeTorque : Out.MotorTorque) = Torques[Index];
 			Out.WheelPower = Torques[Index] * InOutSpinRadps[Index];
+
+			// Optimality checks that do not rely on the stop rule.
+			if (Long == INDEX_NONE)
+			{
+				continue;
+			}
+			const double Target = Command.Mode == EWheelMode::Brake ? 0.0 : Command.TargetSpinRadps;
+			const double Limit = Command.Mode == EWheelMode::Brake ? Params.BrakeMaxTorque : Params.MotorMaxTorque;
+			const bool bSpinFree = Command.Mode == EWheelMode::Coast || FMath::Abs(Torques[Index]) >= Limit * (1.0 - 1e-12);
+			const FVector2D Traction(Out.LongForce, Out.LatForce);
+			const FVector2D Slip(Velocity[Long] - InOutSpinRadps[Index] * R, Velocity[Long + 1]);
+			const double DiagLong = Dt * (K[Long * RowCount + Long] + (bSpinFree ? R * R / I : 0.0));
+			const double DiagLat = Dt * K[(Long + 1) * RowCount + Long + 1];
+			// One scale for both directions: the disk's projection is only a fixed point at the optimum in a round metric.
+			FVector2D Trial = Traction - Slip / FMath::Max(DiagLong, DiagLat);
+			if (Trial.Size() > Out.FrictionLimit)
+			{
+				Trial *= Out.FrictionLimit > 0.0 ? Out.FrictionLimit / Trial.Size() : 0.0;
+			}
+			OutStats.NaturalResidual = FMath::Max(OutStats.NaturalResidual,
+				(Traction - Trial).Size() / FMath::Max(Out.FrictionLimit, UE_DOUBLE_SMALL_NUMBER));
+			if (Traction.Size() < Out.FrictionLimit * (1.0 - 1e-9))
+			{
+				OutStats.StickResidualCmps = FMath::Max(OutStats.StickResidualCmps, Slip.Size());
+			}
+			if (!bSpinFree)
+			{
+				OutStats.ServoResidualRadps = FMath::Max(OutStats.ServoResidualRadps, FMath::Abs(InOutSpinRadps[Index] - Target));
+			}
+			for (const int32 Row : {Long, Long + 1})
+			{
+				OutStats.NetForce += Rows[Row].Direction * Solved[Row];
+				OutStats.NetTorque += Rows[Row].Arm * Solved[Row];
+			}
 		}
 	}
 }

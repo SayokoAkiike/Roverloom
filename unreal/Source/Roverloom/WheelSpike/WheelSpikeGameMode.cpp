@@ -143,6 +143,16 @@ void AWheelSpikeGameMode::StartPlay()
 	Material->Friction = Friction;
 	Material->StaticFriction = Friction;
 	Material->Restitution = 0.0f;
+	// Diagnostics only: -WheelSleep=0 stops Chaos putting the body to sleep, through this experiment's own material.
+	int32 SleepAllowed = 1;
+	FParse::Value(CommandLine, TEXT("WheelSleep="), SleepAllowed);
+	bSleepAllowed = SleepAllowed != 0;
+	if (!bSleepAllowed)
+	{
+		Material->SleepLinearVelocityThreshold = 0.0f;
+		Material->SleepAngularVelocityThreshold = 0.0f;
+		Material->SleepCounterThreshold = MAX_int32;
+	}
 
 	const FRotator Tilt(SlopeDeg, 0.0, 0.0);
 	const FVector Up = Tilt.RotateVector(FVector::UpVector);
@@ -209,6 +219,23 @@ void AWheelSpikeGameMode::StartPlay()
 		Wheels.Add({FVector(0.0, 0.0, -20.0), true});
 		Rig->Build(FVector(40.0, 40.0, 40.0), 853.5 / 6.0, Wheels, true, true, bSweep, Friction, Material);
 	}
+
+	// Solver diagnostics, off unless asked for. Gated runs use the defaults.
+	AWheelRig::FDiagnostics Diagnostics;
+	FParse::Value(CommandLine, TEXT("WheelPasses="), Diagnostics.Options.MaxPasses);
+	FString Order;
+	if (FParse::Value(CommandLine, TEXT("WheelOrder="), Order))
+	{
+		Diagnostics.Options.Order = Order == TEXT("reverse") ? ESolveOrder::Reverse
+			: Order == TEXT("alternate") ? ESolveOrder::Alternate
+			: Order == TEXT("shuffle") ? ESolveOrder::Shuffle : ESolveOrder::Forward;
+	}
+	Diagnostics.bWarmStart = FParse::Param(CommandLine, TEXT("WheelWarmStart"));
+	Diagnostics.bShadow = FParse::Param(CommandLine, TEXT("WheelShadow"));
+	FParse::Value(CommandLine, TEXT("WheelDumpAt="), DumpAtS);
+	Rig->SetDiagnostics(Diagnostics);
+	SolverLabel = FString::Printf(TEXT("passes=%d order=%s warm=%d shadow=%d sleep=%d"), Diagnostics.Options.MaxPasses,
+		Order.IsEmpty() ? TEXT("forward") : *Order, Diagnostics.bWarmStart ? 1 : 0, Diagnostics.bShadow ? 1 : 0, bSleepAllowed ? 1 : 0);
 
 	World->SpawnActor<ADirectionalLight>(FVector::ZeroVector, FRotator(-40.0, 30.0, 0.0));
 	UE_LOG(LogRoverloom, Display, TEXT("Wheel scenario %s started, gravity %.3f"), *Scenario, World->GetGravityZ());
@@ -357,6 +384,12 @@ void AWheelSpikeGameMode::Tick(float DeltaSeconds)
 	Command(SimTimeS, Targets, Mode, Push);
 	Rig->SetTargets(Targets, Mode);
 	Rig->SetExternalForce(Push);
+	// Diagnostics: -WheelDumpAt=<seconds> writes one step's solver input next to the CSV.
+	if (DumpAtS >= 0.0 && SimTimeS >= DumpAtS)
+	{
+		Rig->RequestDump(OutDir / Scenario + TEXT("_solver_input.json"));
+		DumpAtS = -1.0;
+	}
 	Rig->StepWheels(DeltaSeconds);
 	Record(DeltaSeconds, WallFrameMs, Push);
 	++Frame;
@@ -382,7 +415,8 @@ void AWheelSpikeGameMode::Record(double DeltaSeconds, double WallFrameMs, const 
 	{
 		FString Header = TEXT("frame,t_s,dt_s,x_cm,y_cm,z_cm,pitch_deg,yaw_deg,roll_deg,vx_cmps,vy_cmps,vz_cmps,wz_degps,"
 			"forward_cmps,lateral_cmps,push,solve_passes,solve_converged,solve_change_cmps,wall_frame_ms,tilt_deg,wx_degps,wy_degps,"
-			"body_hits,wheel_fx,wheel_fy,wheel_fz,wheel_tx,wheel_ty,wheel_tz");
+			"body_hits,wheel_fx,wheel_fy,wheel_fz,wheel_tx,wheel_ty,wheel_tz,solve_us,natural_res,stick_res_cmps,servo_res_radps,"
+			"shadow_dforce,shadow_dnet_force,shadow_dnet_torque,shadow_natural_res,shadow_passes");
 		for (int32 Index = 0; Index < Rig->NumWheels(); ++Index)
 		{
 			Header += FString::Printf(TEXT(",w%d_hit,w%d_comp_cm,w%d_fz,w%d_flong,w%d_flat,w%d_limit,w%d_spin_radps,w%d_target_radps,"
@@ -409,6 +443,10 @@ void AWheelSpikeGameMode::Record(double DeltaSeconds, double WallFrameMs, const 
 		FVector::DotProduct(V, Body->GetForwardVector()), FVector::DotProduct(V, Body->GetRightVector()), Push.Size(),
 		Stats.Iterations, Stats.bConverged ? 1 : 0, Stats.LastChangeCmps, WallFrameMs, TiltDeg, W.X, W.Y, Rig->GetBodyHits(),
 		WheelForce.X, WheelForce.Y, WheelForce.Z, WheelTorque.X, WheelTorque.Y, WheelTorque.Z);
+	const AWheelRig::FShadowRecord& Shadow = Rig->GetShadow();
+	Row += FString::Printf(TEXT(",%.2f,%.3e,%.3e,%.3e,%.3e,%.3e,%.3e,%.3e,%d"), Rig->GetSolveMicros(), Stats.NaturalResidual,
+		Stats.StickResidualCmps, Stats.ServoResidualRadps, Shadow.ForceDifference, Shadow.NetForceDifference, Shadow.NetTorqueDifference,
+		Shadow.NaturalResidual, Shadow.Passes);
 	for (const AWheelRig::FWheelRecord& Wheel : Rig->GetRecords())
 	{
 		const FWheelResult& Result = Wheel.Result;
@@ -443,12 +481,12 @@ void AWheelSpikeGameMode::Finish(const FString& Outcome)
 			 "  \"brake_max_torque\": %.1f,\n  \"mass_kg\": %.3f,\n  \"principal_inertia\": [%.1f, %.1f, %.1f],\n"
 			 "  \"inv_inertia_rows\": [[%.6e, %.6e, %.6e], [%.6e, %.6e, %.6e], [%.6e, %.6e, %.6e]],\n  \"body_hits\": %d,\n"
 			 "  \"frames\": %lld,\n  \"sim_time_s\": %.6f,\n  \"fixed_time_step\": %s,\n  \"fixed_delta_s\": %.6f,\n"
-			 "  \"gravity_z\": %.3f,\n  \"engine\": \"%s\"\n}\n"),
+			 "  \"gravity_z\": %.3f,\n  \"solver_options\": \"%s\",\n  \"engine\": \"%s\"\n}\n"),
 		*Outcome, *Scenario, Rig ? Rig->NumWheels() : 0, bPair ? TEXT("true") : TEXT("false"), bSweep ? TEXT("true") : TEXT("false"),
 		Friction, SlopeDeg, StepCm, Params.SpringRate, Params.DamperRate, Params.MotorMaxTorque, Params.BrakeMaxTorque, Mass,
 		Inertia.X, Inertia.Y, Inertia.Z, Inv[0].X, Inv[0].Y, Inv[0].Z, Inv[1].X, Inv[1].Y, Inv[1].Z, Inv[2].X, Inv[2].Y, Inv[2].Z,
 		Rig ? Rig->GetBodyHits() : 0, Frame, SimTimeS, FApp::UseFixedTimeStep() ? TEXT("true") : TEXT("false"),
-		FApp::GetFixedDeltaTime(), GetWorld()->GetGravityZ(), *FEngineVersion::Current().ToString());
+		FApp::GetFixedDeltaTime(), GetWorld()->GetGravityZ(), *SolverLabel, *FEngineVersion::Current().ToString());
 	FFileHelper::SaveStringToFile(Meta, *(Base + TEXT(".json")));
 	UE_LOG(LogRoverloom, Display, TEXT("Wheel scenario %s finished: %s, %lld frames"), *Scenario, *Outcome, Frame);
 	FPlatformMisc::RequestExit(false, TEXT("RoverloomWheelSpike"));

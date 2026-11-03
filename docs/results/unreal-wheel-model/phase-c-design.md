@@ -393,3 +393,17 @@ The 60 N m motor limits the yaw rate. In the model, this rover cannot turn in pl
   - the body center's overshoot from pitching;
   - turning, limited by the motor.
 - **R0's results are not rejudged.** ADR 0014 stays Proposed.
+
+## Failure record, confirmed by the owner, 2026-11-04
+
+The owner confirmed phase C's result as a failure: C1 and C1r pass, and the other seven fail. Diagnostic runs do not
+change it. ADR 0014 stays Proposed. The causes, kept apart:
+
+| Cause | Tests it fails | Evidence |
+| --- | --- | --- |
+| **Solver convergence:** the registered rule that the last pass changes contact velocities by less than 1e-7 cm/s on every step with contact | C2, C3, C4, C5, C5b, C6, C7: all seven | Each failing run had steps reaching the 200-pass limit. [Solver diagnostics](solver-diagnostics.md) found no setting that meets the rule on every step |
+| **Drive performance:** the 60 N m motor limits the turn | C3, and C4 through its 120 Hz C3 | 18.98 °/s for 28.178 °/s commanded; middle wheels at 1.000 × the motor's limit |
+| **Evaluation metric:** C2 judges the body center's speed, which includes pitching | C2, and C4 through its 120 Hz C2 | Peak 55.29 cm/s, while the wheels' mean ground speed peaked at 50.0003 cm/s |
+| **Record rounding:** the CSV's 0.001 force resolution | C7, also failed by convergence | 3 steps over the circle by 0.0003–0.001, on wheels with limits of 68–410 |
+
+C5, C5b, and C6 met their own thresholds and failed only the convergence rule. C1 and C1r converged on every step.

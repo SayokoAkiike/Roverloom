@@ -83,6 +83,29 @@ namespace RoverloomWheel
 		int32 Iterations = 0;
 		double LastChangeCmps = 0.0; // Largest velocity change made by the last pass
 		bool bConverged = false;
+		// Optimality, independent of the stop rule, from the final forces and velocities:
+		double NaturalResidual = 0.0;  // max over wheels of |F - Proj_disk(F - u / (dt max K_diag))| / (mu Fz)
+		double StickResidualCmps = 0.0; // largest end-of-step slip at a wheel inside the circle
+		double ServoResidualRadps = 0.0; // largest |end spin - target| where the torque is inside its limit
+		FVector NetForce = FVector::ZeroVector;  // Tangential forces only, on the body
+		FVector NetTorque = FVector::ZeroVector; // Their torque about the center of mass
+	};
+
+	// Gauss-Seidel order over the wheels within a pass.
+	enum class ESolveOrder : uint8
+	{
+		Forward,
+		Reverse,
+		Alternate, // Forward on even passes, reverse on odd
+		Shuffle,   // A fixed-seed permutation per pass
+	};
+
+	// Solver settings. The defaults are those every gated run used.
+	struct FSolverOptions
+	{
+		int32 MaxPasses = 200;
+		double ToleranceCmps = 1e-7;
+		ESolveOrder Order = ESolveOrder::Forward;
 	};
 
 	// Spring rate for a static compression under a load, and damper rate for a damping ratio.
@@ -95,7 +118,9 @@ namespace RoverloomWheel
 
 	// Solves every wheel's ground force together for one step, and advances each wheel's spin by Dt.
 	// Normal loads come from the suspension. Traction is bounded by mu Fz and torques by their limits.
+	// InitialForces, if given, starts each wheel from (F_f, F_l) instead of zero; a wheel out of contact ignores it, and
+	// each start is clamped to the wheel's current friction circle.
 	void SolveWheels(const FWheelParams& Params, const FBodyState& Body, TConstArrayView<FWheelContact> Contacts,
 		TConstArrayView<FWheelCommand> Commands, double Dt, TArrayView<double> InOutSpinRadps, TArray<FWheelResult>& OutResults,
-		FSolveStats& OutStats);
+		FSolveStats& OutStats, const FSolverOptions& Options = FSolverOptions(), TConstArrayView<FVector2D> InitialForces = {});
 }

@@ -42,6 +42,29 @@ public:
 	// Per-wheel target spin, and a mode for all wheels.
 	void SetTargets(const TArray<double>& TargetSpinRadps, RoverloomWheel::EWheelMode Mode);
 
+	// Solver diagnostics, off by default. A warm start begins each wheel from its last force, projected onto the
+	// current contact plane, and only if the wheel touched the ground on both steps. A shadow solve repeats each step
+	// with many more passes, for comparison only; its forces are never applied.
+	struct FDiagnostics
+	{
+		RoverloomWheel::FSolverOptions Options;
+		bool bWarmStart = false;
+		bool bShadow = false;
+		FString DumpPath; // If set, the next step's solver input is written there as JSON, once.
+	};
+	struct FShadowRecord
+	{
+		double ForceDifference = 0.0;     // Largest single-wheel tangential force difference over mu Fz
+		double NetForceDifference = 0.0;  // |difference of the tangential net force|
+		double NetTorqueDifference = 0.0; // |difference of its torque about the center of mass|
+		double NaturalResidual = 0.0;
+		int32 Passes = 0;
+	};
+	void SetDiagnostics(const FDiagnostics& InDiagnostics) { Diagnostics = InDiagnostics; }
+	void RequestDump(const FString& Path) { Diagnostics.DumpPath = Path; }
+	const FShadowRecord& GetShadow() const { return Shadow; }
+	double GetSolveMicros() const { return SolveMicros; }
+
 	// A known force on the center of mass for the coming step. The rig applies it, and the solve accounts for it.
 	void SetExternalForce(const FVector& Force) { ExternalForce = Force; }
 
@@ -64,6 +87,8 @@ public:
 private:
 	// The body as Chaos will integrate it this step, with locked rotation axes removed from its inverse inertia.
 	RoverloomWheel::FBodyState BodyState() const;
+	void DumpSolverInput(const FString& Path, TConstArrayView<RoverloomWheel::FWheelContact> Contacts,
+		TConstArrayView<RoverloomWheel::FWheelCommand> Commands, double Dt) const;
 
 	UFUNCTION()
 	void OnBodyHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse,
@@ -84,6 +109,10 @@ private:
 	FVector WheelTorque = FVector::ZeroVector;
 	RoverloomWheel::FBodyState LastBodyState;
 	int32 BodyHits = 0;
+	FDiagnostics Diagnostics;
+	FShadowRecord Shadow;
+	double SolveMicros = 0.0;
+	TArray<FVector> LastTraction; // World tangential force per wheel from the last step; zero if it had no contact
 	double MassKg = 1.0;
 	bool bLockRollPitchAxes = false;
 	bool bLockYawAxis = false;

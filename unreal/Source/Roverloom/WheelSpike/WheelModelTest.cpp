@@ -485,4 +485,80 @@ bool FRoverloomWheelFrictionTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FRoverloomWheelSolverTest,
+	"Roverloom.WheelSpike.Solver",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FRoverloomWheelSolverTest::RunTest(const FString& Parameters)
+{
+	const double Dt = 1.0 / 60.0;
+
+	// Warm start: a start outside the circle is clamped, and a wheel out of contact ignores its start.
+	{
+		FTestRig Rig(Mass, 0.3, 0.0, {FVector(0.0, 0.0, -45.0), FVector(50.0, 0.0, -45.0)});
+		Rig.Contacts[1].bHit = false;
+		TArray<FWheelResult> Out;
+		FSolveStats Stats;
+		const TArray<FVector2D> Start = {FVector2D(1.0e9, 0.0), FVector2D(5.0e4, 5.0e4)};
+		TArray<double> Spins = Rig.Spins;
+		SolveWheels(Rig.Params, Rig.Body, Rig.Contacts, All(2, EWheelMode::Brake), Dt, Spins, Out, Stats, FSolverOptions(), Start);
+		TestTrue(TEXT("Warm start: result inside the circle"),
+			FVector2D(Out[0].LongForce, Out[0].LatForce).Size() <= Out[0].FrictionLimit * (1.0 + 1e-12));
+		TestEqual(TEXT("Warm start: body at rest keeps zero traction"), Out[0].LongForce, 0.0, 1e-6);
+		TestEqual(TEXT("Warm start: no force on a wheel out of contact"), Out[1].LongForce + Out[1].LatForce, 0.0);
+	}
+
+	// Same state, different orders and pass counts: wheel forces may differ, net force and torque must not.
+	{
+		FTestRig Rig = SixWheelRig();
+		const TArray<FWheelCommand> Commands = TurnInPlace(28.178);
+		for (int32 Index = 0; Index < 600; ++Index)
+		{
+			Rig.Step(Commands, Dt);
+		}
+		struct FCase
+		{
+			ESolveOrder Order;
+			int32 Passes;
+		};
+		const FCase Cases[] = {{ESolveOrder::Forward, 200}, {ESolveOrder::Forward, 20000}, {ESolveOrder::Reverse, 20000},
+			{ESolveOrder::Alternate, 20000}, {ESolveOrder::Shuffle, 20000}};
+		TArray<FSolveStats> All5;
+		TArray<TArray<FWheelResult>> Forces;
+		for (const FCase& Case : Cases)
+		{
+			FSolverOptions Options;
+			Options.Order = Case.Order;
+			Options.MaxPasses = Case.Passes;
+			Options.ToleranceCmps = 1e-11;
+			TArray<double> Spins = Rig.Spins;
+			TArray<FWheelResult> Out;
+			FSolveStats Stats;
+			SolveWheels(Rig.Params, Rig.Body, Rig.Contacts, Commands, Dt, Spins, Out, Stats, Options);
+			All5.Add(Stats);
+			Forces.Add(Out);
+		}
+		double NetForce = 0.0;
+		double NetTorque = 0.0;
+		double WheelForce = 0.0;
+		for (int32 Case = 1; Case < All5.Num(); ++Case)
+		{
+			NetForce = FMath::Max(NetForce, (All5[Case].NetForce - All5[1].NetForce).Size());
+			NetTorque = FMath::Max(NetTorque, (All5[Case].NetTorque - All5[1].NetTorque).Size());
+			for (int32 Wheel = 0; Wheel < 6; ++Wheel)
+			{
+				WheelForce = FMath::Max(WheelForce, FMath::Abs(Forces[Case][Wheel].LatForce - Forces[1][Wheel].LatForce));
+			}
+			TestTrue(TEXT("Orders: natural residual small with many passes"), All5[Case].NaturalResidual < 1e-6);
+		}
+		AddInfo(FString::Printf(TEXT("Turn state: 200 passes residual %.3e (passes %d); orders differ by net force %.3e, net torque %.3e, "
+			"single-wheel lateral force %.3e"), All5[0].NaturalResidual, All5[0].Iterations, NetForce, NetTorque, WheelForce));
+		TestTrue(TEXT("Orders: same net force"), NetForce < 1e-3);
+		TestTrue(TEXT("Orders: same net torque"), NetTorque < 1e-1);
+	}
+	return true;
+}
+
 #endif
+
