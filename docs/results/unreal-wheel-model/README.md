@@ -101,6 +101,87 @@ results are not rejudged.
 | `unreal/Source/Roverloom/WheelSpike/WheelModelTest.cpp` | Unit tests of the equations |
 | `scripts/wheel_spike.py` | Plan, runner reuse, and judgment against the criteria above |
 
-## Results
+## Results: phases A and B, attempt 1, 2026-11-03
 
-Not yet run.
+**Phase A failed on A6 and phase B on B4, both holding on a slope.** The other 13 tests passed. Phase C was not started.
+Batch `wheel-ab-20261103` at commit `89d1269`, 17 runs. Smoke runs `smoke-20261103`, of A1 and B1 only, preceded it.
+
+| Test | Measured | Result |
+| --- | --- | --- |
+| A1, ray | Load error 0.0000; compression range 0.0000 cm | Pass |
+| A1s, sphere sweep | The same | Pass |
+| A2, ray | 50.000 cm/s; mean slip 0.000 cm/s; 95% in 0.30 s | Pass |
+| A2s, sphere sweep | The same | Pass |
+| A3, wheel spin, μ 0.05 | 159 slipping steps, traction 1.000 × μ Fz; acceleration 18.550 cm/s² for 18.55 | Pass |
+| A4, locked braking, μ 0.1 | Spin 0.000 rad/s; deceleration 37.100 cm/s² for 37.10; stopped in 33.28 cm | Pass |
+| A5, sideways sliding, μ 0.3 | Peak 57.5 cm/s; deceleration 111.300 cm/s² for 111.30; 0.000 cm/s at 4 s | Pass |
+| **A6, 10° slope, μ 0.6, brake** | **Creep 1.074 cm/s** | **Fail** |
+| A7, 10° slope, μ 0.1, brake | Sliding at 27.887 cm/s² for 27.887 | Pass |
+| A8, time step | Time to 95%: 0.0% different; stopping distance: 0.63% | Pass |
+| B1, straight | 50.000 cm/s; yaw rate 0.000 °/s; each wheel's load 52,774.75, which is M g / 2 | Pass |
+| B2, spin in place | 28.178 °/s for 28.178; lateral slip 0.000 cm/s | Pass |
+| B3, stop | Below 0.5 cm/s in 0.53 s | Pass |
+| **B4, 10° slope, μ 0.6, zero command** | **Creep 6.222 cm/s** | **Fail** |
+| B5, time step | End X 0.08% different; total yaw 0.06% | Pass |
+
+Every run completed, with no NaN, speeds of 168 cm/s or less, and traction never outside the friction circle. Runner
+checks over the 17 runs: every exit code 0, no new crash report, no forced stop, peak resident memory at most 2,271 MB,
+free memory at least 39%, and swap unchanged at 3,389 MB. Unit tests passed: `Roverloom.WheelSpike.Model`, with R0's two.
+
+### Causes of A6 and B4, from diagnostic runs that are not gated
+
+Batch `diag-hold-20261103`.
+
+1. **Sticking ignores gravity.** The traction solve zeroes the contact velocity at the end of a step, assuming no other
+   force. Gravity then adds `g sin θ dt` along the slope during the next step. A6's creep is exactly that:
+
+   | Step | Predicted | Measured |
+   | --- | --- | --- |
+   | 60 Hz | 1.0737 cm/s | 1.0737 cm/s |
+   | 120 Hz | 0.5369 cm/s | 0.5369 cm/s |
+   | 240 Hz | 0.2684 cm/s | 0.2684 cm/s |
+
+2. **The effective mass is wrong for wheels that push together.** On rig B, each wheel's share counts the yaw inertia
+   term, as if it alone turned the body. When both push the same way, the yaw terms cancel. The share used was 23.9 kg,
+   against 142.3 kg needed, so each step removes about a sixth of the creep. Predicted 6.38 cm/s, measured 6.22 cm/s at
+   60 Hz, and 3.11 cm/s at 120 Hz.
+
+Both are flaws in this model's design. Neither is a Chaos behavior. Straight driving and turning are unaffected, because
+nothing but the wheels pushes the body along the ground there.
+
+### Proposed fix, not applied
+
+- Add the known external acceleration, gravity, to the predicted contact velocity before solving.
+- Solve all wheels' traction together, either as one small linear system or with a few Gauss-Seidel passes, instead of
+  splitting effective mass.
+
+A second attempt would keep every threshold above, and needs the owner's approval.
+
+## What this model covers, and what it does not
+
+| Covered, in game terms | Not covered |
+| --- | --- |
+| Normal load from a spring-damper | Sinkage, soil compaction, bulldozing |
+| Coulomb friction limit on combined traction | Traction that depends on slip ratio or slip angle |
+| Wheel spin with inertia, motor and brake torque limits | Grousers, soil shear, and the Bekker or Wong-Reece relations |
+| Spinning, locking, sideways sliding | Rolling resistance from soil; it is zero here |
+| One body; any number of wheels | Wheel width, tire deformation, or several contacts per wheel |
+
+## Chaos's own vehicle systems, compared
+
+From the UE 5.8.4 source and Epic's 5.8 pages. Neither was run.
+
+| Aspect | Chaos Wheeled Vehicle | Chaos Modular Vehicle | This model |
+| --- | --- | --- | --- |
+| Status in 5.8.4 | Plugin marked Experimental, off by default | Plugin marked Experimental; its examples are Beta | Project code |
+| Six wheels | "No limit on the number of wheels", per Epic's setup page | Wheel modules; not checked for count | Yes |
+| Skid steering | Not documented. Per-wheel `SetDriveTorque` and `SetBrakeTorque` exist | Not documented | Yes, per-wheel targets |
+| Rocker-bogie | No. Each wheel has its own raycast suspension on one body | Modules attach to a cluster union of parts; articulation is not documented | Not yet; would need bodies and joints, or kinematic links |
+| Contact and forces visible | `FWheelStatus`: contact, contact point, slip angle, spring force, drive torque, skidding | Module state; not checked in detail | Every force and velocity per wheel, every step |
+| Tire model | Slip graph and friction multiplier | Wheel module with slip angle limit and friction multiplier | Coulomb circle, sticking solve |
+| Physics step | Has an async physics callback, `ChaosVehicleManagerAsyncCallback` | Has its own, `ChaosSimModuleManagerAsyncCallback` | Pre-physics tick, once per step |
+| Setup from C++ | Movement component on a skeletal mesh; wheels are classes | Built from assets and components | Fully in C++ |
+| Assets needed | Skeletal mesh with a bone per wheel, a physics asset, wheel classes | Geometry or skeletal assets for each module | None; engine basic shapes |
+| Load on this Mac | Not measured | Not measured | Peak resident memory 2.3 GB in these tests |
+
+Neither standard system fits rocker-bogie without its own work, and both need assets that this experiment avoids.
