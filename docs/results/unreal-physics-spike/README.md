@@ -249,3 +249,10 @@ turning, rolling, and holding are not understood. Options, for the owner to choo
    applied to the body. This is the plan's third candidate in its fuller form, and avoids the contact behavior above.
 2. Measure Chaos Modular Vehicle, as ADR 0014 allows when this approach fails.
 3. Keep spheres, and study the contact behavior further. This has the least evidence of success.
+
+## Conclusion, confirmed by the owner on 2026-11-03
+
+R0 attempts 1 and 2 are final failures. Diagnostic successes are not gated results, and the thresholds stay as fixed.
+Tuning of sphere contact with joint drive has ended. This code, its records, and this page stay as a baseline. R1 is on
+hold, and ADR 0014 stays Proposed. The next experiment is a separate
+[wheel model](../unreal-wheel-model/README.md).

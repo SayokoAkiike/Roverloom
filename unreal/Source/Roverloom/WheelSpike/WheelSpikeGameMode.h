@@ -1,0 +1,50 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameFramework/GameModeBase.h"
+
+#include "WheelModel.h"
+
+#include "WheelSpikeGameMode.generated.h"
+
+class AWheelRig;
+class UPhysicalMaterial;
+
+// Runs one wheel model scenario, writes its record to -SpikeOut, and exits. Start it with
+// /Engine/Maps/Entry?game=/Script/Roverloom.WheelSpikeGameMode -game -WheelScenario=<id>.
+UCLASS(NotBlueprintable)
+class AWheelSpikeGameMode : public AGameModeBase
+{
+	GENERATED_BODY()
+
+public:
+	AWheelSpikeGameMode();
+
+	virtual void StartPlay() override;
+	virtual void Tick(float DeltaSeconds) override;
+
+private:
+	void SpawnBlock(const FVector& Center, const FRotator& Rotation, const FVector& SizeCm);
+	void Command(double TimeS, TArray<double>& OutTargets, RoverloomWheel::EWheelMode& OutMode, FVector& OutPush) const;
+	void Record(double DeltaSeconds, const FVector& Push);
+	void Finish(const FString& Outcome);
+
+	UPROPERTY()
+	TObjectPtr<AWheelRig> Rig;
+
+	UPROPERTY()
+	TObjectPtr<UPhysicalMaterial> Material;
+
+	FString Scenario;
+	FString OutDir;
+	bool bPair = false;
+	bool bSweep = false;
+	double Friction = 0.6;
+	double SlopeDeg = 0.0;
+	double DurationS = 0.0;
+	double SimTimeS = 0.0;
+	int64 Frame = 0;
+	bool bStarted = false;
+	bool bFinished = false;
+	TArray<FString> Rows;
+};

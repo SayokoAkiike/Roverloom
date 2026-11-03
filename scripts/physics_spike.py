@@ -145,7 +145,7 @@ def run_one(spec: dict[str, Any], out_dir: Path) -> dict[str, Any]:
     args = [
         str(EDITOR),
         str(PROJECT),
-        MAP_URL,
+        spec.get("map", MAP_URL),
         "-game",
         "-windowed",
         "-ResX=1280",
@@ -155,7 +155,7 @@ def run_one(spec: dict[str, Any], out_dir: Path) -> dict[str, Any]:
         "-unattended",
         "-log",
         f"-abslog={run_dir / 'editor.log'}",
-        f"-SpikeScenario={spec['scenario']}",
+        f"-{spec.get('scenario_arg', 'SpikeScenario')}={spec['scenario']}",
         f"-SpikeOut={run_dir}",
         *spec["flags"],
         *spec.get("extra", []),
