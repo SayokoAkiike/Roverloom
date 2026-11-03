@@ -151,6 +151,33 @@ void ASpikeRover::SetCommand(double ForwardCmps, double YawRateDegps)
 	}
 }
 
+void ASpikeRover::SetBrake(bool bOn)
+{
+	if (bOn == bBraking)
+	{
+		return;
+	}
+	bBraking = bOn;
+	// Braking holds zero wheel speed with no torque limit; release returns to the motor's limit.
+	for (UPhysicsConstraintComponent* Axle : Axles)
+	{
+		Axle->SetAngularDriveParams(0.0f, DriveDamping, bOn ? 0.0f : DriveTorqueLimit);
+	}
+	if (bOn)
+	{
+		SetCommand(0.0, 0.0);
+	}
+}
+
+void ASpikeRover::ApplyWheelTorque(double TorqueAboutRight)
+{
+	ExternalWheelTorque = TorqueAboutRight;
+	for (UStaticMeshComponent* Wheel : Wheels)
+	{
+		Wheel->AddTorqueInRadians(Chassis->GetRightVector() * TorqueAboutRight);
+	}
+}
+
 FVector ASpikeRover::GetWheelLocation(int32 Index) const
 {
 	return Wheels[Index]->GetComponentLocation();

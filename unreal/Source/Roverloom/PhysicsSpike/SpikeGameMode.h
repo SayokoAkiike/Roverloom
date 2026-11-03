@@ -41,6 +41,9 @@ private:
 	double SlopeDeg = 0.0;
 	double ObstacleCm = 0.0;
 	double DriveMaxTorqueUsed = RoverloomSpike::DriveMaxTorque;
+	double FrictionUsed = RoverloomSpike::Friction;
+	FString HoldMode = TEXT("motor");
+	double ProbeTargetRadps = 0.0;
 	double DurationS = 0.0;
 	int32 Seed = 42;
 	FRandomStream Random;

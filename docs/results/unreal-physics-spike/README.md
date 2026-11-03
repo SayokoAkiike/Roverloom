@@ -112,7 +112,91 @@ delivered is not measured.
 These runs used a command-line override, `-SpikeDriveMaxTorque`, added after the gated runs. They change no
 threshold, and are not R0 results.
 
-### Next attempt, pending the owner's approval
+### Correction to the cause above
 
-Choose and record the torque limit from a measured calibration before any rerun, then repeat all 26 runs with the same
-thresholds. Attempt 1 stays in this record as a failure.
+The calibration below shows that the conversion is not the cause. With an unloaded wheel, the limit behaves as a torque
+in kg cm²/s². The drive stalls on the ground for another reason, described below.
+
+## Torque calibration, 2026-11-03
+
+Batch `calib-20261103`, 54 runs, none gated. Every run exited normally, with no crash report and no forced stop. Free
+memory stayed at 41% or more.
+
+**Unit and conversion.** In the source, `SetAngularDriveParams` takes the limit as a torque. Chaos converts it to a
+position impulse of `limit × dt²`, and checks the drive's accumulated impulse against it in both its position and
+velocity passes. Velocity drive torque is `1.5 × damping × speed error`, where 1.5 is
+`p.Chaos.JointConstraint.AngularDriveDampingScale`.
+
+**Measured on a free wheel.** The chassis is pinned and the wheel is held at 0 or 2 rad/s. An opposing torque is added
+with `AddTorqueInRadians`, rising tenfold every 3 s. The table gives the applied torque at which the wheel first lags
+by 0.5 rad/s.
+
+| Limit | 60 Hz, target 0 | 60 Hz, target 2 | 120 Hz, target 0 | 120 Hz, target 2 |
+| --- | --- | --- | --- | --- |
+| 1e6 | 1.05e6 | 1.05e6 | 1.05e6 | 5.4e5 |
+| 3e6 | 3.08e6 | 3.08e6 | 3.06e6 | 5.4e5 |
+| 1e7 and above, or none | 4.1e6 | 4.5e6 | 7.0e6 | 5.4e5 |
+
+- Below the limit, lag grows with torque at 1.48e7 to 1.50e7 per rad/s, which matches 1.5 × 1e7 from the source.
+- At 1e6 and 3e6, the wheel breaks away near the limit, at both rates. **On a free wheel, the limit is a torque in
+  kg cm²/s², so 1e6 is 100 N m.**
+- From 1e7 up, the damping law, not the limit, decides when the wheel lags 0.5 rad/s.
+- **Unexplained:** at 120 Hz with a 2 rad/s target, every limit broke away at 5.4e5, which is below the limit and below
+  the damping law. It did not happen at 60 Hz.
+
+**Measured on the ground.** Straight driving, 50 cm/s commanded:
+
+| Limit | 60 Hz | 120 Hz |
+| --- | --- | --- |
+| 1e6 | 0.19 cm/s, stalled | 0.09 cm/s, stalled |
+| 3e6 | 49.99 cm/s, initial acceleration 14.0 cm/s² | 0.28 cm/s, stalled |
+| 1e7 | 49.99 cm/s, 41.5 cm/s² | 49.99 cm/s, 42.3 cm/s² |
+| 3e7, 6e7, 1e8, none | 49.99 cm/s, 57.9 cm/s², identical | 49.99 cm/s, 58.1 cm/s², identical |
+
+Rolling the rover needs little torque. The torque implied by the measured acceleration is about 0.05e6 per wheel at 3e6,
+and about 0.15e6 at 1e7. These are **estimates**, from the rover's acceleration and an assumed solid-sphere wheel inertia.
+So on the ground, most of the drive's torque is lost. The loss grows as the time step shrinks. In a stall, speed is
+roughly proportional to `limit × dt`. The cause is in the interaction between the joint drive and sphere contact. It is
+not identified.
+
+**Not calibrated:** the torque the wheel actually delivers to the ground, the motor's power, and the rolling loss itself.
+No measured value can be given in N m for driving on the ground.
+
+### Choice for attempt 2: limit 6e7
+
+From 3e7 up, straight driving and the 10° slope gave identical results with any limit and with none. 6e7 therefore means
+**no motor torque limit** in practice. Drive torque is set by damping alone. This is not a model of a real motor. It
+cannot represent stalling on a steep slope, and it may let the rover climb what a real motor would not.
+
+## Braking and slopes, 2026-11-03
+
+Three holds are now distinct:
+
+| Hold | What it does |
+| --- | --- |
+| Zero speed command | The motor's velocity drive targets zero, with the motor's limit |
+| Motor hold | The same thing. Attempt 1's slope runs hold this way |
+| Explicit brake | The velocity drive targets zero with no limit (`-SpikeHoldMode=brake`). Diagnostic only |
+
+On 10° during the 10 s hold, the rover moved downhill at about 35 cm/s with a limit of 6e7, with the brake, with friction
+0.6 or 1.0, and at 60, 120, or 240 Hz. Of that, about 20 cm/s was sliding: the front wheels were held at 0.01 rad/s or
+less while the body moved. The rest was rolling: the rear wheels turned at about 0.9 rad/s, despite the brake. At the
+damping law, that lag means a braking torque near 1.4e7. About 0.2e6 per wheel should hold the rover. Friction 0 slid at
+483 cm/s and friction 0.1 at 210 cm/s, so the friction setting does take effect.
+
+**Unresolved.** A rover with friction well above tan 10° (0.18) should not slide. The cause is not Coulomb friction, the
+brake torque, or the time step. It is probably the same contact and drive interaction as on flat ground. Slope holding is
+reported without a threshold, and attempt 2 does not change that.
+
+The slope climbing figure in attempt 1's analysis used speed along the body. In the diagnostic run, the rover slid,
+turned, rose to a 28° pitch, and drove across the slope rather than up it. From attempt 2, uphill speed, heading, and
+sliding versus rolling are also reported. The threshold is unchanged.
+
+## Attempt 2 conditions, fixed before its gated runs
+
+- The same 26 runs, scenarios, and thresholds as attempt 1. The criteria section above is unchanged.
+- Drive torque limit 6e7, chosen above. Every other setting is as in Setup.
+- New report-only fields: uphill speed, heading, sliding and rolling on slopes, and the spread of end speed, pitch, and
+  roll across repeated runs. They judge nothing.
+- Records go to `unreal/Saved/PhysicsSpike/r0-attempt2-20261103/`. Attempt 1's records are kept unchanged.
+- R1 does not start automatically, even if R0 passes.

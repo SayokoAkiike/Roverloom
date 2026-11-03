@@ -204,10 +204,55 @@ def run_one(spec: dict[str, Any], out_dir: Path) -> dict[str, Any]:
     return record
 
 
+CALIBRATION_LIMITS = ["1e6", "3e6", "1e7", "3e7", "6e7", "1e8", "0"]
+
+
+def calibration_plan() -> list[dict[str, Any]]:
+    """Diagnostic runs, never gated: torque limit, braking, and friction."""
+    runs: list[dict[str, Any]] = []
+    for limit in CALIBRATION_LIMITS:
+        for flags, hz in ((FIXED_60, 60), (FIXED_120, 120)):
+            torque = [f"-SpikeDriveMaxTorque={limit}"]
+            for target in (0, 2):
+                runs.append(
+                    {
+                        "name": f"torque_l{limit}_t{target}_fps{hz}",
+                        "scenario": "torque_probe",
+                        "flags": flags,
+                        "extra": [*torque, f"-SpikeProbeTarget={target}"],
+                    }
+                )
+            runs.append(
+                {
+                    "name": f"straight_l{limit}_fps{hz}",
+                    "scenario": "straight",
+                    "flags": flags,
+                    "extra": torque,
+                }
+            )
+    for hold in ("motor", "brake"):
+        for friction in ("0.6", "1.0"):
+            for limit in ("1e6", "6e7"):
+                runs.append(
+                    {
+                        "name": f"slope10_{hold}_f{friction}_l{limit}",
+                        "scenario": "slope",
+                        "flags": FIXED_60,
+                        "extra": [
+                            "-SpikeSlopeDeg=10",
+                            f"-SpikeHoldMode={hold}",
+                            f"-SpikeFriction={friction}",
+                            f"-SpikeDriveMaxTorque={limit}",
+                        ],
+                    }
+                )
+    return runs
+
+
 def command_run(args: argparse.Namespace) -> int:
     out_dir = RECORDS / args.batch
     out_dir.mkdir(parents=True, exist_ok=True)
-    plan = r0_plan()
+    plan = r0_plan() if args.plan == "r0" else calibration_plan()
     if args.only:
         plan = [spec for spec in plan if spec["name"] in args.only]
     for spec in plan:
@@ -329,6 +374,9 @@ def analyze_straight(rows: list[dict[str, float]]) -> dict[str, Any]:
         "end_x_cm": end["x_cm"],
         "end_y_cm": end["y_cm"],
         "end_yaw_deg": end["yaw_deg"],
+        "end_forward_cmps": end["forward_cmps"],
+        "end_pitch_deg": end["pitch_deg"],
+        "end_roll_deg": end["roll_deg"],
         "pass": ok,
     }
 
@@ -470,7 +518,10 @@ def command_analyze(args: argparse.Namespace) -> int:
 
     for degrees in (5, 10, 15, 20):
         loaded = get(f"slope{degrees}")
-        tests[f"slope{degrees}"] = analyze_slope(loaded[0]) if loaded else {"missing": True}
+        # Added for attempt 2, reported only: sliding versus rolling, and uphill speed.
+        tests[f"slope{degrees}"] = (
+            {**analyze_slope(loaded[0]), **analyze_hold(loaded[0])} if loaded else {"missing": True}
+        )
     for height in (10, 25, 50):
         loaded = get(f"obstacle{height}")
         tests[f"obstacle{height}"] = (
@@ -485,6 +536,10 @@ def command_analyze(args: argparse.Namespace) -> int:
                 "end_x_cm": spread([e["end_x_cm"] for e in ends]),
                 "end_y_cm": spread([e["end_y_cm"] for e in ends]),
                 "end_yaw_deg": spread([e["end_yaw_deg"] for e in ends]),
+                # Added for attempt 2, reported only.
+                "end_forward_cmps": spread([e["end_forward_cmps"] for e in ends]),
+                "end_pitch_deg": spread([e["end_pitch_deg"] for e in ends]),
+                "end_roll_deg": spread([e["end_roll_deg"] for e in ends]),
             }
             if ends
             else {"missing": True}
@@ -510,19 +565,104 @@ def command_analyze(args: argparse.Namespace) -> int:
     return 0
 
 
+WHEEL_INERTIA = (
+    0.4 * 15.0 * WHEEL_RADIUS_CM**2
+)  # Solid sphere, kg cm^2. Assumed, not read from Chaos.
+ROVER_MASS_KG = 853.5
+
+
+def analyze_torque_probe(rows: list[dict[str, float]], meta: dict[str, Any]) -> dict[str, Any]:
+    """Measured: the opposing torque at which the wheel first lags its target by a given amount."""
+    loaded = [r for r in rows if r["ext_torque"] != 0.0]
+    target = meta["probe_target_radps"]
+    out: dict[str, Any] = {"outcome": meta["outcome"], "hz": round(1 / meta["fixed_delta_s"])}
+    for lag in (0.05, 0.1, 0.5):
+        hit = next((r for r in loaded if abs(r["w0_spin_radps"] - target) > lag), None)
+        out[f"torque_at_lag_{lag}"] = abs(hit["ext_torque"]) if hit else None
+    # Below the limit, lag = torque / effective damping. Fit it where the lag is small.
+    small = [r for r in loaded if 0.001 < abs(r["w0_spin_radps"] - target) < 0.04]
+    if len(small) >= 3:
+        slope = slope_fit(
+            [abs(r["ext_torque"]) for r in small], [abs(r["w0_spin_radps"] - target) for r in small]
+        )
+        out["damping_torque_per_radps"] = 1 / slope if slope > 0 else None
+    return out
+
+
+def analyze_acceleration(rows: list[dict[str, float]]) -> dict[str, Any]:
+    """Estimated: wheel torque implied by the rover's acceleration, ignoring rolling losses."""
+    start = window(rows, 3.0, 3.6)
+    accel = slope_fit([r["t_s"] for r in start], [r["forward_cmps"] for r in start])
+    spin_accel = accel / WHEEL_RADIUS_CM
+    per_wheel = ROVER_MASS_KG * accel * WHEEL_RADIUS_CM / 6 + WHEEL_INERTIA * spin_accel
+    straight = analyze_straight(rows)
+    return {
+        "initial_accel_cmps2": accel,
+        "implied_torque_per_wheel": per_wheel,
+        "steady_mean_cmps": straight["steady_mean_cmps"],
+        "time_to_95_percent_s": straight["time_to_95_percent_s"],
+        "slip": straight["slip"],
+    }
+
+
+def analyze_hold(rows: list[dict[str, float]]) -> dict[str, Any]:
+    """Slope hold, split into sliding and rolling; plus heading and uphill speed while climbing."""
+    hold = window(rows, 5.0, 10.0)
+    body = statistics.fmean(r["forward_cmps"] for r in hold)
+    rim = spin_mean(hold) * WHEEL_RADIUS_CM
+    climb = window(rows, 20.0, 30.0)
+    yaw = [r["yaw_deg"] for r in climb]
+    uphill = slope_fit([r["t_s"] for r in climb], [r["x_cm"] for r in climb])
+    return {
+        "hold_body_cmps": body,
+        "hold_rim_cmps": rim,
+        "hold_sliding_cmps": body - rim,
+        "hold_front_spin": statistics.fmean(r["w0_spin_radps"] for r in hold),
+        "hold_rear_spin": statistics.fmean(r["w4_spin_radps"] for r in hold),
+        "climb_uphill_x_cmps": uphill,
+        "climb_yaw_deg": [min(yaw), max(yaw)],
+        "max_pitch_deg": max(r["pitch_deg"] for r in rows),
+    }
+
+
+def command_calibrate(args: argparse.Namespace) -> int:
+    out_dir = RECORDS / args.batch
+    names = [spec["name"] for spec in calibration_plan()]
+    result: dict[str, Any] = {}
+    for name in names:
+        loaded = load(out_dir, name)
+        if loaded is None:
+            result[name] = {"missing": True}
+        elif name.startswith("torque_"):
+            result[name] = analyze_torque_probe(*loaded)
+        elif name.startswith("straight_"):
+            result[name] = analyze_acceleration(loaded[0])
+        else:
+            result[name] = analyze_hold(loaded[0])
+    (out_dir / "calibration.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+    for name, values in result.items():
+        shown = {k: round(v, 4) if isinstance(v, float) else v for k, v in values.items()}
+        print(name, shown)
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     sub = parser.add_subparsers(dest="command", required=True)
     run = sub.add_parser("run", help="Run the R0 plan, or some of its runs")
-    run.add_argument("plan", choices=["r0"])
+    run.add_argument("plan", choices=["r0", "calibration"])
     run.add_argument("--batch", required=True)
     run.add_argument("--only", nargs="*", help="Run names to include")
     analyze = sub.add_parser("analyze", help="Judge a batch against the fixed thresholds")
     analyze.add_argument("--batch", required=True)
+    calibrate = sub.add_parser("calibrate", help="Summarize a calibration batch; judges nothing")
+    calibrate.add_argument("--batch", required=True)
     args = parser.parse_args()
-    return command_run(args) if args.command == "run" else command_analyze(args)
+    if args.command == "run":
+        return command_run(args)
+    return command_analyze(args) if args.command == "analyze" else command_calibrate(args)
 
 
 if __name__ == "__main__":

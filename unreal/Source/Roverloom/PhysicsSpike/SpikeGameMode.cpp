@@ -50,6 +50,9 @@ void ASpikeGameMode::StartPlay()
 	FParse::Value(CommandLine, TEXT("SpikeObstacleCm="), ObstacleCm);
 	FParse::Value(CommandLine, TEXT("SpikeSeed="), Seed);
 	FParse::Value(CommandLine, TEXT("SpikeDriveMaxTorque="), DriveMaxTorqueUsed);
+	FParse::Value(CommandLine, TEXT("SpikeFriction="), FrictionUsed);
+	FParse::Value(CommandLine, TEXT("SpikeHoldMode="), HoldMode);
+	FParse::Value(CommandLine, TEXT("SpikeProbeTarget="), ProbeTargetRadps);
 	if (!FParse::Value(CommandLine, TEXT("SpikeOut="), OutDir))
 	{
 		OutDir = FPaths::ProjectSavedDir() / TEXT("PhysicsSpike") / TEXT("manual");
@@ -62,8 +65,8 @@ void ASpikeGameMode::StartPlay()
 	Settings->GlobalGravityZ = MarsGravityZ;
 
 	Material = NewObject<UPhysicalMaterial>(this);
-	Material->Friction = Friction;
-	Material->StaticFriction = Friction;
+	Material->Friction = FrictionUsed;
+	Material->StaticFriction = FrictionUsed;
 	Material->Restitution = 0.0f;
 
 	FVector RoverLocation(0.0, 0.0, 0.5);
@@ -82,7 +85,13 @@ void ASpikeGameMode::StartPlay()
 	else
 	{
 		SpawnBlock(FVector(0.0, 0.0, -50.0), FRotator::ZeroRotator, FVector(20000.0, 20000.0, 100.0));
-		if (Scenario == TEXT("probe"))
+		if (Scenario == TEXT("torque_probe"))
+		{
+			RoverLocation.Z = 300.0;
+			bPin = true;
+			DurationS = 20.0;
+		}
+		else if (Scenario == TEXT("probe"))
 		{
 			RoverLocation.Z = 300.0;
 			bPin = true;
@@ -161,7 +170,11 @@ void ASpikeGameMode::CommandAt(double TimeS, double& OutForwardCmps, double& Out
 {
 	OutForwardCmps = 0.0;
 	OutYawRateDegps = 0.0;
-	if (Scenario == TEXT("probe"))
+	if (Scenario == TEXT("torque_probe"))
+	{
+		OutForwardCmps = TimeS < 1.0 ? 0.0 : ProbeTargetRadps * WheelRadiusCm;
+	}
+	else if (Scenario == TEXT("probe"))
 	{
 		OutForwardCmps = TimeS < 1.0 ? 0.0 : (TimeS < 4.0 ? MaxSpeedCmps : -MaxSpeedCmps);
 	}
@@ -236,13 +249,24 @@ void ASpikeGameMode::Tick(float DeltaSeconds)
 	double ForwardCmps = 0.0;
 	double YawRateDegps = 0.0;
 	CommandAt(SimTimeS, ForwardCmps, YawRateDegps);
+	Rover->SetBrake(HoldMode == TEXT("brake") && Scenario == TEXT("slope") && SimTimeS < 10.0);
+
+	// Calibration: an opposing torque on each wheel, rising tenfold every 3 s from 1e3 at 2 s.
+	const double ExternalTorque = (Scenario == TEXT("torque_probe") && SimTimeS >= 2.0)
+		? -1.0e3 * FMath::Pow(10.0, (SimTimeS - 2.0) / 3.0) : 0.0;
 	Record(DeltaSeconds, WallFrameMs, ForwardCmps, YawRateDegps);
 	Rover->SetCommand(ForwardCmps, YawRateDegps);
+	Rover->ApplyWheelTorque(ExternalTorque);
 	++Frame;
 
 	if (Rover->GetChassis()->GetComponentLocation().ContainsNaN())
 	{
 		Finish(TEXT("nan"));
+	}
+	else if (Scenario == TEXT("torque_probe") && SimTimeS > 2.0
+		&& FMath::Abs(Rover->GetWheelSpinRadps(0) - Rover->GetWheelTargetRadps(0)) > 0.5)
+	{
+		Finish(TEXT("breakaway"));
 	}
 	else if (SimTimeS >= DurationS)
 	{
@@ -255,7 +279,7 @@ void ASpikeGameMode::Record(double DeltaSeconds, double WallFrameMs, double Forw
 	if (Rows.IsEmpty())
 	{
 		FString Header = TEXT("frame,t_s,dt_s,wall_frame_ms,cmd_forward_cmps,cmd_yaw_rate_degps,x_cm,y_cm,z_cm,pitch_deg,yaw_deg,roll_deg,"
-			"vx_cmps,vy_cmps,vz_cmps,wx_degps,wy_degps,wz_degps,forward_cmps,axle_fx,axle_fy,axle_fz");
+			"vx_cmps,vy_cmps,vz_cmps,wx_degps,wy_degps,wz_degps,forward_cmps,axle_fx,axle_fy,axle_fz,ext_torque,braking");
 		for (int32 Index = 0; Index < NumWheels; ++Index)
 		{
 			Header += FString::Printf(TEXT(",w%d_spin_radps,w%d_target_radps,w%d_x_cm,w%d_z_cm"), Index, Index, Index, Index);
@@ -272,6 +296,7 @@ void ASpikeGameMode::Record(double DeltaSeconds, double WallFrameMs, double Forw
 	FString Row = FString::Printf(TEXT("%lld,%.6f,%.6f,%.3f,%.4f,%.4f,%.4f,%.4f,%.4f,%.5f,%.5f,%.5f,%.4f,%.4f,%.4f,%.5f,%.5f,%.5f,%.4f,%.2f,%.2f,%.2f"),
 		Frame, SimTimeS, DeltaSeconds, WallFrameMs, ForwardCmps, YawRateDegps, P.X, P.Y, P.Z, R.Pitch, R.Yaw, R.Roll, V.X, V.Y, V.Z,
 		W.X, W.Y, W.Z, FVector::DotProduct(V, Chassis->GetForwardVector()), F.X, F.Y, F.Z);
+	Row += FString::Printf(TEXT(",%.1f,%d"), Rover->GetExternalWheelTorque(), Rover->IsBraking() ? 1 : 0);
 	for (int32 Index = 0; Index < NumWheels; ++Index)
 	{
 		const FVector Wheel = Rover->GetWheelLocation(Index);
@@ -291,11 +316,11 @@ void ASpikeGameMode::Finish(const FString& Outcome)
 
 	const FString Meta = FString::Printf(
 		TEXT("{\n  \"experiment\": \"unreal_physics_spike_r0\",\n  \"not_for_scoring\": true,\n  \"outcome\": \"%s\",\n"
-			 "  \"scenario\": \"%s\",\n  \"drive_max_torque\": %.1f,\n  \"slope_deg\": %.3f,\n  \"obstacle_cm\": %.3f,\n  \"seed\": %d,\n  \"duration_s\": %.3f,\n"
+			 "  \"scenario\": \"%s\",\n  \"drive_max_torque\": %.1f,\n  \"friction\": %.3f,\n  \"hold_mode\": \"%s\",\n  \"probe_target_radps\": %.3f,\n  \"slope_deg\": %.3f,\n  \"obstacle_cm\": %.3f,\n  \"seed\": %d,\n  \"duration_s\": %.3f,\n"
 			 "  \"frames\": %lld,\n  \"sim_time_s\": %.6f,\n  \"wall_time_s\": %.3f,\n  \"fixed_time_step\": %s,\n"
 			 "  \"fixed_delta_s\": %.6f,\n  \"gravity_z\": %.3f,\n  \"engine\": \"%s\",\n  \"collision\": \"%s\",\n"
 			 "  \"command_line\": \"%s\"\n}\n"),
-		*Outcome, *Scenario, DriveMaxTorqueUsed, SlopeDeg, ObstacleCm, Seed, DurationS, Frame, SimTimeS, FPlatformTime::Seconds() - StartWallS,
+		*Outcome, *Scenario, DriveMaxTorqueUsed, FrictionUsed, *HoldMode, ProbeTargetRadps, SlopeDeg, ObstacleCm, Seed, DurationS, Frame, SimTimeS, FPlatformTime::Seconds() - StartWallS,
 		FApp::UseFixedTimeStep() ? TEXT("true") : TEXT("false"), FApp::GetFixedDeltaTime(), GetWorld()->GetGravityZ(),
 		*FEngineVersion::Current().ToString(), Rover ? *JsonEscape(Rover->DescribeCollision()) : TEXT(""),
 		*JsonEscape(FCommandLine::Get()));

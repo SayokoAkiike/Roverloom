@@ -32,6 +32,14 @@ public:
 	// Unreal yaw rate: positive turns right, seen from above. Clamped to the design limits.
 	void SetCommand(double ForwardCmps, double YawRateDegps);
 
+	// Explicit brake: hold zero wheel speed with no torque limit, unlike a zero command, which the motor holds.
+	void SetBrake(bool bOn);
+	bool IsBraking() const { return bBraking; }
+
+	// Calibration only: an external torque on every wheel about the chassis's right axis, for this physics step.
+	void ApplyWheelTorque(double TorqueAboutRight);
+	double GetExternalWheelTorque() const { return ExternalWheelTorque; }
+
 	UStaticMeshComponent* GetChassis() const { return Chassis; }
 	FVector GetWheelLocation(int32 Index) const;
 
@@ -59,4 +67,6 @@ private:
 	bool bPinned = false;
 	double DriveTorqueLimit = RoverloomSpike::DriveMaxTorque;
 	bool bConnected = false;
+	bool bBraking = false;
+	double ExternalWheelTorque = 0.0;
 };

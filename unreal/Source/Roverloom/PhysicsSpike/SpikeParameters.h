@@ -25,7 +25,9 @@ namespace RoverloomSpike
 	constexpr double Friction = 0.6;
 	constexpr double MarsGravityZ = -371.0; // cm/s^2
 	constexpr double DriveDamping = 1.0e7;  // Force mode, before Chaos's 1.5 scale
-	constexpr double DriveMaxTorque = 1.0e6; // kg cm^2 / s^2, which is 100 N m
+	// kg cm^2 / s^2. Attempt 1 used 1e6 (100 N m), which stalled on the ground. In calibration, straight driving and the
+	// 10 degree slope gave identical results from 3e7 up and with no limit, so this models no motor torque limit.
+	constexpr double DriveMaxTorque = 6.0e7;
 
 	// The twist drive target is in revolutions per second about the joint's X axis, which points along the
 	// chassis's right axis. Its sign relative to rolling forward is measured by the "probe" scenario:
