@@ -89,7 +89,7 @@ Recorded on every row: time, `dt`, body pose and velocity, and for each wheel th
 `Fy`, `μ Fz`, spin, target spin, motor and brake torque, `v_long`, `v_lat`, slip, and whether friction saturated.
 
 Phase C, six wheels, needs the owner's approval, and its criteria will be fixed separately before it runs. Old R0
-results are not rejudged.
+results are not rejudged. A design draft is in [phase-c-design.md](phase-c-design.md); it is not implemented.
 
 ## Code
 
@@ -230,6 +230,80 @@ All passed before the gated runs, with the module's two other tests.
   - For A6 and B4 over 4–6 s: contact velocity, gravity's `dv`, drive force, end slip, and how far the body moved.
 - **The same runner checks apply.** A run stops on a crash report, a forced stop, a nonzero exit, low free memory, or
   divergence.
+
+## Results: phases A and B, attempt 2, 2026-11-03
+
+**All 15 tests passed, so phases A and B pass on attempt 2.** Attempt 1's failures of A6 and B4 stand as recorded above.
+Batch `wheel-ab-attempt2-20261103` at commit `ca3f841`, 17 runs, with the conditions fixed in that commit.
+
+| Test | Attempt 1 | Attempt 2 | Result, attempt 2 |
+| --- | --- | --- | --- |
+| A1, ray | Load error 0.0000 | The same | Pass |
+| A1s, sphere sweep | The same | The same | Pass |
+| A2, ray | 50.000 cm/s; slip 0.000; 95% in 0.30 s | The same | Pass |
+| A2s, sphere sweep | The same | The same | Pass |
+| A3, wheel spin, μ 0.05 | 18.550 cm/s² for 18.55 | The same; traction 0.99999962–1.000 × μ Fz | Pass |
+| A4, locked braking, μ 0.1 | 37.100 cm/s²; 33.28 cm | The same | Pass |
+| A5, sideways sliding, μ 0.3 | 111.300 cm/s²; peak 57.5 cm/s | 111.300 cm/s²; peak 55.65 cm/s | Pass |
+| **A6, 10° slope, μ 0.6, brake** | **Creep 1.074 cm/s, fail** | **Mean 0.000 cm/s** | **Pass** |
+| A7, 10° slope, μ 0.1, brake | 27.887 cm/s² | 27.887 cm/s² | Pass |
+| A8, time step | 0.0% and 0.63% | 0.0% and 0.63% | Pass |
+| B1, straight | 50.000 cm/s; yaw 0.000 °/s | The same | Pass |
+| B2, spin in place | 28.178 °/s | 28.178 °/s; lateral slip 0.000 cm/s | Pass |
+| B3, stop | 0.53 s | 0.32 s | Pass |
+| **B4, 10° slope, μ 0.6, zero command** | **Creep 6.222 cm/s, fail** | **Mean 0.000 cm/s** | **Pass** |
+| B5, time step | 0.08% and 0.06% | 0.04% and 0.06% | Pass |
+
+**A5 and B3 changed, as the fix predicts.** A5's push is now in the prediction, so the lateral force resists it during
+the push, and the peak is lower. B3 stops sooner, because the pair's longitudinal rows now see the body's whole mass.
+
+**Slope holding, A6 and B4, over 4–6 s, from the report-only records:**
+
+| Item | A6 | B4, each wheel |
+| --- | --- | --- |
+| Contact velocity at the start of each step | 0.000 cm/s | 0.000 cm/s |
+| Gravity's change over a step, predicted | −1.0737 cm/s | −1.0737 cm/s |
+| All known forces' change over a step | −1.0737 cm/s | −1.0737 cm/s |
+| Drive force | 9,164.24 | 9,164.24 each, 18,328.5 together |
+| `M g sin θ` for comparison | 9,164.24 | 18,328.5 |
+| Predicted slip at the end of the step | 0.000 cm/s | 0.000 cm/s |
+| Body position after 2 s | X −12.1686 cm, unchanged to the CSV's 1 µm resolution | The same |
+| Solve passes; converged | 2; every step | Up to 24; every step |
+
+The largest speed in A6 and B4 is 0.308 cm/s, at 0.12 s, while the suspension settles. It is vertical, and it
+is below 0.01 cm/s after 0.5 s.
+
+**No numerical problem was found.**
+- Every run completed with no NaN.
+- Speeds were at most 167 cm/s, in A7's slide.
+- Traction never left the friction circle.
+- The joint solve converged on every step of every run, in at most 24 passes.
+- Normal loads stayed within 0.9966–1.0154 of static.
+- Torques stayed within their limits: at most 6.0e5 for the motor and 1.03e6 for the brake.
+
+**Runner checks over the 17 runs:**
+- Every exit code was 0, with no new crash report and no forced stop.
+- Peak resident memory was at most 2,291 MB, and free memory never fell below 42%.
+- Swap stayed at 3,367 MB.
+- Port 1985 still had the same listener.
+
+**Repeatability, not gated.** Batch `repro-attempt2-20261103` repeated A5, A6, B2, and B4 with the same flags. Each
+CSV is byte-identical to attempt 2's.
+
+### Model limits that remain
+
+- The friction circle scales the demanded force. For combined sliding, it does not point the force against the
+  sliding velocity. A5 and A7 slide in one direction, so they do not test this.
+- With more contacts than the body has freedoms, how traction splits between wheels is not unique. Gauss-Seidel picks
+  one split, and that split depends on the wheel order. Totals and contact velocities are meaningful; single-wheel
+  forces in a hold are not.
+- Normal force is an explicit spring-damper, not part of the joint solve. A stiffer spring or a longer step could
+  oscillate. This was not tested beyond 60 and 120 Hz.
+- Each wheel has one contact, found downward. A wheel cannot hit a step's face, and the sweep's normal is the only
+  sign of an edge.
+- If the box itself touches the ground, Chaos's contact and this solve do not know about each other.
+- Rotation was locked on every rig. A free rigid body, as a rover needs, has not been tested.
+- Everything in "What this model covers" below still applies.
 
 ## What this model covers, and what it does not
 
