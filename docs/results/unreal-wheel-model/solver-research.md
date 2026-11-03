@@ -51,7 +51,9 @@ and the six wheels' spins. The mass matrix is block diagonal:
 
 The ground's force acts on the body at the contact, and on the wheel's rim as `−F_f R`. The motor's torque acts on the
 wheel. **As in `WheelModel.cpp`, the motor's reaction on the body is not modeled.** That is a simplification of the
-current model, and it does not conserve angular momentum. It was kept so that every method solves the same physics as
+current model, and it does not conserve angular momentum. A later [memo](motor-reaction.md) found the error smaller than this suggests: applying ground force
+at the contact point already gives the body the motor's reaction at steady spin, so what is missing is the wheels'
+spin-up torque. It was kept so that every method solves the same physics as
 the gated runs.
 
 **Two equivalent problems.**
