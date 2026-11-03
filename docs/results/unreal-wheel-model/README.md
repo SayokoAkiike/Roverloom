@@ -157,6 +157,80 @@ nothing but the wheels pushes the body along the ground there.
 
 A second attempt would keep every threshold above, and needs the owner's approval.
 
+## Attempt 2: the fix and its conditions, fixed before its runs
+
+The owner approved both fixes on 2026-11-03, with the same 15 tests and thresholds. Attempt 1's records, diagnostics,
+and verdicts above stay as they are. The attempt 1 code is at commit `89d1269`.
+
+### Physics step order, checked in the UE 5.8.4 source
+
+- **No substeps.** `UPhysicsSettings` defaults to `bSubstepping = false` and `bTickPhysicsAsync = false`, with
+  `MaxPhysicsDeltaTime` 1/30 s, and this project's config sets none of them. So with `-UseFixedTimeStep` at 60 or
+  120 Hz, each frame runs exactly one physics step of the frame's `dt`. Epic's
+  [Physics Sub-Stepping page](https://dev.epicgames.com/documentation/en-us/unreal-engine/physics-sub-stepping-in-unreal-engine)
+  says that when a frame is substepped N times, a force applied for one frame is applied for N consecutive steps. That
+  would break a one-step solve, so substepping stays off. Every CSV row records `dt`.
+- **When forces are computed and applied.** The model runs in the game mode's pre-physics tick. It reads the body's
+  velocity, which is the result of the previous step, and adds its forces with `AddForceAtLocation`. Chaos turns them
+  into acceleration (`AddForce`: `Acceleration += F / M`, in `ParticleHandle.h`), and gravity adds its own
+  acceleration in the same step (`FPerParticleGravity::Apply`).
+- **How the step integrates.** `FPBDRigidsEvolutionGBF::Integrate` does `V += Acceleration dt` and
+  `W += AngularAcceleration dt` from the velocity at the start of the step. Then it moves the body and solves the
+  constraints, including the DOF locks. `EndFrame` clears the accelerations after the step.
+- **So gravity is not counted twice.** The velocity the model reads does not yet include this step's gravity. The model
+  adds `g dt` once to its prediction, and Chaos adds it once to the body. Attempt 1's creep was exactly `g sin θ dt`,
+  which agrees with this order.
+- **DOF locks are on world axes.** `FBodyInstance::CreateDOFLock` with `SixDOF` uses world X and Y as its axes.
+
+### Changes
+
+1. **Known forces in the prediction.** Before solving traction, the model predicts the body's velocity at the end of
+   the step from the forces already known: `v' = v + dt (g + (Σ Fz n + F_ext) / M)` and
+   `ω' = ω + dt I⁻¹ Σ r × Fz n`. The prediction includes gravity, every wheel's normal force, and the known external
+   push in A5, which the rig now applies itself. Traction then solves against `v' + ω' × r` at each contact.
+2. **One joint solve for all contacts.** Each wheel in contact has two rows: longitudinal along `f` and lateral along
+   `l`. The coupling between rows a and b is `K_ab = (d_a · d_b) / M + (r_a × d_a) · I⁻¹ (r_b × d_b)`. This uses the
+   body's mass, its world inertia tensor, each contact's position, its normal through the contact plane, and the
+   rotation axes. `I⁻¹` is the inverse of the world inertia restricted to the free rotation axes, which is zero for
+   rig A and `1 / I_zz` about world Z for rig B. No mass is fixed in advance; each wheel's share follows from `K`.
+3. **Projected Gauss-Seidel.** Each pass re-solves every wheel against the others' current forces, in order: the
+   longitudinal force with the same sticking, servo, and torque-limit rules as attempt 1, then the lateral force, then
+   the friction circle `√(F² + Fy²) ≤ μ Fz`. A wheel's motor or brake torque is clamped to its limit at every pass.
+   Passes stop when no row changes any contact velocity by 1e-7 cm/s or more, or after 200 passes. Normal forces still
+   come only from the suspension, so no ground force is unbounded, and no body velocity is ever written.
+
+### Unit tests, before the runs
+
+`Roverloom.WheelSpike.Model` now steps a small test body in Chaos's order, using the solver as written:
+
+| Case | Checks |
+| --- | --- |
+| Flat | Rolling at the target needs no traction; load is `k x` |
+| Slope, one contact | Braked on 10° at 60, 120, and 240 Hz: contact speed < 1e-6 cm/s after 2 s, traction `M g sin θ`, gravity's `dv` recorded |
+| Several contacts | Two wheels with yaw free on 10°: no creep, total traction `M g sin θ`, no yaw. Three uneven contacts: no creep at any contact |
+| Turning | Opposite targets give yaw rate `rim / half track` with no body speed |
+| Friction saturation | Spin-up at μ 0.3 capped at `μ Fz`; locked slide on 10° at μ 0.1 at `g (sin θ − μ cos θ)`; combined demand on the circle |
+| Torque limit | At μ 0.5 the motor's limit binds first, with no slip |
+| Time step | A torque-limited start reaches the same speed after 0.5 s at 60 and 120 Hz, within 1% |
+| Airborne, coasting | No ground force; no coasting torque |
+
+All passed before the gated runs, with the module's two other tests.
+
+### Runs and counting
+
+- **The same plan as attempt 1.** That is 17 runs: the 13 scenarios at 60 Hz, plus A2, A4, B1, and B2 at 120 Hz.
+- **The same 15 tests.** Each of the 13 scenarios is judged on its 60 Hz run. A8 and B5 compare the 120 Hz runs with
+  the 60 Hz ones and also need those 120 Hz runs to pass their own scenario's criteria.
+- **Phase A** passes if A1–A8 all pass, and **phase B** if B1–B5 all pass.
+- **Batch** `wheel-ab-attempt2-20261103`, separate from attempt 1's.
+- **The thresholds are the same** as in the table above, with no change.
+- **Added report-only records.** These are not part of any pass:
+  - Per row: solve passes and convergence. Per wheel: the predicted velocity change from known forces and from
+    gravity alone, and the predicted slip and lateral speed at the end of the step.
+  - For A6 and B4 over 4–6 s: contact velocity, gravity's `dv`, drive force, end slip, and how far the body moved.
+- **The same runner checks apply.** A run stops on a crash report, a forced stop, a nonzero exit, low free memory, or
+  divergence.
+
 ## What this model covers, and what it does not
 
 | Covered, in game terms | Not covered |

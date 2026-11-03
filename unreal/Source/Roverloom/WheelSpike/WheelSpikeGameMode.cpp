@@ -211,11 +211,8 @@ void AWheelSpikeGameMode::Tick(float DeltaSeconds)
 	FVector Push = FVector::ZeroVector;
 	Command(SimTimeS, Targets, Mode, Push);
 	Rig->SetTargets(Targets, Mode);
+	Rig->SetExternalForce(Push);
 	Rig->StepWheels(DeltaSeconds);
-	if (!Push.IsZero())
-	{
-		Rig->GetBody()->AddForce(Push);
-	}
 	Record(DeltaSeconds, Push);
 	++Frame;
 
@@ -239,12 +236,14 @@ void AWheelSpikeGameMode::Record(double DeltaSeconds, const FVector& Push)
 	if (Rows.IsEmpty())
 	{
 		FString Header = TEXT("frame,t_s,dt_s,x_cm,y_cm,z_cm,pitch_deg,yaw_deg,roll_deg,vx_cmps,vy_cmps,vz_cmps,wz_degps,"
-			"forward_cmps,lateral_cmps,push");
+			"forward_cmps,lateral_cmps,push,solve_passes,solve_converged");
 		for (int32 Index = 0; Index < Rig->NumWheels(); ++Index)
 		{
 			Header += FString::Printf(TEXT(",w%d_hit,w%d_comp_cm,w%d_fz,w%d_flong,w%d_flat,w%d_limit,w%d_spin_radps,w%d_target_radps,"
-				"w%d_motor,w%d_brake,w%d_vlong_cmps,w%d_vlat_cmps,w%d_slip_cmps,w%d_saturated"),
-				Index, Index, Index, Index, Index, Index, Index, Index, Index, Index, Index, Index, Index, Index);
+				"w%d_motor,w%d_brake,w%d_vlong_cmps,w%d_vlat_cmps,w%d_slip_cmps,w%d_saturated,w%d_known_dv_long,w%d_known_dv_lat,"
+				"w%d_gravity_dv_long,w%d_end_slip_cmps,w%d_end_vlat_cmps"),
+				Index, Index, Index, Index, Index, Index, Index, Index, Index, Index, Index, Index, Index, Index, Index, Index, Index,
+				Index, Index);
 		}
 		Rows.Add(Header);
 	}
@@ -254,16 +253,19 @@ void AWheelSpikeGameMode::Record(double DeltaSeconds, const FVector& Push)
 	const FRotator R = Body->GetComponentRotation();
 	const FVector V = Body->GetPhysicsLinearVelocity();
 	const FVector W = Body->GetPhysicsAngularVelocityInDegrees();
-	FString Row = FString::Printf(TEXT("%lld,%.6f,%.6f,%.4f,%.4f,%.4f,%.5f,%.5f,%.5f,%.4f,%.4f,%.4f,%.5f,%.4f,%.4f,%.2f"),
+	const FSolveStats& Stats = Rig->GetSolveStats();
+	FString Row = FString::Printf(TEXT("%lld,%.6f,%.6f,%.4f,%.4f,%.4f,%.5f,%.5f,%.5f,%.4f,%.4f,%.4f,%.5f,%.4f,%.4f,%.2f,%d,%d"),
 		Frame, SimTimeS, DeltaSeconds, P.X, P.Y, P.Z, R.Pitch, R.Yaw, R.Roll, V.X, V.Y, V.Z, W.Z,
-		FVector::DotProduct(V, Body->GetForwardVector()), FVector::DotProduct(V, Body->GetRightVector()), Push.Size());
+		FVector::DotProduct(V, Body->GetForwardVector()), FVector::DotProduct(V, Body->GetRightVector()), Push.Size(),
+		Stats.Iterations, Stats.bConverged ? 1 : 0);
 	for (const AWheelRig::FWheelRecord& Wheel : Rig->GetRecords())
 	{
 		const FWheelResult& Result = Wheel.Result;
-		Row += FString::Printf(TEXT(",%d,%.4f,%.3f,%.3f,%.3f,%.3f,%.5f,%.5f,%.2f,%.2f,%.4f,%.4f,%.4f,%d"), Wheel.Contact.bHit ? 1 : 0,
-			Wheel.Contact.CompressionCm, Result.NormalForce, Result.LongForce, Result.LatForce, Result.FrictionLimit, Wheel.SpinRadps,
-			Wheel.TargetSpinRadps, Result.MotorTorque, Result.BrakeTorque, Result.LongVelocity, Result.LatVelocity, Result.SlipCmps,
-			Result.bSaturated ? 1 : 0);
+		Row += FString::Printf(TEXT(",%d,%.4f,%.3f,%.3f,%.3f,%.3f,%.5f,%.5f,%.2f,%.2f,%.4f,%.4f,%.4f,%d,%.6f,%.6f,%.6f,%.6f,%.6f"),
+			Wheel.Contact.bHit ? 1 : 0, Wheel.Contact.CompressionCm, Result.NormalForce, Result.LongForce, Result.LatForce,
+			Result.FrictionLimit, Wheel.SpinRadps, Wheel.TargetSpinRadps, Result.MotorTorque, Result.BrakeTorque, Result.LongVelocity,
+			Result.LatVelocity, Result.SlipCmps, Result.bSaturated ? 1 : 0, Result.KnownDvLong, Result.KnownDvLat, Result.GravityDvLong,
+			Result.EndSlipCmps, Result.EndLatVelocity);
 	}
 	Rows.Add(MoveTemp(Row));
 }
@@ -278,7 +280,7 @@ void AWheelSpikeGameMode::Finish(const FString& Outcome)
 	}
 	const RoverloomWheel::FWheelParams Params = Rig ? Rig->GetParams() : RoverloomWheel::FWheelParams();
 	const FString Meta = FString::Printf(
-		TEXT("{\n  \"experiment\": \"unreal_wheel_model\",\n  \"not_for_scoring\": true,\n  \"outcome\": \"%s\",\n"
+		TEXT("{\n  \"experiment\": \"unreal_wheel_model\",\n  \"solver\": \"coupled_pgs\",\n  \"not_for_scoring\": true,\n  \"outcome\": \"%s\",\n"
 			 "  \"scenario\": \"%s\",\n  \"pair\": %s,\n  \"sweep\": %s,\n  \"friction\": %.3f,\n  \"slope_deg\": %.3f,\n"
 			 "  \"spring_rate\": %.3f,\n  \"damper_rate\": %.3f,\n  \"motor_max_torque\": %.1f,\n  \"brake_max_torque\": %.1f,\n"
 			 "  \"frames\": %lld,\n  \"sim_time_s\": %.6f,\n  \"fixed_time_step\": %s,\n  \"fixed_delta_s\": %.6f,\n"

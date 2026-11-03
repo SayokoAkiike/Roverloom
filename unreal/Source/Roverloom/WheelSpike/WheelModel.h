@@ -25,16 +25,36 @@ namespace RoverloomWheel
 		Coast,
 	};
 
+	// The body at the start of a step, as Chaos will integrate it: v += dt (a + F / M), w += dt I^-1 T.
+	struct FBodyState
+	{
+		double InvMass = 1.0;
+		FVector InvInertia[3] = {FVector::ZeroVector, FVector::ZeroVector, FVector::ZeroVector}; // World rows; locked axes removed.
+		FVector CenterOfMass = FVector::ZeroVector;
+		FVector LinearVelocity = FVector::ZeroVector;
+		FVector AngularVelocity = FVector::ZeroVector; // rad/s
+		FVector Acceleration = FVector::ZeroVector;    // Known, such as gravity
+		FVector ExternalForce = FVector::ZeroVector;   // Known, applied at the center of mass
+
+		FVector AngularResponse(const FVector& Torque) const;
+		FVector VelocityAt(const FVector& Point) const;
+	};
+
 	struct FWheelContact
 	{
 		bool bHit = false;
 		double CompressionCm = 0.0;
 		double CompressionRateCmps = 0.0; // Positive while compressing.
+		FVector Point = FVector::ZeroVector;
+		FVector Normal = FVector::UpVector;
 		FVector Forward = FVector::ForwardVector; // Unit, in the contact plane.
 		FVector Lateral = FVector::RightVector;   // Unit, in the contact plane.
-		FVector ContactVelocity = FVector::ZeroVector;
-		double MassLongKg = 1.0; // This wheel's share of the body's effective mass at the contact.
-		double MassLatKg = 1.0;
+	};
+
+	struct FWheelCommand
+	{
+		EWheelMode Mode = EWheelMode::Drive;
+		double TargetSpinRadps = 0.0;
 	};
 
 	struct FWheelResult
@@ -45,17 +65,31 @@ namespace RoverloomWheel
 		double FrictionLimit = 0.0;
 		double MotorTorque = 0.0;
 		double BrakeTorque = 0.0;
-		double LongVelocity = 0.0;
+		double LongVelocity = 0.0;     // Contact velocity at the start of the step
 		double LatVelocity = 0.0;
-		double SlipCmps = 0.0; // Rim speed minus ground speed, before the step.
+		double SlipCmps = 0.0;         // Rim speed minus ground speed, at the start of the step
+		double KnownDvLong = 0.0;      // Change over the step from gravity and other known forces alone
+		double KnownDvLat = 0.0;
+		double GravityDvLong = 0.0;    // Gravity's part of KnownDvLong
+		double EndSlipCmps = 0.0;      // Predicted at the end of the step, with the solved forces
+		double EndLatVelocity = 0.0;
 		bool bSaturated = false;
+	};
+
+	struct FSolveStats
+	{
+		int32 Iterations = 0;
+		double LastChangeCmps = 0.0; // Largest velocity change made by the last pass
+		bool bConverged = false;
 	};
 
 	// Spring rate for a static compression under a load, and damper rate for a damping ratio.
 	double SpringRateFor(double LoadForce, double StaticCompressionCm);
 	double DamperRateFor(double SpringRate, double SprungMassKg, double DampingRatio);
 
-	// Advances the wheel's spin by Dt and returns the forces on the body at the contact point.
-	FWheelResult StepWheel(const FWheelParams& Params, const FWheelContact& Contact, EWheelMode Mode, double TargetSpinRadps,
-		double Dt, double& InOutSpinRadps);
+	// Solves every wheel's ground force together for one step, and advances each wheel's spin by Dt.
+	// Normal loads come from the suspension. Traction is bounded by mu Fz and torques by their limits.
+	void SolveWheels(const FWheelParams& Params, const FBodyState& Body, TConstArrayView<FWheelContact> Contacts,
+		TConstArrayView<FWheelCommand> Commands, double Dt, TArrayView<double> InOutSpinRadps, TArray<FWheelResult>& OutResults,
+		FSolveStats& OutStats);
 }

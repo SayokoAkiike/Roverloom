@@ -76,12 +76,17 @@ def common(rows: list[dict[str, float]], meta: dict[str, Any]) -> dict[str, Any]
             worst = max(worst, excess / max(row[f"w{i}_limit"], 1.0))
     speed = max(math.sqrt(r["vx_cmps"] ** 2 + r["vy_cmps"] ** 2 + r["vz_cmps"] ** 2) for r in rows)
     ok = meta["outcome"] == "completed" and speed < MAX_SPEED_CMPS and worst <= CIRCLE_TOLERANCE
-    return {
+    result: dict[str, Any] = {
         "outcome": meta["outcome"],
         "max_speed_cmps": speed,
         "circle_excess": worst,
         "common_pass": ok,
     }
+    # Report only, from attempt 2: did the joint solve converge on every step. Not part of the pass.
+    if "solve_passes" in rows[0]:
+        result["max_solve_passes"] = max(r["solve_passes"] for r in rows)
+        result["unconverged_steps"] = sum(1 for r in rows if r["solve_converged"] != 1)
+    return result
 
 
 def mean(rows: list[dict[str, float]], key: str) -> float:
@@ -187,8 +192,29 @@ def a_lateral(rows: list[dict[str, float]]) -> dict[str, Any]:
 
 
 def hold(rows: list[dict[str, float]]) -> dict[str, Any]:
-    drift = abs(mean(spike.window(rows, 4.0, 6.0), "forward_cmps"))
-    return {"mean_drift_cmps": drift, "pass": drift < HOLD_CMPS}
+    late = spike.window(rows, 4.0, 6.0)
+    drift = abs(mean(late, "forward_cmps"))
+    result: dict[str, Any] = {"mean_drift_cmps": drift, "pass": drift < HOLD_CMPS}
+    # Report only, from attempt 2: the solve records over the same window. Not part of the pass.
+    if "w0_gravity_dv_long" in late[0]:
+        count = wheels(rows)
+        moved = math.dist(
+            (late[0]["x_cm"], late[0]["y_cm"], late[0]["z_cm"]),
+            (late[-1]["x_cm"], late[-1]["y_cm"], late[-1]["z_cm"]),
+        )
+        result["report"] = {
+            "contact_vlong_cmps": [mean(late, f"w{i}_vlong_cmps") for i in range(count)],
+            "gravity_dv_long_cmps": [mean(late, f"w{i}_gravity_dv_long") for i in range(count)],
+            "known_dv_long_cmps": [mean(late, f"w{i}_known_dv_long") for i in range(count)],
+            "drive_force": [mean(late, f"w{i}_flong") for i in range(count)],
+            "end_slip_cmps": [
+                max(abs(r[f"w{i}_end_slip_cmps"]) for r in late) for i in range(count)
+            ],
+            "body_moved_cm": moved,
+            "max_solve_passes": max(r["solve_passes"] for r in late),
+            "all_converged": all(r["solve_converged"] == 1 for r in late),
+        }
+    return result
 
 
 def a_slide(rows: list[dict[str, float]]) -> dict[str, Any]:

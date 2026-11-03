@@ -78,26 +78,79 @@ void AWheelRig::SetTargets(const TArray<double>& TargetSpinRadps, EWheelMode InM
 	Mode = InMode;
 }
 
-double AWheelRig::InverseMassAlong(const FVector& Point, const FVector& Direction) const
+FBodyState AWheelRig::BodyState() const
 {
 	const FBodyInstance* Instance = Body->GetBodyInstance();
 	const FTransform MassFrame = Instance->GetMassSpaceToWorldSpace();
-	const FVector Inertia = Instance->GetBodyInertiaTensor();
-	const FVector Arm = FVector::CrossProduct(Point - MassFrame.GetLocation(), Direction);
-	const FVector Local = MassFrame.InverseTransformVectorNoScale(Arm);
-	FVector AngularPerTorque = MassFrame.TransformVectorNoScale(
-		FVector(Local.X / Inertia.X, Local.Y / Inertia.Y, Local.Z / Inertia.Z));
-	// Locked rotation axes behave as infinite inertia.
-	if (bLockRollPitchAxes)
+	const FVector Principal = Instance->GetBodyInertiaTensor();
+	const FMatrix Rotation = FRotationMatrix::Make(MassFrame.GetRotation());
+
+	// World inertia, I_w = R diag(I) R^T.
+	double World[3][3];
+	for (int32 Row = 0; Row < 3; ++Row)
 	{
-		AngularPerTorque.X = 0.0;
-		AngularPerTorque.Y = 0.0;
+		for (int32 Col = 0; Col < 3; ++Col)
+		{
+			World[Row][Col] = 0.0;
+			for (int32 Axis = 0; Axis < 3; ++Axis)
+			{
+				World[Row][Col] += Rotation.M[Axis][Row] * Principal[Axis] * Rotation.M[Axis][Col];
+			}
+		}
 	}
-	if (bLockYawAxis)
+
+	// Locks are on world axes (FBodyInstance::CreateDOFLock with SixDOF). The rotation stays in the free axes' span,
+	// so the inverse inertia is that of the free block: P (P^T I_w P)^-1 P^T.
+	TArray<int32, TInlineAllocator<3>> Free;
+	for (int32 Axis = 0; Axis < 3; ++Axis)
 	{
-		AngularPerTorque.Z = 0.0;
+		const bool bLocked = Axis < 2 ? bLockRollPitchAxes : bLockYawAxis;
+		if (!bLocked)
+		{
+			Free.Add(Axis);
+		}
 	}
-	return 1.0 / MassKg + FVector::DotProduct(Arm, AngularPerTorque);
+	double Inverse[3][3] = {};
+	if (Free.Num() == 1)
+	{
+		Inverse[Free[0]][Free[0]] = 1.0 / World[Free[0]][Free[0]];
+	}
+	else if (Free.Num() == 2)
+	{
+		const int32 A = Free[0];
+		const int32 B = Free[1];
+		const double Det = World[A][A] * World[B][B] - World[A][B] * World[B][A];
+		Inverse[A][A] = World[B][B] / Det;
+		Inverse[B][B] = World[A][A] / Det;
+		Inverse[A][B] = -World[A][B] / Det;
+		Inverse[B][A] = -World[B][A] / Det;
+	}
+	else if (Free.Num() == 3)
+	{
+		for (int32 Row = 0; Row < 3; ++Row)
+		{
+			for (int32 Col = 0; Col < 3; ++Col)
+			{
+				for (int32 Axis = 0; Axis < 3; ++Axis)
+				{
+					Inverse[Row][Col] += Rotation.M[Axis][Row] * Rotation.M[Axis][Col] / Principal[Axis];
+				}
+			}
+		}
+	}
+
+	FBodyState State;
+	State.InvMass = 1.0 / Instance->GetBodyMass();
+	for (int32 Row = 0; Row < 3; ++Row)
+	{
+		State.InvInertia[Row] = FVector(Inverse[Row][0], Inverse[Row][1], Inverse[Row][2]);
+	}
+	State.CenterOfMass = MassFrame.GetLocation();
+	State.LinearVelocity = Body->GetPhysicsLinearVelocity();
+	State.AngularVelocity = Body->GetPhysicsAngularVelocityInRadians();
+	State.Acceleration = FVector(0.0, 0.0, GetWorld()->GetGravityZ());
+	State.ExternalForce = ExternalForce;
+	return State;
 }
 
 void AWheelRig::StepWheels(double Dt)
@@ -109,61 +162,63 @@ void AWheelRig::StepWheels(double Dt)
 	const double Reach = Params.RestLengthCm + Params.RadiusCm;
 
 	FCollisionQueryParams Query(TEXT("WheelRig"), false, this);
-	TArray<FHitResult> Hits;
-	Hits.SetNum(Wheels.Num());
-	int32 InContact = 0;
+	TArray<RoverloomWheel::FWheelContact> Contacts;
+	TArray<FWheelCommand> Commands;
+	Contacts.SetNum(Wheels.Num());
+	Commands.SetNum(Wheels.Num());
 	for (int32 Index = 0; Index < Wheels.Num(); ++Index)
 	{
 		const FVector Mount = Frame.GetLocation() + Frame.GetRotation().RotateVector(Wheels[Index].MountLocal);
+		FHitResult Hit;
 		bool bHit = false;
 		if (bUseSweep)
 		{
 			// Sweep the wheel's sphere from the mount over the suspension travel.
-			bHit = GetWorld()->SweepSingleByChannel(Hits[Index], Mount, Mount - Up * Params.RestLengthCm, FQuat::Identity,
+			bHit = GetWorld()->SweepSingleByChannel(Hit, Mount, Mount - Up * Params.RestLengthCm, FQuat::Identity,
 				ECC_WorldStatic, FCollisionShape::MakeSphere(Params.RadiusCm), Query);
 		}
 		else
 		{
-			bHit = GetWorld()->LineTraceSingleByChannel(Hits[Index], Mount, Mount - Up * Reach, ECC_WorldStatic, Query);
+			bHit = GetWorld()->LineTraceSingleByChannel(Hit, Mount, Mount - Up * Reach, ECC_WorldStatic, Query);
 		}
-		Hits[Index].bBlockingHit = bHit;
-		InContact += bHit ? 1 : 0;
-	}
+		Commands[Index].Mode = Mode;
+		Commands[Index].TargetSpinRadps = Targets.IsValidIndex(Index) ? Targets[Index] : 0.0;
 
-	for (int32 Index = 0; Index < Wheels.Num(); ++Index)
-	{
-		const FHitResult& Hit = Hits[Index];
-		FWheelContact Contact;
-		Contact.bHit = Hit.bBlockingHit;
-		if (Contact.bHit)
+		FWheelContact& Contact = Contacts[Index];
+		Contact.bHit = bHit;
+		if (bHit)
 		{
-			const FVector Mount = Frame.GetLocation() + Frame.GetRotation().RotateVector(Wheels[Index].MountLocal);
 			const FVector Normal = Hit.ImpactNormal.GetSafeNormal();
 			Contact.CompressionCm = bUseSweep ? Params.RestLengthCm - Hit.Distance : Reach - Hit.Distance;
 			Contact.CompressionRateCmps = -FVector::DotProduct(Body->GetPhysicsLinearVelocityAtPoint(Mount), Up);
+			Contact.Point = Hit.ImpactPoint;
+			Contact.Normal = Normal;
 			Contact.Forward = (BodyForward - FVector::DotProduct(BodyForward, Normal) * Normal).GetSafeNormal();
 			FVector Lateral = BodyRight - FVector::DotProduct(BodyRight, Normal) * Normal;
 			Contact.Lateral = (Lateral - FVector::DotProduct(Lateral, Contact.Forward) * Contact.Forward).GetSafeNormal();
-			Contact.ContactVelocity = Body->GetPhysicsLinearVelocityAtPoint(Hit.ImpactPoint);
-			Contact.MassLongKg = 1.0 / (InverseMassAlong(Hit.ImpactPoint, Contact.Forward) * InContact);
-			Contact.MassLatKg = 1.0 / (InverseMassAlong(Hit.ImpactPoint, Contact.Lateral) * InContact);
+		}
+	}
 
-			FWheelRecord& Record = Records[Index];
-			Record.Contact = Contact;
-			Record.TargetSpinRadps = Targets.IsValidIndex(Index) ? Targets[Index] : 0.0;
-			Record.Result = StepWheel(Params, Contact, Mode, Record.TargetSpinRadps, Dt, Spins[Index]);
-			Record.SpinRadps = Spins[Index];
-			const FVector Force = Record.Result.NormalForce * Normal + Record.Result.LongForce * Contact.Forward
-				+ Record.Result.LatForce * Contact.Lateral;
-			Body->AddForceAtLocation(Force, Hit.ImpactPoint);
-		}
-		else
+	TArray<FWheelResult> Results;
+	SolveWheels(Params, BodyState(), Contacts, Commands, Dt, Spins, Results, Stats);
+
+	for (int32 Index = 0; Index < Wheels.Num(); ++Index)
+	{
+		const FWheelContact& Contact = Contacts[Index];
+		FWheelRecord& Record = Records[Index];
+		Record.Contact = Contact;
+		Record.TargetSpinRadps = Commands[Index].TargetSpinRadps;
+		Record.Result = Results[Index];
+		Record.SpinRadps = Spins[Index];
+		if (Contact.bHit)
 		{
-			FWheelRecord& Record = Records[Index];
-			Record.Contact = Contact;
-			Record.TargetSpinRadps = Targets.IsValidIndex(Index) ? Targets[Index] : 0.0;
-			Record.Result = StepWheel(Params, Contact, Mode, Record.TargetSpinRadps, Dt, Spins[Index]);
-			Record.SpinRadps = Spins[Index];
+			const FVector Force = Results[Index].NormalForce * Contact.Normal + Results[Index].LongForce * Contact.Forward
+				+ Results[Index].LatForce * Contact.Lateral;
+			Body->AddForceAtLocation(Force, Contact.Point);
 		}
+	}
+	if (!ExternalForce.IsZero())
+	{
+		Body->AddForce(ExternalForce);
 	}
 }
