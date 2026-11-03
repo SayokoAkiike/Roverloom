@@ -428,6 +428,43 @@ middle wheels' motors reach their limit.
   - per wheel and step: friction power `F·u_end` and motor power `τ ω_end`;
   - per run: the largest positive friction power, and the largest angle between a sliding force and its slip.
 
+## Results: phases A and B, attempt 3, 2026-11-03
+
+**All 15 tests passed.** Batch `wheel-ab-attempt3-20261103` at commit `a105e1a`, 17 runs, with the conditions fixed
+there. Attempts 1 and 2 stand as recorded.
+
+| Test | Attempt 1 | Attempt 2 | Attempt 3 |
+| --- | --- | --- | --- |
+| A1, A1s | Pass | Pass | Pass; the same values |
+| A2, A2s | Pass | Pass | Pass; 50.000 cm/s, 95% in 0.30 s |
+| A3, μ 0.05 | Pass; traction 0.9999996–1.000 × μ Fz | The same | Pass; traction exactly 1.000 × μ Fz; 18.550 cm/s² |
+| A4, μ 0.1 | Pass; 37.100 cm/s²; 33.28 cm | The same | Pass; the same |
+| A5, μ 0.3 | Pass; peak 57.5 cm/s | Pass; peak 55.65 cm/s | Pass; the same as attempt 2 |
+| A6, 10° hold | **Fail, 1.074 cm/s** | Pass, 0.000 | Pass, 0.000 |
+| A7, 10° slide | Pass; 27.887 cm/s² | The same | Pass; the same |
+| A8, time step | Pass; 0.0% and 0.63% | The same | Pass; the same |
+| B1, B2 | Pass | Pass | Pass; 50.000 cm/s and 28.178 °/s |
+| B3, stop | Pass; 0.53 s | Pass; 0.32 s | Pass; 0.32 s |
+| B4, 10° hold | **Fail, 6.222 cm/s** | Pass, 0.000 | Pass, 0.000 |
+| B5, time step | Pass; 0.08% and 0.06% | Pass; 0.04% and 0.06% | Pass; the same as attempt 2 |
+
+**Why attempt 3 matches attempt 2.** Every slide in phases A and B is in one direction, so the old and new friction
+agree there.
+
+**The report-only friction records:**
+- the largest friction power over `μ Fz` was 0.000 cm/s, so friction never added energy;
+- every sliding force pointed against its slip, at 0.000°;
+- every solve converged, in at most 23 passes.
+
+**Runner checks over the 17 runs:**
+- Every exit code was 0, with no new crash report and no forced stop.
+- Peak resident memory was at most 2,210 MB, and free memory never fell below 38%.
+- Swap stayed at 3,359 MB.
+
+**A layout note.** Commit `a105e1a` dropped this page's "What this model covers" heading by mistake. It is restored
+below, and its table did not change.
+
+## What this model covers, and what it does not
 
 | Covered, in game terms | Not covered |
 | --- | --- |

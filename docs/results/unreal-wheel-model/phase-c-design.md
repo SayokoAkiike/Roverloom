@@ -158,3 +158,79 @@ they test.
   - no limit cycle in a turn-in-place test body.
 - **Then the gated runs:** phases A and B again with their 15 tests and thresholds, then phase C's diagnostics, and
   only then phase C's registration.
+
+## Diagnostics after the friction fix, 2026-11-03
+
+Not gated. Batch `cdiag3-20261103`, separate from `cdiag1` and `cdiag2`. It used the attempt 3 model at `a105e1a`,
+after phases A and B passed attempt 3. Each run is at 60 Hz unless named `_fps120`.
+
+| Item | Before the fix (`cdiag1`, `cdiag2`) | After the fix (`cdiag3`) |
+| --- | --- | --- |
+| Free fall | −371.0001 cm/s² | The same |
+| Landing from 20 cm | Peak 3.57 × static; settles to 1.000 × each | The same |
+| Landing tilted 3° and 2° | Peak tilt 3.6°; settles level | The same; peak load 2.91 × static |
+| Static, sweep and ray | 1.000 × each wheel | The same |
+| Sliding force against its slip: braked, coasting | Median 29.3° and 47.6°; worst 52.0° and 72.6° | Median 0.0°; worst 1e-4° and 3e-4° |
+| Turn in place, 28.178 °/s commanded | 1.64 °/s, in a five-step cycle from 0 to 1.96 °/s | **18.980 °/s, constant:** least and most over 13–23 s are equal to 1e-5 °/s |
+| Turn, 120 Hz | Not run | 18.980 °/s; total yaw 376.940° against 376.997° at 60 Hz, 0.015% apart |
+| Straight, 50 cm/s | Not run | Mean 50.000 cm/s over 13–23 s; peak 55.29 cm/s; no yaw; end X 993.52 cm |
+| Straight, 120 Hz | Not run | Peak 55.27 cm/s; end X 993.34 cm, 0.018% apart |
+| 10° slope, zero command | Not run | Mean drift 0.000 cm/s over 5–10 s |
+| Climb 10° and 20° | Not run | 49.998 and 49.990 cm/s uphill over 20–30 s; tilt at most 11.3° and 21.3°, the slope plus pitch |
+
+Across all 14 runs:
+- every run completed, with no NaN, no box contact, and no start-in-geometry trace;
+- traction stayed inside the circle to 1e-7, and wheels out of contact gave no force;
+- loads stayed between 0.065 × static, in the tilted landing, and 3.57 ×, in the 20 cm drop.
+
+**Resources.** Peak memory 2,202 MB; free memory at least 40%; swap unchanged; no crash.
+
+### The turn, in detail
+
+At 13–23 s:
+
+| Wheel | Load | Force along `f` | Force along `l` | State |
+| --- | --- | --- | --- | --- |
+| Front and rear, each | 52,775 | ±14,496 | ±28,152 | Sliding, slip (16.6, 32.3) cm/s, force on the circle |
+| Middle, each | 52,775 | ±24,000 | ±6,065 to 6,240 | Sticking, motor at its 60 N m limit |
+
+- **Steady state.** The net horizontal force is below 0.05 and the net yaw torque below 5 N cm, which is a steady
+  turn.
+- **Yaw torque balance.** The wheels' push and the corners' sideways scrub balance, at 1.099e7 each way.
+- **The yaw rate is set by the motor's torque limit.** The middle wheels are at their limit while the corners scrub
+  at `μ Fz`.
+- **Splits between wheels.** The middle wheels' sideways forces cancel each other, and their split between the
+  wheels is not unique.
+
+### Solver convergence
+
+Many steps reached the 200-pass limit without meeting the 1e-7 cm/s rule. In 13–23 s of the turn, 974 of 1,381 steps
+did so.
+
+**The size of the remainder.**
+- The last pass changed contact velocities by at most:
+  - 4.9e-6 cm/s in the turn;
+  - 2.8e-4 cm/s in the 120 Hz straight run;
+  - 3.3e-4 cm/s in the 10° climb.
+- On those few steps the sliding angle reached 1.1° and 0.28°, and friction power over `μ Fz` reached 9e-6 cm/s.
+- Otherwise angles stayed below 0.01° and friction power below 1e-6 cm/s.
+
+**The cause.** Twelve rows act on six freedoms, and plain Gauss-Seidel converges slowly on such a system.
+
+## Against the draft criteria, before any registration
+
+These diagnostics measured some of the same quantities that the draft criteria judge. If those criteria were
+registered unchanged, they would be expected to fail on the following:
+
+| Draft criterion | Diagnostic | Expected |
+| --- | --- | --- |
+| Every run: the solve converges on every step | 974 steps of the turn, and some steps of most runs, hit 200 passes | Fail |
+| C2: peak ≤ 55 cm/s (R0) | Peak 55.29 cm/s. The body pitches back about 1.2° when it starts, which adds to its center's speed | Fail by 0.29 cm/s |
+| C3: yaw rate within ±10% of 28.178 °/s (R0) | 18.98 °/s, limited by the 60 N m motor | Fail |
+| C4: time step | 0.015% and 0.018% | Pass, but needs C2 and C3 to pass at 120 Hz |
+| C1, C5, C6 at 5° and 10° | Matching values above | Pass |
+
+**These are diagnostics, not results.**
+- No criterion has been registered or changed.
+- No gated run took place.
+- Whether to keep these criteria, change them before registration, or change the model is the owner's decision.
