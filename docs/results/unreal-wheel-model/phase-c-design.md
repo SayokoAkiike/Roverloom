@@ -234,3 +234,68 @@ registered unchanged, they would be expected to fail on the following:
 - No criterion has been registered or changed.
 - No gated run took place.
 - Whether to keep these criteria, change them before registration, or change the model is the owner's decision.
+
+## Numerical checks before the gated runs, 2026-11-03
+
+The owner approved phase C's gated runs, with the draft criteria unchanged. That approval came with a condition: the
+diagnostic data must first be checked for residuals, limits, energy, and momentum. Last-pass change alone does not show
+convergence. `scripts/wheel_spike.py numerics` computes these checks, which are not gated. The results are saved as
+`numerics.json` in each batch.
+
+Over the 14 runs of `cdiag3-20261103`:
+
+| Check | Worst |
+| --- | --- |
+| Friction circle exceeded | Never |
+| Torque limit exceeded | Never |
+| Sticking contacts: slip left at the end of the step | 1.9e-4 cm/s, in the 10° climb; 5e-6 cm/s in the turn |
+| Sliding contacts: off the circle | 1.6e-7, relative |
+| Sliding contacts: angle to the opposing slip | 1.12°, on 2 steps of the 120 Hz straight run that hit 200 passes; otherwise below 0.3° |
+| Friction power over `μ Fz` above 1e-6 cm/s | 3 steps, at most 8.9e-6 cm/s, in the same run |
+| Solver's predicted contact velocity against Chaos's next step | 0.016 cm/s; 0.375 cm/s while the tilted body lands and its contact points move |
+| Newton: measured acceleration against wheel forces plus gravity, sleep excluded | 0.6 cm/s² at most, on steps just under the sleep rule's 0.01 cm/s; otherwise 0.02 cm/s², the CSV's rounding |
+| Energy gained beyond the motor's work, per step, as a height | 0.0074 cm while landing from 20 cm, where the explicit spring adds a little; otherwise 0.00013 cm |
+| NaN or divergence | None |
+
+**A new finding: Chaos's sleep sets the body's velocity to zero.**
+- **The rule.** With the physical material's defaults (1 cm/s, 0.05 rad/s, 4 steps), Chaos puts a slow body to sleep.
+  Sleeping zeroes its velocity, though no force here does that.
+- **Which runs.** In `cdiag3` this happened 10 to 19 times in each slow run: landing, settling on slopes, and the end of
+  the braked slide. It removed at most 0.57 cm/s each time. In the gated windows of C5 and C6, 5–10 s and 20–30 s, the
+  body's acceleration matched its forces to 0.02 cm/s², and its speed stayed below 0.0003 cm/s.
+- **Phases A and B, attempt 3.** No step was zeroed this way. Where speed reached exactly zero, the solve's own force
+  had stopped the body.
+- **A correction to `cdiag2`.** The five-step cycle in the turn was this sleep, firing 240 times on angular velocity.
+  The friction defect had slowed the turn to below the 0.05 rad/s threshold. Above, that cycle was put down to stick
+  and slip. The friction defect was real, but the cycle itself came from sleep.
+- **No setting was changed.** Sleep was left on, because the owner asked for no changes, and its count is recorded.
+
+## Registered before the gated runs, 2026-11-03
+
+**Criteria.** The draft's criteria, with no change. The thresholds are in `scripts/wheel_spike.py` as `C_*` constants,
+and judged by `analyze-c`. Each window is in simulated time, and the model and its settings are those of `a105e1a`.
+
+| ID | Pass |
+| --- | --- |
+| Every gated run | Completes; no NaN; speed under 1,000 cm/s; traction within `μ Fz` to 1e-6 relative; motor and brake torques within their limits; the solve converges on every step that has a contact |
+| C1, C1r | Over 10–15 s: body height range < 0.5 cm; mean loads sum to `M g` within ±1%; each mean load within ±5% of `M g / 6` |
+| C2 | Forward speed reaches 47.5 cm/s within 3–23 s; peak forward speed in 3–23 s ≤ 55 cm/s; mean over 13–23 s within 50 ± 2.5 cm/s; mean |yaw rate| over 13–23 s < 0.5 °/s |
+| C3 | Yaw rate over 13–23 s, by a line fit to unwrapped yaw, positive and within 28.178 ± 2.818 °/s |
+| C4 | C2 and C3 at 120 Hz each pass. End X at 23 s and total yaw over 0–23 s differ from 60 Hz by < 5% |
+| C5, C5b | |Mean forward speed| over 5–10 s < 0.1 cm/s, under a zero command and under the brake |
+| C6 | At 5° and at 10°, both: mean forward speed over 20–30 s ≥ 25 cm/s; R0's tilt, the larger of |pitch| and |roll|, < 45° throughout |
+| C7 | Completes 600 s; speed ≤ 200 cm/s; R0's tilt ≤ 60°; the box never touches the ground |
+
+**Counting and records.**
+- **Gated: 11 runs, judged as 9 tests.** Phase C passes only if all nine pass.
+- **Reported only: 11 runs.**
+  - 15° and 20° climbs;
+  - steps of 10, 25, and 50 cm;
+  - five repeats of C2 with `-Deterministic`;
+  - one 63 s run in real time at 1280 × 720 with `r.VSync 0`.
+- **Recorded, not judged:**
+  - C2's peak, split into the wheels' mean ground speed and the rest from pitching;
+  - C3's force at each wheel against the motor's limit;
+  - every run's numerical checks, sleep included.
+- **Batch** `wheel-c-20261103`, separate from the diagnostic batches.
+- **A failure stays a failure.**
