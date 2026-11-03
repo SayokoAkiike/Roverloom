@@ -27,6 +27,37 @@ namespace RoverloomWheel
 		return LinearVelocity + FVector::CrossProduct(AngularVelocity, Point - CenterOfMass);
 	}
 
+	FVector2D SolveContactFriction(const FVector2D& A, double W00, double W01, double W11, double Limit, bool& bOutSliding)
+	{
+		// F(lambda) = -(W + lambda I)^-1 A. Its length falls as lambda grows, and |F(lambda)| <= |A| / lambda.
+		auto ForceAt = [&](double Lambda)
+		{
+			const double D00 = W00 + Lambda;
+			const double D11 = W11 + Lambda;
+			const double Det = D00 * D11 - W01 * W01;
+			return FVector2D(-(D11 * A.X - W01 * A.Y) / Det, -(D00 * A.Y - W01 * A.X) / Det);
+		};
+		const FVector2D Stick = ForceAt(0.0);
+		bOutSliding = Stick.Size() > Limit;
+		if (!bOutSliding)
+		{
+			return Stick;
+		}
+		if (Limit <= 0.0)
+		{
+			return FVector2D::ZeroVector;
+		}
+		double Low = 0.0;
+		double High = A.Size() / Limit;
+		for (int32 Step = 0; Step < 100; ++Step)
+		{
+			const double Mid = 0.5 * (Low + High);
+			(ForceAt(Mid).Size() > Limit ? Low : High) = Mid;
+		}
+		const FVector2D Edge = ForceAt(High);
+		return Edge * (Limit / Edge.Size());
+	}
+
 	double SpringRateFor(double LoadForce, double StaticCompressionCm)
 	{
 		return LoadForce / StaticCompressionCm;
@@ -138,54 +169,41 @@ namespace RoverloomWheel
 				const double Target = Command.Mode == EWheelMode::Brake ? 0.0 : Command.TargetSpinRadps;
 				const double Limit = Command.Mode == EWheelMode::Brake ? Params.BrakeMaxTorque : Params.MotorMaxTorque;
 				const double KLong = K[Long * RowCount + Long];
+				const double KCross = K[Long * RowCount + Lat];
+				const double KLat = K[Lat * RowCount + Lat];
 				const double OldLong = Solved[Long];
 				const double OldLat = Solved[Lat];
+				// End-of-step body velocity at the contact with this wheel's own force removed.
+				const double FreeLong = Velocity[Long] - Dt * (KLong * OldLong + KCross * OldLat);
+				const double FreeLat = Velocity[Lat] - Dt * (KCross * OldLong + KLat * OldLat);
 
-				// Ground force that leaves no slip at the end of the step for a given torque.
-				auto Sticking = [&](double WheelTorque)
-				{
-					return (Omega * R - Velocity[Long] + KLong * OldLong * Dt + Dt * WheelTorque * R / I) / (Dt * (R * R / I + KLong));
-				};
-				auto Servo = [&](double GroundForce)
-				{
-					return Command.Mode == EWheelMode::Coast ? 0.0
-						: FMath::Clamp(I * (Target - Omega) / Dt + GroundForce * R, -Limit, Limit);
-				};
-
-				double NewLong = 0.0;
+				// First the motor or brake holds the target spin, so the rim moves at Target R.
+				FVector2D Traction = FVector2D::ZeroVector;
 				double WheelTorque = 0.0;
-				if (Command.Mode == EWheelMode::Coast)
+				bool bSliding = false;
+				bool bSpinFree = Command.Mode == EWheelMode::Coast;
+				if (!bSpinFree)
 				{
-					NewLong = Sticking(0.0);
+					Traction = SolveContactFriction(FVector2D(FreeLong - Target * R, FreeLat), Dt * KLong, Dt * KCross, Dt * KLat,
+						Out.FrictionLimit, bSliding);
+					WheelTorque = I * (Target - Omega) / Dt + Traction.X * R;
+					bSpinFree = FMath::Abs(WheelTorque) > Limit;
 				}
-				else
+				// If that needs more torque than the limit, or the wheel coasts, the torque is fixed and the spin is free.
+				if (bSpinFree)
 				{
-					NewLong = OldLong + (Target * R - Velocity[Long]) / (KLong * Dt);
-					WheelTorque = I * (Target - Omega) / Dt + NewLong * R;
-					if (FMath::Abs(WheelTorque) > Limit)
-					{
-						WheelTorque = FMath::Clamp(WheelTorque, -Limit, Limit);
-						NewLong = Sticking(WheelTorque);
-					}
+					WheelTorque = Command.Mode == EWheelMode::Coast ? 0.0 : FMath::Clamp(WheelTorque, -Limit, Limit);
+					Traction = SolveContactFriction(FVector2D(FreeLong - Omega * R - Dt * WheelTorque * R / I, FreeLat),
+						Dt * (KLong + R * R / I), Dt * KCross, Dt * KLat, Out.FrictionLimit, bSliding);
 				}
-				Apply(Long, NewLong - OldLong);
-				double NewLat = OldLat - Velocity[Lat] / (K[Lat * RowCount + Lat] * Dt);
-
-				Out.bSaturated = false;
-				const double Magnitude = FMath::Sqrt(NewLong * NewLong + NewLat * NewLat);
-				if (Magnitude > Out.FrictionLimit)
-				{
-					const double Scale = Magnitude > 0.0 ? Out.FrictionLimit / Magnitude : 0.0;
-					Apply(Long, NewLong * Scale - NewLong);
-					NewLong *= Scale;
-					NewLat *= Scale;
-					Out.bSaturated = true;
-					WheelTorque = Servo(NewLong);
-				}
-				Apply(Lat, NewLat - OldLat);
+				Apply(Long, Traction.X - OldLong);
+				Apply(Lat, Traction.Y - OldLat);
+				Out.bSaturated = bSliding;
+				const double NewLong = Traction.X;
+				const double NewLat = Traction.Y;
 				Torques[Index] = WheelTorque;
 				LargestChange = FMath::Max(LargestChange, FMath::Abs(NewLong - OldLong) * KLong * Dt);
-				LargestChange = FMath::Max(LargestChange, FMath::Abs(NewLat - OldLat) * K[Lat * RowCount + Lat] * Dt);
+				LargestChange = FMath::Max(LargestChange, FMath::Abs(NewLat - OldLat) * KLat * Dt);
 			}
 			OutStats.Iterations = Pass + 1;
 			OutStats.LastChangeCmps = LargestChange;
@@ -218,8 +236,10 @@ namespace RoverloomWheel
 			{
 				Out.EndSlipCmps = InOutSpinRadps[Index] * R - Velocity[Long];
 				Out.EndLatVelocity = Velocity[Long + 1];
+				Out.FrictionPower = Out.LongForce * (Velocity[Long] - InOutSpinRadps[Index] * R) + Out.LatForce * Velocity[Long + 1];
 			}
 			(Command.Mode == EWheelMode::Brake ? Out.BrakeTorque : Out.MotorTorque) = Torques[Index];
+			Out.WheelPower = Torques[Index] * InOutSpinRadps[Index];
 		}
 	}
 }

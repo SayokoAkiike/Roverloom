@@ -82,6 +82,49 @@ namespace
 		}
 	};
 
+	// Angle between a sliding force and the direction opposing the slip it leaves, in degrees.
+	double SlideAngleDeg(const FWheelResult& Out)
+	{
+		const FVector2D Force(Out.LongForce, Out.LatForce);
+		const FVector2D Opposing(Out.EndSlipCmps, -Out.EndLatVelocity); // -u, with u = (v_f - w R, v_l)
+		if (Force.Size() <= 0.0 || Opposing.Size() <= 1e-9)
+		{
+			return 0.0;
+		}
+		// atan2 of cross and dot keeps precision near zero, where acos does not.
+		return FMath::RadiansToDegrees(FMath::Atan2(FMath::Abs(FVector2D::CrossProduct(Force, Opposing)), FVector2D::DotProduct(Force, Opposing)));
+	}
+
+	// pathfinder_6w on a free body: 853.5 kg box of 200 x 150 x 40 cm, wheels at X +-97.6 and 0, Y +-103.7.
+	FTestRig SixWheelRig()
+	{
+		TArray<FVector> Points;
+		for (const double Y : {-103.7, 103.7})
+		{
+			for (const double X : {97.6, 0.0, -97.6})
+			{
+				Points.Add(FVector(X, Y, -45.0));
+			}
+		}
+		FTestRig Rig(853.5, 0.6, 0.0, Points);
+		const double M = 853.5;
+		Rig.Body.InvInertia[0] = FVector(12.0 / (M * (150.0 * 150.0 + 40.0 * 40.0)), 0.0, 0.0);
+		Rig.Body.InvInertia[1] = FVector(0.0, 12.0 / (M * (200.0 * 200.0 + 40.0 * 40.0)), 0.0);
+		Rig.Body.InvInertia[2] = FVector(0.0, 0.0, 12.0 / (M * (200.0 * 200.0 + 150.0 * 150.0)));
+		return Rig;
+	}
+
+	TArray<FWheelCommand> TurnInPlace(double YawRateDegps)
+	{
+		const double Rim = FMath::DegreesToRadians(YawRateDegps) * 103.7;
+		TArray<FWheelCommand> Commands;
+		for (int32 Index = 0; Index < 6; ++Index)
+		{
+			Commands.Add({EWheelMode::Drive, (Index < 3 ? Rim : -Rim) / 25.0});
+		}
+		return Commands;
+	}
+
 	TArray<FWheelCommand> All(int32 Count, EWheelMode Mode, double Target = 0.0)
 	{
 		TArray<FWheelCommand> Commands;
@@ -250,6 +293,195 @@ bool FRoverloomWheelModelTest::RunTest(const FString& Parameters)
 		const TArray<FWheelResult> Out = Rig.Step(All(1, EWheelMode::Coast), Dt);
 		TestEqual(TEXT("Coast: no motor torque"), Out[0].MotorTorque, 0.0);
 	}
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FRoverloomWheelFrictionTest,
+	"Roverloom.WheelSpike.Friction",
+	EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FRoverloomWheelFrictionTest::RunTest(const FString& Parameters)
+{
+	const double Dt = 1.0 / 60.0;
+	const FVector Below(0.0, 0.0, -45.0);
+
+	// The local solve: stick inside the disk, slide on its edge against the slip, continuous across the switch.
+	{
+		const double W00 = 3.0;
+		const double W01 = 1.2;
+		const double W11 = 1.0;
+		bool bSliding = false;
+		const FVector2D Small(0.3, -0.2);
+		const FVector2D Stick = SolveContactFriction(Small, W00, W01, W11, 10.0, bSliding);
+		TestFalse(TEXT("Local: small demand sticks"), bSliding);
+		TestEqual(TEXT("Local: stick leaves no slip"), FVector2D(Small.X + W00 * Stick.X + W01 * Stick.Y,
+			Small.Y + W01 * Stick.X + W11 * Stick.Y).Size(), 0.0, 1e-12);
+		double WorstAngle = 0.0;
+		bool bPositivePower = false;
+		for (int32 Angle = 0; Angle < 360; Angle += 15)
+		{
+			const FVector2D A = 40.0 * FVector2D(FMath::Cos(FMath::DegreesToRadians(Angle)), FMath::Sin(FMath::DegreesToRadians(Angle)));
+			const FVector2D F = SolveContactFriction(A, W00, W01, W11, 2.0, bSliding);
+			const FVector2D U(A.X + W00 * F.X + W01 * F.Y, A.Y + W01 * F.X + W11 * F.Y);
+			TestTrue(TEXT("Local: large demand slides"), bSliding);
+			TestEqual(TEXT("Local: sliding force on the circle"), F.Size(), 2.0, 1e-9);
+			WorstAngle = FMath::Max(WorstAngle, FMath::RadiansToDegrees(FMath::Atan2(FMath::Abs(FVector2D::CrossProduct(F, U)),
+				-FVector2D::DotProduct(F, U))));
+			bPositivePower |= FVector2D::DotProduct(F, U) > 0.0;
+		}
+		TestTrue(TEXT("Local: sliding force opposes the slip within 1e-6 deg"), WorstAngle < 1e-6);
+		TestFalse(TEXT("Local: friction power never positive"), bPositivePower);
+		// Continuity: scale a demand through the switch in small steps.
+		FVector2D Last = SolveContactFriction(FVector2D::ZeroVector, W00, W01, W11, 2.0, bSliding);
+		double LargestJump = 0.0;
+		for (int32 Step = 1; Step <= 2000; ++Step)
+		{
+			const FVector2D F = SolveContactFriction(FVector2D(0.006, 0.004) * Step, W00, W01, W11, 2.0, bSliding);
+			LargestJump = FMath::Max(LargestJump, (F - Last).Size());
+			Last = F;
+		}
+		TestTrue(TEXT("Local: force changes continuously through the switch"), LargestJump < 0.01);
+	}
+
+	// One-direction and diagonal sliding, on a locked body and on a yaw-free body with an offset contact.
+	for (const double YawInertia : {0.0, 2.0e6})
+	{
+		FTestRig Rig(Mass, 0.3, 0.0, {FVector(60.0, -40.0, -45.0)}, YawInertia);
+		Rig.Body.LinearVelocity = FVector(30.0, 40.0, 0.0);
+		double WorstAngle = 0.0;
+		double LargestPower = -1.0e30;
+		bool bSlid = false;
+		for (int32 Index = 0; Index < 30; ++Index)
+		{
+			const TArray<FWheelResult> Out = Rig.Step(All(1, EWheelMode::Brake), Dt);
+			if (Out[0].bSaturated)
+			{
+				bSlid = true;
+				WorstAngle = FMath::Max(WorstAngle, SlideAngleDeg(Out[0]));
+				TestEqual(TEXT("Diagonal: sliding force is mu Fz"), FMath::Sqrt(FMath::Square(Out[0].LongForce) + FMath::Square(Out[0].LatForce)),
+					Out[0].FrictionLimit, 1e-6);
+			}
+			LargestPower = FMath::Max(LargestPower, Out[0].FrictionPower / Out[0].FrictionLimit);
+		}
+		TestTrue(TEXT("Diagonal: slid"), bSlid);
+		TestTrue(*FString::Printf(TEXT("Diagonal, yaw inertia %.0f: force opposes slip (worst %.2e deg)"), YawInertia, WorstAngle),
+			WorstAngle < 1e-6);
+		// Power over mu Fz is a speed: a sticking contact's residual slip may leave rounding above zero.
+		TestTrue(TEXT("Diagonal: friction power never positive, beyond 1e-6 cm/s of slip"), LargestPower <= 1e-6);
+		TestTrue(TEXT("Diagonal: stopped"), Rig.LargestContactSpeed() < 1e-6);
+	}
+
+	// Stick to slide: a sideways push rising to twice the limit. The force follows the push, then holds at mu Fz.
+	{
+		FTestRig Rig(Mass, 0.3, 0.0, {Below});
+		const double Limit = 0.3 * Mass * Gravity;
+		bool bMonotonic = true;
+		double LastLat = 0.0;
+		double LastSpeed = 0.0;
+		int32 Switches = 0;
+		bool bWasSliding = false;
+		for (int32 Index = 0; Index < 120; ++Index)
+		{
+			const double Push = 2.0 * Limit * Index / 120.0;
+			Rig.Body.ExternalForce = FVector(0.0, Push, 0.0);
+			const TArray<FWheelResult> Out = Rig.Step(All(1, EWheelMode::Brake), Dt);
+			Rig.Body.LinearVelocity += Dt * Rig.Body.ExternalForce * Rig.Body.InvMass;
+			if (!Out[0].bSaturated)
+			{
+				TestEqual(TEXT("Switch: sticking force balances the push"), -Out[0].LatForce, Push, 1e-6);
+			}
+			bMonotonic &= -Out[0].LatForce >= -LastLat - 1e-6 && Rig.Body.LinearVelocity.Y >= LastSpeed - 1e-9;
+			Switches += Out[0].bSaturated != bWasSliding ? 1 : 0;
+			bWasSliding = Out[0].bSaturated;
+			LastLat = Out[0].LatForce;
+			LastSpeed = Rig.Body.LinearVelocity.Y;
+		}
+		TestTrue(TEXT("Switch: force and speed rise without oscillating"), bMonotonic);
+		TestEqual(TEXT("Switch: one change from stick to slide"), Switches, 1);
+		TestEqual(TEXT("Switch: sliding force is mu Fz"), -LastLat, Limit, 1e-6);
+	}
+
+	// Wheel spin in the slip: a coasting wheel spinning under a still body pushes it forward and slows, conserving
+	// M v + I w / R, and losing energy, until it rolls.
+	{
+		FTestRig Rig(Mass, 0.6, 0.0, {Below});
+		Rig.Spins[0] = 4.0;
+		const double R = Rig.Params.RadiusCm;
+		const double I = Rig.Params.InertiaKgCm2;
+		const double Momentum = I * 4.0 / R;
+		double Energy = 0.5 * I * 16.0;
+		bool bEnergyFalls = true;
+		const TArray<FWheelResult> First = Rig.Step(All(1, EWheelMode::Coast), Dt);
+		TestTrue(TEXT("Spin: first step slides"), First[0].bSaturated);
+		TestTrue(TEXT("Spin: pushes the body forward"), First[0].LongForce > 0.0);
+		for (int32 Index = 0; Index < 30; ++Index)
+		{
+			const double Now = 0.5 * Mass * Rig.Body.LinearVelocity.SizeSquared() + 0.5 * I * FMath::Square(Rig.Spins[0]);
+			bEnergyFalls &= Now <= Energy + 1e-6;
+			Energy = Now;
+			Rig.Step(All(1, EWheelMode::Coast), Dt);
+		}
+		TestTrue(TEXT("Spin: energy never rises without a motor"), bEnergyFalls);
+		TestEqual(TEXT("Spin: momentum kept"), Mass * Rig.Body.LinearVelocity.X + I * Rig.Spins[0] / R, Momentum, 1e-6);
+		TestEqual(TEXT("Spin: rolls at the end"), Rig.Spins[0] * R, Rig.Body.LinearVelocity.X, 1e-6);
+	}
+
+	// Six wheels on a free body turning in place: steady, no cycle, net force zero, friction dissipative,
+	// and the same at 60 and 120 Hz.
+	double SteadyYaw[2] = {};
+	const double Steps[2] = {1.0 / 60.0, 1.0 / 120.0};
+	for (int32 Case = 0; Case < 2; ++Case)
+	{
+		FTestRig Rig = SixWheelRig();
+		const TArray<FWheelCommand> Commands = TurnInPlace(28.178);
+		const int32 Count = FMath::RoundToInt(10.0 / Steps[Case]);
+		TArray<double> Yaw;
+		double WorstAngle = 0.0;
+		double LargestPower = -1.0e30;
+		double LargestNet = 0.0;
+		bool bConverged = true;
+		for (int32 Index = 0; Index < Count; ++Index)
+		{
+			FSolveStats Stats;
+			const TArray<FWheelResult> Out = Rig.Step(Commands, Steps[Case], &Stats);
+			FVector Net = FVector::ZeroVector;
+			for (int32 Wheel = 0; Wheel < 6; ++Wheel)
+			{
+				if (Out[Wheel].bSaturated)
+				{
+					WorstAngle = FMath::Max(WorstAngle, SlideAngleDeg(Out[Wheel]));
+				}
+				LargestPower = FMath::Max(LargestPower, Out[Wheel].FrictionPower / Out[Wheel].FrictionLimit);
+				Net += FVector(Out[Wheel].LongForce, Out[Wheel].LatForce, 0.0);
+			}
+			if (Index >= Count / 2)
+			{
+				LargestNet = FMath::Max(LargestNet, Net.Size());
+				bConverged &= Stats.bConverged;
+			}
+			Yaw.Add(FMath::RadiansToDegrees(Rig.Body.AngularVelocity.Z));
+		}
+		const int32 Tail = FMath::RoundToInt(1.0 / Steps[Case]);
+		double Least = Yaw.Last();
+		double Most = Yaw.Last();
+		for (int32 Index = Yaw.Num() - Tail; Index < Yaw.Num(); ++Index)
+		{
+			Least = FMath::Min(Least, Yaw[Index]);
+			Most = FMath::Max(Most, Yaw[Index]);
+		}
+		SteadyYaw[Case] = Yaw.Last();
+		AddInfo(FString::Printf(TEXT("Six-wheel turn at %.0f Hz: yaw rate %.4f deg/s, last-second range %.3e, sliding angle %.2e deg, "
+			"max friction power over mu Fz %.3e cm/s, max net force %.3e"), 1.0 / Steps[Case], SteadyYaw[Case], Most - Least, WorstAngle, LargestPower,
+			LargestNet));
+		TestTrue(TEXT("Six-wheel turn: turns the commanded way"), SteadyYaw[Case] > 0.0);
+		TestTrue(TEXT("Six-wheel turn: steady, with no cycle in the last second"), Most - Least < 1e-6);
+		TestTrue(TEXT("Six-wheel turn: sliding force opposes slip"), WorstAngle < 1e-6);
+		TestTrue(TEXT("Six-wheel turn: friction power never positive, beyond 1e-6 cm/s of slip"), LargestPower <= 1e-6);
+		TestTrue(TEXT("Six-wheel turn: no net force in steady turning"), LargestNet < 1e-3 * 853.5 * Gravity);
+		TestTrue(TEXT("Six-wheel turn: no net yaw torque at steady rate"), FMath::Abs(Rig.Body.AngularVelocity.Z - FMath::DegreesToRadians(Yaw[Yaw.Num() - 2])) < 1e-9);
+	}
+	TestTrue(TEXT("Six-wheel turn: 60 and 120 Hz within 1%"), FMath::Abs(SteadyYaw[1] / SteadyYaw[0] - 1.0) < 0.01);
 	return true;
 }
 

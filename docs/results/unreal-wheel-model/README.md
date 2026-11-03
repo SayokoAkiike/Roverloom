@@ -305,7 +305,129 @@ CSV is byte-identical to attempt 2's.
 - Rotation was locked on every rig. A free rigid body, as a rover needs, has not been tested.
 - Everything in "What this model covers" below still applies.
 
-## What this model covers, and what it does not
+## Attempt 3: friction by contact slip, design note, written before the code
+
+The owner approved this fix on 2026-11-03, after [phase C's diagnostics](phase-c-design.md#diagnostics-2026-11-03-stopped)
+found sliding friction pointing 29–56° away from the slip. Attempts 1 and 2 and their records stay as they are.
+
+### Slip velocity
+
+`u` is the velocity of the wheel's material point at the contact, relative to the static ground, in the contact plane:
+
+`u = (v·f − ω R, v·l)`
+
+Here `v` is the body's velocity at the contact point and `ω R` is the rim speed. A rolling wheel has `u = 0`. Attempts 1
+and 2 called `s = −u_f` the slip; the sign convention for `s` in the CSV is unchanged.
+
+### Forces, reaction torque, and power
+
+- **The ground's tangential force `F = (F_f, F_l)` acts on the body at the contact point.** Its reaction acts on the
+  wheel at the rim, so the wheel feels `−F_f R` about its axle. The motor or brake adds `τ`:
+  `I dω/dt = τ − F_f R`.
+- **Power balance.** Over the wheel and the body, with no other force,
+  `d/dt (½ M v² + ½ I_w ω² + ½ ωᵀ I ω) = F·v + (τ − F_f R) ω = F·u + τ ω`.
+- **Two sources, kept separate.** The motor supplies `τ ω`, which can be positive or negative. The contact's friction
+  power is `F·u`, which must never be positive.
+- **Recorded per wheel and step.** `F·u` and `τ ω` use the end-of-step velocities that the implicit solve acts on.
+
+### Static and kinetic friction, kept apart
+
+The coefficient stays one value, `μ`, for both, as in the criteria. They are handled as two separate cases, with one
+rule deciding between them:
+
+1. **Stick.**
+   - The solve finds the tangential force that makes the end-of-step slip zero: `u_end = 0`.
+   - It does so against the body's coupled motion, the wheel's inertia, and the motor or brake.
+   - If that force lies inside the friction circle, `|F| ≤ μ Fz`, it is the answer. The force is whatever holding
+     needs: zero on flat ground at rest, `M g sin θ` on a slope.
+2. **Slide.** If no force inside the circle can stop the slip, the contact slides. The force is then the one on the
+   circle `|F| = μ Fz` that opposes the slip it leaves at the end of the step: `F = −μ Fz u_end / |u_end|`. Its
+   friction power `F·u_end = −μ Fz |u_end|` is negative.
+
+**How one wheel's solve finds the force.** The end-of-step slip is linear in the wheel's own force:
+`u_end = a + W F`.
+- `a` is the slip with this wheel's force removed. It includes gravity, normal loads, and the other wheels' current
+  forces.
+- `W` is the 2 × 2 block of the coupling `K`, times `dt`. If the motor's or brake's torque limit binds, the wheel's
+  spin compliance `dt R² / I` is added to its `f` entry.
+
+Both cases are then one problem: minimize `½ Fᵀ W F + aᵀ F` subject to `|F| ≤ μ Fz`.
+
+**Why that problem gives the right answer.**
+- **Inside the circle,** the minimum gives `u_end = 0`, which is stick.
+- **On the edge,** the optimality condition is `a + W F = −λ F` with `λ ≥ 0`. So `u_end` is anti-parallel to `F`,
+  and the force opposes the slip exactly.
+- **Finding the edge force.** `F(λ) = −(W + λ I)⁻¹ a`. Its length falls as `λ` grows, and `λ ≤ |a| / (μ Fz)`. A
+  bisection on `λ` finds the edge to machine precision.
+
+**The answer changes continuously with `a`.** That leaves no jump at the switch between stick and slide for a step to
+bounce off. Attempt 2 scaled the stick demand down to the circle instead, and its direction was not the slip's.
+
+### Motor and brake
+
+The motor or brake first tries to hold the target spin: `ω_end = ω*`.
+- `u_f` then uses `ω* R`, and the torque that results is `τ = I (ω* − ω) / dt + F_f R`.
+- If `|τ|` exceeds the limit, `τ` is clamped, and the wheel's spin becomes free. The solve then runs again with the
+  spin compliance added to `W`.
+- Coasting always uses `τ = 0` with the spin free.
+
+Spin then updates as `ω_end = ω + dt (τ − F_f R) / I`, so force and reaction torque always match.
+
+### Coupling and limits
+
+- **Coupling across wheels** stays as in attempt 2. Projected Gauss-Seidel solves each wheel against the others'
+  current forces. The `K` matrix and the known-force prediction are unchanged.
+- **The settings stay as in attempt 2:** 200 passes, 1e-7 cm/s.
+- **The limits:**
+  - The friction circle is never exceeded.
+  - Torques never exceed their limits.
+  - Normal forces still come only from the suspension.
+  - No velocity is written.
+
+### Checks before any run
+
+Unit tests on a test body stepped in Chaos's order:
+- **Holding:** a slope held by static friction.
+- **Sliding:** one-direction and diagonal sliding on locked and yaw-free bodies, with the force anti-parallel to the
+  slip and `F·u ≤ 0`.
+- **The switch:** from stick to slide under a rising push, with no oscillation.
+- **Wheel spin in the slip:** a spinning wheel on a still body.
+- **Motor and brake:** driving and braking within the torque limits.
+- **The friction circle:** never exceeded.
+- **A free six-wheel body turning in place:** no repeating cycle, with net force and torque consistent with its
+  motion.
+- **Time step:** the same turn at 60 and 120 Hz.
+
+**Result before the runs.** `Roverloom.WheelSpike.Friction` passed, with the module's three other tests. Its first run
+failed on two of its own checks, on rounding rather than physics. The tests were then made to measure at
+floating-point precision, as listed below, and the model was not touched.
+
+| Check | Measured |
+| --- | --- |
+| Local solve, demand from 24 directions | Force on the circle; worst angle to the opposing slip below 1e-6° |
+| Diagonal slide on a locked and a yaw-free body | Worst angle below 1e-6°; friction power never positive beyond 1e-6 cm/s of slip times `μ Fz` |
+| Stick to slide under a rising push | Force equals the push while sticking; one switch; force and speed never fall |
+| Spinning wheel under a still body | Slides first, pushes forward, keeps `M v + I ω / R`, loses energy every step, then rolls |
+| Six wheels, free body, turn in place for 10 s | Steady at 18.9798 °/s at both 60 and 120 Hz; no change in yaw rate over the last second; worst sliding angle 1.6e-7° at 60 Hz and 2.4e-7° at 120 Hz; net horizontal force below 6e-11 |
+
+**The two corrections to the tests.**
+- **The angle.** The first version computed it with `acos`, which loses precision near zero: about 1.2e-6°. It now
+  uses `atan2` of the cross and dot products.
+- **Friction power.** On a sticking wheel this is the force times the solver's residual slip, about 1e-9 cm/s. That
+  left 5.7e-5 above zero. The limit is now set as a slip speed: 1e-6 cm/s times `μ Fz`.
+
+**The six-wheel turn settles at 18.98 °/s for 28.178 °/s commanded.** This is a measurement on the test body, not a
+gated result. Front and rear wheels must scrub sideways to turn in place. With Coulomb friction they slide, and the
+middle wheels' motors reach their limit.
+
+### Attempt 3 runs
+
+- **The same plan, tests, and thresholds as attempts 1 and 2.** That is 17 runs and 15 tests, counted as before.
+- **Batch** `wheel-ab-attempt3-20261103`, separate from the earlier batches.
+- **Added report-only records:**
+  - per wheel and step: friction power `F·u_end` and motor power `τ ω_end`;
+  - per run: the largest positive friction power, and the largest angle between a sliding force and its slip.
+
 
 | Covered, in game terms | Not covered |
 | --- | --- |

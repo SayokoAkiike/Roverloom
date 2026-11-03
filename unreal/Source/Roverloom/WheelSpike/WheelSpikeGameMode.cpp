@@ -387,9 +387,9 @@ void AWheelSpikeGameMode::Record(double DeltaSeconds, double WallFrameMs, const 
 		{
 			Header += FString::Printf(TEXT(",w%d_hit,w%d_comp_cm,w%d_fz,w%d_flong,w%d_flat,w%d_limit,w%d_spin_radps,w%d_target_radps,"
 				"w%d_motor,w%d_brake,w%d_vlong_cmps,w%d_vlat_cmps,w%d_slip_cmps,w%d_saturated,w%d_known_dv_long,w%d_known_dv_lat,"
-				"w%d_gravity_dv_long,w%d_end_slip_cmps,w%d_end_vlat_cmps,w%d_start_pen"),
+				"w%d_gravity_dv_long,w%d_end_slip_cmps,w%d_end_vlat_cmps,w%d_start_pen,w%d_friction_power,w%d_wheel_power"),
 				Index, Index, Index, Index, Index, Index, Index, Index, Index, Index, Index, Index, Index, Index, Index, Index, Index,
-				Index, Index, Index);
+				Index, Index, Index, Index, Index);
 		}
 		Rows.Add(Header);
 	}
@@ -412,11 +412,11 @@ void AWheelSpikeGameMode::Record(double DeltaSeconds, double WallFrameMs, const 
 	for (const AWheelRig::FWheelRecord& Wheel : Rig->GetRecords())
 	{
 		const FWheelResult& Result = Wheel.Result;
-		Row += FString::Printf(TEXT(",%d,%.4f,%.3f,%.3f,%.3f,%.3f,%.5f,%.5f,%.2f,%.2f,%.4f,%.4f,%.4f,%d,%.6f,%.6f,%.6f,%.6f,%.6f,%d"),
+		Row += FString::Printf(TEXT(",%d,%.4f,%.3f,%.3f,%.3f,%.3f,%.5f,%.5f,%.2f,%.2f,%.4f,%.4f,%.4f,%d,%.6f,%.6f,%.6f,%.6f,%.6f,%d,%.6e,%.6e"),
 			Wheel.Contact.bHit ? 1 : 0, Wheel.Contact.CompressionCm, Result.NormalForce, Result.LongForce, Result.LatForce,
 			Result.FrictionLimit, Wheel.SpinRadps, Wheel.TargetSpinRadps, Result.MotorTorque, Result.BrakeTorque, Result.LongVelocity,
 			Result.LatVelocity, Result.SlipCmps, Result.bSaturated ? 1 : 0, Result.KnownDvLong, Result.KnownDvLat, Result.GravityDvLong,
-			Result.EndSlipCmps, Result.EndLatVelocity, Wheel.bStartPenetrating ? 1 : 0);
+			Result.EndSlipCmps, Result.EndLatVelocity, Wheel.bStartPenetrating ? 1 : 0, Result.FrictionPower, Result.WheelPower);
 	}
 	Rows.Add(MoveTemp(Row));
 }
@@ -437,7 +437,7 @@ void AWheelSpikeGameMode::Finish(const FString& Outcome)
 	const FBodyState State = Rig ? Rig->GetLastBodyState() : FBodyState();
 	const FVector* Inv = State.InvInertia;
 	const FString Meta = FString::Printf(
-		TEXT("{\n  \"experiment\": \"unreal_wheel_model\",\n  \"solver\": \"coupled_pgs\",\n  \"not_for_scoring\": true,\n  \"outcome\": \"%s\",\n"
+		TEXT("{\n  \"experiment\": \"unreal_wheel_model\",\n  \"solver\": \"coupled_pgs_slip_friction\",\n  \"not_for_scoring\": true,\n  \"outcome\": \"%s\",\n"
 			 "  \"scenario\": \"%s\",\n  \"wheels\": %d,\n  \"pair\": %s,\n  \"sweep\": %s,\n  \"friction\": %.3f,\n  \"slope_deg\": %.3f,\n"
 			 "  \"step_cm\": %.1f,\n  \"spring_rate\": %.3f,\n  \"damper_rate\": %.3f,\n  \"motor_max_torque\": %.1f,\n"
 			 "  \"brake_max_torque\": %.1f,\n  \"mass_kg\": %.3f,\n  \"principal_inertia\": [%.1f, %.1f, %.1f],\n"

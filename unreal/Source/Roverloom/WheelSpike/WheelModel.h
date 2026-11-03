@@ -73,7 +73,9 @@ namespace RoverloomWheel
 		double GravityDvLong = 0.0;    // Gravity's part of KnownDvLong
 		double EndSlipCmps = 0.0;      // Predicted at the end of the step, with the solved forces
 		double EndLatVelocity = 0.0;
-		bool bSaturated = false;
+		double FrictionPower = 0.0;    // F . u at the end of the step; never positive
+		double WheelPower = 0.0;       // Motor or brake torque times end spin
+		bool bSaturated = false;       // Sliding: the force is on the friction circle
 	};
 
 	struct FSolveStats
@@ -86,6 +88,10 @@ namespace RoverloomWheel
 	// Spring rate for a static compression under a load, and damper rate for a damping ratio.
 	double SpringRateFor(double LoadForce, double StaticCompressionCm);
 	double DamperRateFor(double SpringRate, double SprungMassKg, double DampingRatio);
+
+	// The tangential force on the disk |F| <= Limit that minimizes 0.5 F'WF + A'F, for an end-of-step slip u = A + W F with
+	// W symmetric positive definite. Inside the disk u = 0 (stick). On its edge u = -lambda F (slide), opposing the slip.
+	FVector2D SolveContactFriction(const FVector2D& A, double W00, double W01, double W11, double Limit, bool& bOutSliding);
 
 	// Solves every wheel's ground force together for one step, and advances each wheel's spin by Dt.
 	// Normal loads come from the suspension. Traction is bounded by mu Fz and torques by their limits.

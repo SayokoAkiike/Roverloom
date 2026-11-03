@@ -86,7 +86,31 @@ def common(rows: list[dict[str, float]], meta: dict[str, Any]) -> dict[str, Any]
     if "solve_passes" in rows[0]:
         result["max_solve_passes"] = max(r["solve_passes"] for r in rows)
         result["unconverged_steps"] = sum(1 for r in rows if r["solve_converged"] != 1)
+    # Report only, from attempt 3: friction power F.u over mu Fz, a slip speed that must not be
+    # positive, and the angle between each sliding force and the direction opposing its slip.
+    if "w0_friction_power" in rows[0]:
+        result["max_friction_power_over_limit_cmps"] = max(
+            r[f"w{i}_friction_power"] / r[f"w{i}_limit"]
+            for r in rows
+            for i in range(wheels(rows))
+            if r[f"w{i}_limit"] > 0
+        )
+        result["max_slide_angle_deg"] = max(
+            [slide_angle(r, i) for r in rows for i in range(wheels(rows)) if r[f"w{i}_saturated"]],
+            default=None,
+        )
     return result
+
+
+def slide_angle(row: dict[str, float], i: int) -> float:
+    """Angle between a sliding force and minus its end-of-step slip, from rounded CSV values."""
+    force = (row[f"w{i}_flong"], row[f"w{i}_flat"])
+    opposing = (row[f"w{i}_end_slip_cmps"], -row[f"w{i}_end_vlat_cmps"])
+    cross = force[0] * opposing[1] - force[1] * opposing[0]
+    dot = force[0] * opposing[0] + force[1] * opposing[1]
+    if math.hypot(*opposing) < 1e-3:
+        return 0.0
+    return math.degrees(math.atan2(abs(cross), dot))
 
 
 def mean(rows: list[dict[str, float]], key: str) -> float:
