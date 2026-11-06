@@ -12,10 +12,10 @@
 #include "Engine/World.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/WorldSettings.h"
-#include "Materials/MaterialInstanceDynamic.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 
 #include "../Roverloom.h"
+#include "Greybox.h"
 #include "RoverDrive.h"
 #include "RoverHud.h"
 #include "RoverPawn.h"
@@ -92,10 +92,7 @@ AActor* ARoverPlaygroundGameMode::SpawnBlock(const FVector& Center, const FRotat
 	Mesh->SetPhysMaterialOverride(GroundMaterial);
 	Block->FinishSpawning(Transform);
 	++BlocksSpawned;
-	if (UMaterialInstanceDynamic* Material = Mesh->CreateDynamicMaterialInstance(0))
-	{
-		Material->SetVectorParameterValue(TEXT("Color"), Color);
-	}
+	RoverloomGreybox::Paint(Mesh, Color, 0.9f); // Matte regolith and rock
 	return Block;
 }
 

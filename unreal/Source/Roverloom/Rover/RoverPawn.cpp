@@ -17,7 +17,6 @@
 #include "InputCoreTypes.h"
 #include "InputMappingContext.h"
 #include "InputModifiers.h"
-#include "Materials/MaterialInstanceDynamic.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
@@ -29,6 +28,7 @@
 #include "../Bridge/Frames.h"
 #include "../Roverloom.h"
 #include "../WheelSpike/WheelRig.h"
+#include "Greybox.h"
 #include "RoverDrive.h"
 
 using namespace RoverloomCommand;
@@ -44,13 +44,9 @@ namespace
 	const double FreeCameraLiftCmps = 400.0;
 	const double LookDegPerUnit = 0.15;
 
-	void Tint(UStaticMeshComponent* Mesh, const FLinearColor& Color)
+	void Tint(UStaticMeshComponent* Mesh, const FLinearColor& Color, float Roughness = 0.5f)
 	{
-		// BasicShapeMaterial exposes one vector parameter, "Color".
-		if (UMaterialInstanceDynamic* Material = Mesh->CreateDynamicMaterialInstance(0))
-		{
-			Material->SetVectorParameterValue(TEXT("Color"), Color);
-		}
+		RoverloomGreybox::Paint(Mesh, Color, Roughness);
 	}
 }
 
