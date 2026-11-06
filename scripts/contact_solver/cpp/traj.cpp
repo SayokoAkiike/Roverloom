@@ -1,9 +1,11 @@
 // Short trajectories of the six-wheel rig in C++, mirroring scripts/contact_solver/simulate.py step for step. Not gated.
 //
-//   traj <out dir>
+//   traj <out dir> [--round-f32]
 //
 // Same rig, rays to a plane, scenarios, command schedule, and Chaos's step order as the Python stand-in. Writes one CSV
 // per method, scenario, and rate, with every step's state, contact states, net wrench, energy, residual, and solve time.
+// --round-f32 rounds each contact point to the nearest 32-bit float before the solve, as a test of single-precision
+// contact points (docs/results/unreal-wheel-model/stall-geometry.md). Without it, nothing changes.
 #include "wheel_solver.h"
 
 #include <chrono>
@@ -91,7 +93,7 @@ namespace
 		bool Pgs;
 	};
 
-	void Run(const Method& M, const Scenario& S, int Rate, const std::string& Dir)
+	void Run(const Method& M, const Scenario& S, int Rate, const std::string& Dir, bool RoundF32)
 	{
 		const double Dt = 1.0 / Rate;
 		const double Slope = S.Slope * M_PI / 180;
@@ -147,6 +149,7 @@ namespace
 				for (int K = 0; K < 3; ++K)
 				{
 					W.Point[K] = Mp[K] - Dist * Up[K];
+					if (RoundF32) W.Point[K] = static_cast<double>(static_cast<float>(W.Point[K]));
 					VMount[K] = Vel[K] + Wo[K];
 				}
 				W.Normal[0] = 0;
@@ -234,6 +237,7 @@ int main(int Argc, char** Argv)
 {
 	if (Argc < 2) return 2;
 	const std::string Dir = Argv[1];
+	const bool RoundF32 = Argc > 2 && std::string(Argv[2]) == "--round-f32";
 	DOptions Py; // As the Python prototype
 	DOptions Imp = Py;
 	Imp.FloorStiffSlip = true;
@@ -247,7 +251,8 @@ int main(int Argc, char** Argv)
 		{"D_imp_1ms", Imp1, false}};
 	for (const Method& M : Methods)
 		for (const Scenario& S : Scenarios)
-			for (int Rate : {60, 120}) Run(M, S, Rate, Dir);
-	std::printf("wrote %zu runs to %s\n", std::size(Methods) * std::size(Scenarios) * 2, Dir.c_str());
+			for (int Rate : {60, 120}) Run(M, S, Rate, Dir, RoundF32);
+	std::printf("wrote %zu runs to %s%s\n", std::size(Methods) * std::size(Scenarios) * 2, Dir.c_str(),
+		RoundF32 ? ", contact points rounded to 32-bit floats" : "");
 	return 0;
 }

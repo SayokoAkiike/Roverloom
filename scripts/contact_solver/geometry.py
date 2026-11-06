@@ -235,7 +235,7 @@ def variant(s: State, name: str, rng: random.Random) -> State:
     return out
 
 
-def align_pairs(s: State) -> State:
+def align_pairs(s: State, below: float = math.inf) -> State:
     """Exploratory, not registered: move each pair's second point along x to match the first."""
     out = s.copy()
     if len(s.contacts()) < 3:
@@ -245,6 +245,8 @@ def align_pairs(s: State) -> State:
         if s.hit(a) and s.hit(b):
             pa, pb = s.vec(a, "point"), s.vec(b, "point")
             shift = dot(sub(pa, s.com), x) - dot(sub(pb, s.com), x)
+            if abs(shift) >= below:
+                continue
             out.set_vec(b, "point", [pb[i] + shift * x[i] for i in range(3)])
     return out
 
@@ -265,10 +267,12 @@ def explore(states: list[State], out: Path) -> dict[str, Any]:
         predicted = abs(yaw * dx) / math.sqrt(2)  # slip difference along (1, -1)/sqrt(2)
         ratios.append(float(base[i]["null_slip"]) / predicted if predicted > 0 else float("nan"))
     report: dict[str, Any] = {"null_slip_over_yaw_times_dx": quantiles(ratios)}
-    aligned = out / "solved_X1.csv"
-    if aligned.exists():
+    for name in ("X1", "X2"):
+        aligned = out / f"solved_{name}.csv"
+        if not aligned.exists():
+            continue
         rows = read_solved(aligned)
-        report["X1"] = {
+        report[name] = {
             "resolved": sum(float(rows[i]["natural"]) <= TARGET for i in stalled),
             "broken": sum(float(rows[i]["natural"]) > TARGET for i in converged),
             "S_natural": quantiles([float(rows[i]["natural"]) for i in stalled]),
@@ -401,7 +405,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument("step", choices=("variants", "summary", "explore-variant", "explore"))
+    parser.add_argument(
+        "step", choices=("variants", "summary", "explore-variant", "confirm-variant", "explore")
+    )
     parser.add_argument("--states", type=Path, required=True)
     parser.add_argument("--stalls", type=Path)
     parser.add_argument("--out", type=Path, required=True)
@@ -414,6 +420,11 @@ def main() -> int:
     if args.step == "explore-variant":
         lines = [align_pairs(s).line() for s in states]
         (args.out / "states_X1.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
+        return 0
+    if args.step == "confirm-variant":
+        # X2, registered after X1: align only pairs whose offset is below 1e-4 cm.
+        lines = [align_pairs(s, below=1e-4).line() for s in states]
+        (args.out / "states_X2.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
         return 0
     if args.step == "explore":
         found = explore(states, args.out)

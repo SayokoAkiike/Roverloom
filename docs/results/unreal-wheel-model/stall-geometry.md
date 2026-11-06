@@ -243,6 +243,96 @@ rounding check uses the stand-in rig, which is not the engine.
 - **Not enough** if the turn has none with the flag at either rate. Otherwise, inconclusive.
 - **What it does not show:** that the engine rounds. That is the question in the next section.
 
+## Follow-up results, 2026-11-07
+
+Same machine and build as above. Both checks took seconds. New files only: `states_X2.txt`, `solved_X2.csv`, and an
+updated `explore.json` in `geomprobe-20261107/`, with the earlier file kept as `explore-before-x2.json`; and the new
+batch `f32-20261107/`.
+
+### X2: supports the hypothesis, on the same data
+
+| Measure | Result | Rule |
+| --- | --- | --- |
+| S resolved | 35 of 37, natural residual 3.5e-16 at the median | At least 30 |
+| A broken | 0 of 1,583 | At most 15 |
+| Largest velocity change in S | 6.1e-7 cm/s | Reported |
+| Left unresolved | `c2_120` steps 78 and 79, where all six wheels stick and hold | — |
+
+X1's numbers in `explore.json` are unchanged by the rerun. **As registered, X2 is not independent:** it confirms that
+the hypothesis fits these 37 states, after it was formed on them.
+
+### F32: rounding is enough to cause the floor, in the stand-in rig
+
+**The flag changes nothing when off.** All 60 runs without it match the M4 Mac's runs of 2026-11-04 in every
+column but solve time.
+
+| Scenario, improved D alone | Steps | Stalled without rounding | Stalled with rounding | Worst residual with rounding | Largest position change |
+| --- | --- | --- | --- | --- | --- |
+| Turn, 60 Hz | 240 | 0 | **14 (5.8%)** | 1.8e-8 | 8.2e-12 cm |
+| Turn, 120 Hz | 480 | 0 | **112 (23.3%)** | 3.7e-8 | 2.3e-13 cm |
+| Straight, climb, hold, stop, drop, both rates | 180–360 each | 0 | 0 | at most 5.5e-16 | at most 1.1e-7 cm |
+
+**By the registered rule, rounding is enough.** The rate and size match the engine's: 26 of 120 steps, or 22%, in
+the steady turn at 120 Hz, with a worst residual of 4.8e-8.
+
+**What the floor costs is time, not accuracy.** In the rounded turn, against improved D alone without rounding:
+
+| Method | Velocity error, worst | Angular velocity error, worst | Steps at budget | Solve time, µs: median / p99 / worst |
+| --- | --- | --- | --- | --- |
+| D alone, 60 Hz | 1.5e-10 cm/s | 5.7e-7 °/s | 0 | 86 / 661 / 2,691 |
+| D with unbounded fallback, 120 Hz | 8.2e-12 cm/s | 3.0e-7 °/s | 0 | 84 / 46,298 / 53,451 |
+| D with a 1 ms budget, 120 Hz | 8.2e-12 cm/s | 3.0e-7 °/s | **112, every stalled step** | 83 / 995 / 1,001 |
+| A, gated PGS, 120 Hz | 4.7e-7 cm/s | 8.2e-7 °/s | 347 passes at their cap | 1,777 / 1,928 / 1,963 |
+
+- Each stalled step spends D's whole budget looking for a residual it cannot reach.
+- In each D run, one step's stick or slide pattern differs from the reference. A's do not. Its cause was not examined.
+- Times are from the MacBook Air, and are compared only with each other.
+
+### Where the offset comes from, from the code, read only
+
+**What the code shows** (`unreal/Source/Roverloom/WheelSpike/`):
+- `WheelSpikeGameMode.cpp` runs the six-wheel tests, `c3` included, with a sphere sweep, `bSweep = true`.
+- The ground is a 200 m by 200 m box with its top at z = 0, from `SpawnBlock`.
+- `WheelRig.cpp` computes each wheel's mount from the body's `FTransform` in double precision, sweeps a sphere
+  from it with `SweepSingleByChannel`, and sets `Contact.Point = Hit.ImpactPoint`.
+- The two middle mounts are mirror images through the body's center. In double precision their offsets along `x`
+  would agree to about 1e-14 cm, not 1e-5.
+- The normal, forward, and lateral directions are computed in the rig, in double precision, which fits M1 to M3
+  being exact.
+
+**What the data show:** 86% of contact point coordinates are exactly 32-bit floats, against 4 of 4,860 for the
+center of mass, whose value comes from the body in double precision.
+
+**Not checked, because the engine is not installed on this machine:**
+- `FHitResult::ImpactPoint`'s type in UE 5.8. From prior knowledge, not checked here: it is an `FVector_NetQuantize`,
+  which stores doubles and quantizes only when sent over a network. If so, the rounding happens before the result is
+  stored.
+- Whether Chaos's sphere-against-box sweep computes its contact point in single precision. **This is the likely
+  path, and it is a guess.**
+- Why 14% of point coordinates are not 32-bit values.
+
+**How to settle it, with approval:** read `HitResult.h` and Chaos's sweep code on the M4 Mac where UE 5.8.4 is
+installed, read only; or log, in the rig, the sweep's point beside the one computed from the mount, `Up`, distance,
+and radius in double precision, for one short run.
+
+## A proposal for gate G1, not adopted
+
+**G1's residual threshold is unchanged.** This section only proposes; the owner decides.
+
+What the data now say: the floor is single-precision geometry, its effect on motion is at most 6.2e-7 cm/s in the
+engine's states and 1.5e-10 cm/s in the stand-in, and its real cost is the time spent at the budget.
+
+| Option | What changes | Velocity error | Time | Safety | Change needed |
+| --- | --- | --- | --- | --- | --- |
+| **1. Condition the input** (recommended) | Before the solve, align a mirror pair's offset when below 1e-4 cm, as X2 does | At most 6.1e-7 cm/s, in S | Stalls removed in 35 of 37 states, so no budget spent there | Unchanged; `MakeSafe` still checks | A model change, so a new `model_version` for the rig, and owner approval |
+| 2. Judge D by outcomes | Replace "residual above 1e-8 on at most 1% of steps" with: velocity difference against a reference below 1e-5 cm/s, contact pattern equal, no `MakeSafe` rejection, and the time conditions | Measured directly | Budget hits allowed if time holds | Unchanged | A criterion change, recorded and dated before any shadow run |
+| 3. Double-precision contact points | Compute the point from the mount and the sweep distance in double | Expected as option 1 | Expected as option 1 | Unchanged | A model change; the engine's own rounding must first be confirmed |
+| 4. Keep everything | Nothing | — | D would fail G1 on about 22% of steps in a steady turn | — | None |
+
+**Recommendation:** option 1, with option 2's outcome measures recorded beside the residual in shadow mode, so that
+both are visible when the owner decides. Keep D's 1 ms budget in every case: the unbounded fallback took 46 ms at
+the 99th percentile in the rounded turn.
+
 ## Unresolved
 
 - Which engine call rounds the contact points, if any does.
