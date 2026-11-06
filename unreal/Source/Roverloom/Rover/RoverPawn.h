@@ -45,6 +45,10 @@ struct FRoverStatus
 	FString LastReset;
 	double StepDtS = 0.0;
 	bool bStepClamped = false;
+	// The last 10 s window of frames: mean and 95th percentile frame time, and the share of frames with focus.
+	double FrameMsMean = 0.0;
+	double FrameMsP95 = 0.0;
+	double FocusShare = 0.0;
 };
 
 // The playable six-wheel rover. It drives the WheelSpike rig (drive model P, provisional) through the one command path,
@@ -80,6 +84,7 @@ private:
 	void CreateInput();
 	void AddMappingContext();
 	void LogAndCapture(double NowS);
+	void RecordFrame(double DeltaSeconds);
 
 	void OnDrive(const FInputActionValue& Value);
 	void OnDriveReleased(const FInputActionValue& Value);
@@ -153,4 +158,11 @@ private:
 	bool bLoggedSettle = false;
 	FString ShotDir;
 	int32 ShotStep = 0;
+	// Frame timing over 10 s windows, logged for performance checks.
+	TArray<double> FrameMs;
+	double GameMsSum = 0.0;
+	double RenderMsSum = 0.0;
+	double GpuMsSum = 0.0;
+	int32 FocusFrames = 0;
+	double WindowStartS = -1.0;
 };

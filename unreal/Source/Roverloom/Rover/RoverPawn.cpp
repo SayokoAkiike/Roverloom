@@ -17,11 +17,15 @@
 #include "InputCoreTypes.h"
 #include "InputMappingContext.h"
 #include "InputModifiers.h"
+#include "DynamicRHI.h"
+#include "HAL/PlatformTime.h"
+#include "Misc/App.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "PhysicsEngine/PhysicsSettings.h"
+#include "RenderTimer.h"
 #include "UnrealClient.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -240,6 +244,7 @@ void ARoverPawn::ResetRig(const FString& Reason)
 void ARoverPawn::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+	RecordFrame(DeltaSeconds);
 	if (!Rig)
 	{
 		return;
@@ -309,6 +314,44 @@ void ARoverPawn::Tick(float DeltaSeconds)
 		Status.WheelsInContact += Record.Contact.bHit ? 1 : 0;
 	}
 	LogAndCapture(NowS);
+}
+
+void ARoverPawn::RecordFrame(double DeltaSeconds)
+{
+	// Wall time between frames, and the engine's own last-frame thread and GPU times.
+	const double NowS = FPlatformTime::Seconds();
+	if (WindowStartS < 0.0)
+	{
+		WindowStartS = NowS;
+		return;
+	}
+	FrameMs.Add(1000.0 * DeltaSeconds);
+	GameMsSum += FPlatformTime::ToMilliseconds(GGameThreadTime);
+	RenderMsSum += FPlatformTime::ToMilliseconds(GRenderThreadTime);
+	GpuMsSum += FPlatformTime::ToMilliseconds(RHIGetGPUFrameCycles());
+	FocusFrames += FApp::HasFocus() ? 1 : 0;
+	if (NowS - WindowStartS < 10.0)
+	{
+		return;
+	}
+	const int32 Count = FrameMs.Num();
+	double Sum = 0.0;
+	for (const double Ms : FrameMs)
+	{
+		Sum += Ms;
+	}
+	FrameMs.Sort();
+	Status.FrameMsMean = Sum / Count;
+	Status.FrameMsP95 = FrameMs[FMath::Min(Count - 1, FMath::FloorToInt32(0.95 * Count))];
+	Status.FocusShare = static_cast<double>(FocusFrames) / Count;
+	UE_LOG(LogRoverloom, Display,
+		TEXT("Rover frames: %d in %.1f s, %.1f fps, frame ms mean %.2f p95 %.2f max %.2f, game %.2f, render %.2f, GPU %.2f, focus %.0f%%, camera %s"),
+		Count, NowS - WindowStartS, Count / (NowS - WindowStartS), Status.FrameMsMean, Status.FrameMsP95, FrameMs.Last(), GameMsSum / Count,
+		RenderMsSum / Count, GpuMsSum / Count, 100.0 * Status.FocusShare, CameraName(Camera));
+	FrameMs.Reset();
+	GameMsSum = RenderMsSum = GpuMsSum = 0.0;
+	FocusFrames = 0;
+	WindowStartS = NowS;
 }
 
 void ARoverPawn::LogAndCapture(double NowS)

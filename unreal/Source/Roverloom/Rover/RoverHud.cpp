@@ -52,6 +52,11 @@ void ARoverHud::DrawHUD()
 											: TEXT("ok");
 	Line(FString::Printf(TEXT("Input      %s%s   Watchdog %s"), *S.Source, S.bClamped ? TEXT(" (clamped)") : TEXT(""), *Watchdog),
 		S.bHasCommanded && S.bWatchdogExpired ? Amber : White);
+	if (S.FrameMsMean > 0.0)
+	{
+		Line(FString::Printf(TEXT("Frame      %.1f ms mean, %.1f ms p95 (%.0f fps), last 10 s%s"), S.FrameMsMean, S.FrameMsP95,
+			1000.0 / S.FrameMsMean, S.FocusShare < 1.0 ? TEXT(", window not always in focus") : TEXT("")), White);
+	}
 	if (S.bStepClamped)
 	{
 		Line(FString::Printf(TEXT("Frame slower than the physics limit: step %.4f s"), S.StepDtS), Amber);
