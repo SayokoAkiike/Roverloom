@@ -212,6 +212,37 @@ yaw term, the yaw rate times the difference of their `r·x`. Along `(1, −1)/�
 4. **The two C2 states** stay unexplained. All six wheels stick and hold there, with 9 dependent directions. They
    need their own look, after 1 to 3.
 
+## Follow-up checks, registered on 2026-11-07 before running
+
+The owner approved both checks on 2026-11-07. Their rules are fixed here and committed before either runs.
+
+**Neither is independent.** X2 uses the same 37 states on which the hypothesis was formed, after the exploratory
+result was seen. It can show that the hypothesis is consistent with these data, and not that it holds elsewhere. The
+rounding check uses the stand-in rig, which is not the engine.
+
+### X2: align only near-mirror pairs
+
+- **Change.** As X1, but a mirror pair is aligned along `x` only when its offset is below **1e-4 cm**. Pairs with a
+  real offset, as at a step edge, are left alone.
+- **Solve.** Improved D alone, as above. New output in `geomprobe-20261107/`, as `states_X2.txt` and
+  `solved_X2.csv`. No existing file is changed.
+- **Supports the hypothesis** if at least 30 of 37 are resolved and at most 1% of A, 15 states, are broken.
+- **Does not support it** if 10 or fewer are resolved, or more than 1% are broken. Otherwise, inconclusive.
+
+### F32: single-precision contact points in the stand-in rig
+
+- **Change.** An optional flag for `traj.cpp` rounds each contact point to the nearest 32-bit float before the solve,
+  and uses the rounded point for the force's lever arm, as the engine rig uses `Contact.Point`. Without the flag,
+  `traj` behaves exactly as before.
+- **Runs.** All six scenarios at 60 and 120 Hz, with and without the flag, in a new batch `f32-20261107/`.
+  Both conditions are run fresh on this machine.
+- **Measure.** Steps where improved D alone ends with a natural residual above 1e-8, per scenario and rate; the
+  worst residual; and the largest position difference between the two conditions.
+- **Rounding is enough to cause the floor** if the turn has no such step without the flag, and has them on at least
+  1% of its steps with the flag, at 60 or 120 Hz.
+- **Not enough** if the turn has none with the flag at either rate. Otherwise, inconclusive.
+- **What it does not show:** that the engine rounds. That is the question in the next section.
+
 ## Unresolved
 
 - Which engine call rounds the contact points, if any does.
