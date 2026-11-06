@@ -18,6 +18,7 @@
 #include "InputMappingContext.h"
 #include "InputModifiers.h"
 #include "DynamicRHI.h"
+#include "RHIGlobals.h"
 #include "HAL/PlatformTime.h"
 #include "Misc/App.h"
 #include "Engine/Engine.h"
@@ -365,7 +366,8 @@ void ARoverPawn::LogRenderSettings(const TCHAR* When) const
 	// The effective values, after the command line, -ExecCmds, and scalability have all applied.
 	static const TCHAR* Names[] = {TEXT("r.VSync"), TEXT("t.MaxFPS"), TEXT("r.DynamicGlobalIlluminationMethod"), TEXT("r.ReflectionMethod"),
 		TEXT("r.Lumen.HardwareRayTracing"), TEXT("r.RayTracing"), TEXT("r.Shadow.Virtual.Enable"), TEXT("r.AntiAliasingMethod"),
-		TEXT("r.ScreenPercentage"), TEXT("r.DynamicRes.OperationMode"), TEXT("r.Nanite"), TEXT("r.MegaLights.Enable"),
+		TEXT("r.ScreenPercentage"), TEXT("r.ScreenPercentage.Default"), TEXT("r.ScreenPercentage.Default.Desktop.Mode"),
+		TEXT("r.DynamicRes.OperationMode"), TEXT("r.Nanite"), TEXT("r.MegaLights.Enable"),
 		TEXT("sg.ResolutionQuality"), TEXT("sg.ViewDistanceQuality"), TEXT("sg.AntiAliasingQuality"), TEXT("sg.ShadowQuality"),
 		TEXT("sg.GlobalIlluminationQuality"), TEXT("sg.ReflectionQuality"), TEXT("sg.PostProcessQuality"), TEXT("sg.TextureQuality"),
 		TEXT("sg.EffectsQuality"), TEXT("sg.FoliageQuality"), TEXT("sg.ShadingQuality")};
@@ -380,7 +382,9 @@ void ARoverPawn::LogRenderSettings(const TCHAR* When) const
 	{
 		Size = GEngine->GameViewport->Viewport->GetSizeXY();
 	}
-	UE_LOG(LogRoverloom, Display, TEXT("Rover render settings (%s): viewport=%dx%d%s"), When, Size.X, Size.Y, *Line);
+	// Whether the frame's GPU time excludes idle gaps between command buffers, as reported by the RHI.
+	UE_LOG(LogRoverloom, Display, TEXT("Rover render settings (%s): viewport=%dx%d gpu_frame_bubbles_removed=%d gpu_timestamp_bubbles_removed=%d%s"),
+		When, Size.X, Size.Y, GRHISupportsFrameCyclesBubblesRemoval ? 1 : 0, GRHISupportsGPUTimestampBubblesRemoval ? 1 : 0, *Line);
 }
 
 void ARoverPawn::LogAndCapture(double NowS)
@@ -399,6 +403,12 @@ void ARoverPawn::LogAndCapture(double NowS)
 	}
 	if (BenchSeconds > 0.0)
 	{
+		if (!bBenchProfiled && SinceReadyS >= BenchSeconds - 3.0)
+		{
+			// One frame of per-pass GPU timings, printed to the log by the engine.
+			bBenchProfiled = true;
+			GEngine->Exec(GetWorld(), TEXT("ProfileGPU"));
+		}
 		if (BenchShotS < 0.0 && SinceReadyS >= BenchSeconds)
 		{
 			BenchShotS = NowS;

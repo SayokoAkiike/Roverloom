@@ -170,4 +170,5 @@ private:
 	// the effective render settings logged again, and the game exits.
 	double BenchSeconds = 0.0;
 	double BenchShotS = -1.0;
+	bool bBenchProfiled = false;
 };
