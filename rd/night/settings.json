@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": ["Read", "Glob", "Grep", "Write", "Edit", "MultiEdit", "Bash", "WebSearch", "WebFetch", "TodoWrite", "mcp__unreal-night"],
+    "deny": ["NotebookEdit"]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {"matcher": "*", "hooks": [{"type": "command", "command": "/usr/bin/python3 \"$CLAUDE_PROJECT_DIR\"/rd/night/hook.py"}]}
+    ]
+  }
+}

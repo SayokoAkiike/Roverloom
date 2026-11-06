@@ -1,8 +1,8 @@
 {
   "_about": "The single source of every limit and setting for the autonomous R&D Director and the night visual factory. Changed only by the owner, as a new version; a night never edits it. See docs/autonomous-rd-director.md.",
-  "version": "0.1-stage0",
+  "version": "0.2-stage1-prep",
   "approved_by_owner": false,
-  "stage": 0,
+  "stage": 1,
   "night": {
     "max_cycles": 3,
     "max_minutes": 120,
@@ -16,7 +16,7 @@
   },
   "mini": {
     "root": "~/RoverloomNight",
-    "engine": "~/UnrealEngineInstall/UE_5.8",
+    "engine": "/Users/Shared/UE_5.8-night",
     "mcp_port": 8100,
     "min_free_memory_pct": 20,
     "max_swap_growth_gb": 2.0,
@@ -29,18 +29,25 @@
     "graceful_stop_wait_s": 30,
     "automation_filter": "Roverloom.Rover+Roverloom.Bridge+Roverloom.Module",
     "write_protected": [
-      "~/Roverloom",
-      "~/Roverloom-backup-20261107",
       "~/RoverloomNight/bin",
       "~/RoverloomNight/repo.git",
       "~/.ssh",
       "~/Library/LaunchAgents",
-      "~/Library/Logs/Unreal Engine/RoverloomEditor",
-      "~/UnrealEngineInstall"
-    ]
+      "/Users/Shared/UE_5.8-night",
+      "/Users/Shared/rdnight-setup"
+    ],
+    "user": "rdnight",
+    "read_protected": [
+      "~/.ssh",
+      "/Users/Shared/rdnight-setup"
+    ],
+    "network_outbound": "loopback only"
   },
   "evaluation": {
-    "resolution": [1600, 900],
+    "resolution": [
+      1600,
+      900
+    ],
     "perf_mode": "exclusive fullscreen, uncapped",
     "gpu_regression_budget_ms": 0.5,
     "max_variants_per_cycle": 3
@@ -48,7 +55,19 @@
   "priorities": {
     "deadline_first": "G2 formally done: run logs scored by the Python Mission Core",
     "starvation_nights": 5,
-    "propose_only": ["model K", "method D", "hold or resume of a theme", "change of project direction", "architecture change"]
+    "propose_only": [
+      "model K",
+      "method D",
+      "hold or resume of a theme",
+      "change of project direction",
+      "architecture change"
+    ],
+    "night_domains": [
+      "Verification",
+      "Visual",
+      "Gameplay"
+    ],
+    "physics_scope": "measure drive model P and draft phase G registrations only; no change to P; model K and method D only as proposals"
   },
   "protected_repo_paths": [
     "python/src/roverloom/scoring.py",
@@ -65,5 +84,11 @@
     "assets of unconfirmed license",
     "stopping or signaling a process the night did not start",
     "edits to scoring, gates, registered criteria, phase C records, or raw research data"
-  ]
+  ],
+  "_billing": "The Air uses a claude.ai subscription login, not an API key. usd_* caps are compared with Claude Code's list-price estimate (--max-budget-usd, total_cost_usd), not with billing. The wrapper removes ANTHROPIC_API_KEY from each cycle's environment. Caps stay null until the owner sets them; a real night refuses to start while they are null.",
+  "air": {
+    "state_dir": "~/.roverloom-rd",
+    "night_root": "~/RoverloomNightAir",
+    "base_ref": "origin/feature/unreal-project"
+  }
 }

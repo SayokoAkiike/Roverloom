@@ -1,0 +1,17 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["domain", "task", "registered_checks", "result", "failure_signature", "evidence", "builds", "unreal_launches", "findings", "next"],
+  "properties": {
+    "domain": {"enum": ["Verification", "Visual", "Gameplay", "Physics", "Research"]},
+    "task": {"type": "string", "maxLength": 300},
+    "registered_checks": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "result": {"enum": ["kept", "discarded", "no-change", "failed", "skipped"]},
+    "failure_signature": {"type": ["string", "null"], "maxLength": 200},
+    "evidence": {"type": "array", "items": {"type": "string"}},
+    "builds": {"type": "integer", "minimum": 0},
+    "unreal_launches": {"type": "integer", "minimum": 0},
+    "findings": {"type": "array", "items": {"type": "string"}},
+    "next": {"type": "string", "maxLength": 300}
+  }
+}

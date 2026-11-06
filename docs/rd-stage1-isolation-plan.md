@@ -1,7 +1,8 @@
 # Night factory: isolation plan for Stage 1
 
-**Status: a plan, 2026-11-07. Nothing in it is done.** Creating a user, changing Remote Login, the firewall, or any
-system setting waits for the owner's approval. Stage 0 is recorded in [results/rd-stage0](results/rd-stage0/README.md);
+**Status, 2026-11-07: approved by the owner; in progress.** Done: the engine clone, the night user's script and keys
+staged, the Air side built and tested in fake mode. Waiting for the owner: creating the user, removing the night key
+from the owner's account, and the firewall, in [`rd/mini/OWNER-STEPS.md`](../rd/mini/OWNER-STEPS.md). No night has run. Stage 0 is recorded in [results/rd-stage0](results/rd-stage0/README.md);
 the design in [autonomous-rd-director.md](autonomous-rd-director.md).
 
 ## What the checks after Stage 0 measured
@@ -85,3 +86,22 @@ decides to remove it. The shared Zen cache will no longer be shared once the nig
    graphical session.
 3. The owner chooses an option in B.
 4. The Air side is built: wrapper, hook, worktree, watcher; and the owner approves the charter and spending caps.
+
+## Progress after approval, 2026-11-07
+
+| Item | State |
+| --- | --- |
+| Engine for the night | **Done:** `/Users/Shared/UE_5.8-night`, an APFS clone (`cp -c`) of the owner's engine. 265,174 files; a hash over every file's size, mode, and path equals the original's, as do the main binaries' hashes; 149 MB of disk used, not 43 GB; the original unchanged. Owned by the owner, so the night user can read but not write it. Sharing the original instead would have needed traversal of the owner's home, exposing its world-readable files |
+| Night user script | **Staged** in `/Users/Shared/rdnight-setup/` with the two public keys; `rd/mini/create-night-user.sh`. Run by the owner |
+| Night area for the night user | `rd/mini/install-night-area.sh`, run as `rdnight`; renders `night.sb` from the charter. A test render found and fixed a template bug that broke the profile |
+| Air side | **Built:** `rd/night/`; 35 tests pass in fake mode, covering the hook policy and every stop rule; the Air sandbox keeps Claude Code logged in while refusing the owner's other SSH keys and writes to the owner's clone. Not run against a model |
+| Billing | The Air uses a claude.ai login; `ANTHROPIC_API_KEY` is not set. Caps compare with Claude Code's list-price estimate, not billing, and stay unset until the owner sets them |
+| Firewall | Procedure with an automatic 15-minute revert, in `OWNER-STEPS.md`. Not run |
+
+Residual risks found while building:
+- **The Air-side Keychain cannot be denied** to the night's Claude Code process: Claude Code's login is there, and
+  denying it logged Claude Code out. Other Keychain items normally need the creating app or a confirmation that no one
+  can give at night.
+- The hook does not stop a program such as `python3` from writing where the sandbox allows; the sandbox, not the hook,
+  protects the owner's files.
+- Any user's `ps` shows other users' command lines on macOS; the night user can see the owner's process arguments.
