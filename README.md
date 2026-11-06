@@ -96,6 +96,7 @@ Run these from `python/`.
 - [Evaluator Safety](docs/evaluator-safety.md)
 - [macOS Setup and Checklist](docs/macos-checklist.md)
 - [Mac Unreal Plan](docs/mac-unreal-plan.md)
+- [Product Quality Vision](docs/product-quality-vision.md) and [Release Gates](docs/release-gates.md), plans only
 
 ## Repository layout
 

@@ -2,9 +2,13 @@
 
 Checked items exist and are tested on the lightweight backend, or, where marked, recorded by hand on the Mac. Everything else is a plan.
 
+The target for the Unreal work is a playable alpha: one site, one six-wheel rover, one 15–25 minute mission. Its quality
+targets are in [product-quality-vision.md](product-quality-vision.md), and its gates, G0 to G7, in
+[release-gates.md](release-gates.md). Phases 1 and 2 below are its first parts.
+
 ## Phase 0: Foundation (in progress)
 
-- [x] Private repository, documentation, Git LFS, and CI configuration
+- [x] Repository (public since 2026-11-06), documentation, Git LFS, and CI configuration
 - [x] Draft data contracts and contract tests
 - [x] Unreal Engine 5.8 and C++ toolchain installed, on the M4 Mac (recorded by hand)
 - [x] Unreal MCP verified with a read-only call, on the M4 Mac (recorded by hand)
