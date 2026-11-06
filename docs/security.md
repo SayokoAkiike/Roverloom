@@ -40,7 +40,8 @@ been done.**
 
 ## Reporting
 
-The repository is private. A public reporting process must be added before release.
+The repository has been public since 2026-11-06. No public reporting process exists yet; one must be added before
+release.
 
 ## Never commit
 

@@ -36,7 +36,7 @@ state.
 | C++ PGS (method A) against the engine's own forces | Natural residual identical to 3.6e-14 on every state |
 | C++ D, written as the Python prototype (`D_py`), against Python D | Velocities within 2.5e-9 on every state |
 | Steps where `D_py` falls back to PGS | 158, the same count as Python |
-| C++ unit tests, `tests` | 37 checks, 0 failures: D alone reaches 1e-12 on four synthetic states with both multiplier kinds; limits, friction work, and energy identity hold; D and a converged PGS give the same velocities to 3e-13 or better; a sliding force opposes its slip |
+| C++ unit tests, `tests` | 37 checks, 0 failures: D alone reaches 1e-12 on four synthetic states with both multiplier kinds; limits, friction work, and energy identity hold; D and a converged PGS give the same velocities to 3e-13 or better; a sliding force opposes its slip. The [verification](solver-d-verification.md) later added five safety checks, for 42 |
 | Python unit tests, `test_contact_solver.py` (not run by CI) | 7 tests, OK, 7.3 s, on 2026-11-04 |
 
 ## Improving D, and what did not work
@@ -165,8 +165,11 @@ When a cap is reached, the best answer so far is returned, and `BudgetHit` says 
 
 ## Unresolved
 
-- **The turn's stall.** The 37 steady-turn states stall between 1e-8 and 4.8e-8. Their cause is not proven.
+- **The turn's stall.** The 37 steady-turn states stall between 1e-8 and 4.8e-8. The
+  [verification](solver-d-verification.md#why-37-states-stall-above-1e-8) traced this to dependent, slightly
+  inconsistent constraints; where that inconsistency comes from is not established.
 - **Untested inside Unreal.** Its 60 Hz frame, threads, and other work may change the times above.
-- **No trajectories.** D has not driven a trajectory in C++. Its step-by-step stability over time was only shown in
-  Python.
+- **Trajectories only in the stand-in rig.** The [verification](solver-d-verification.md#c-short-trajectories) later
+  drove D in C++ through six scenarios of the symmetric Python stand-in rig. No trajectory in the engine's own contact
+  geometry has been run.
 - **The target is a choice.** 1e-8 has not been registered as a criterion, and changing it needs the owner.
