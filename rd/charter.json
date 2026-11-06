@@ -1,0 +1,69 @@
+{
+  "_about": "The single source of every limit and setting for the autonomous R&D Director and the night visual factory. Changed only by the owner, as a new version; a night never edits it. See docs/autonomous-rd-director.md.",
+  "version": "0.1-stage0",
+  "approved_by_owner": false,
+  "stage": 0,
+  "night": {
+    "max_cycles": 3,
+    "max_minutes": 120,
+    "same_failure_limit": 2,
+    "max_builds": 4,
+    "max_unreal_launches": 8,
+    "owner_skips_before_stop": 3,
+    "watcher_interval_s": 30,
+    "usd_per_cycle": null,
+    "usd_per_night": null
+  },
+  "mini": {
+    "root": "~/RoverloomNight",
+    "engine": "~/UnrealEngineInstall/UE_5.8",
+    "mcp_port": 8100,
+    "min_free_memory_pct": 20,
+    "max_swap_growth_gb": 2.0,
+    "owner_idle_min_s": 900,
+    "game_seconds_min": 10,
+    "game_seconds_max": 600,
+    "game_timeout_extra_s": 180,
+    "build_timeout_s": 1800,
+    "test_timeout_s": 900,
+    "graceful_stop_wait_s": 30,
+    "automation_filter": "Roverloom.Rover+Roverloom.Bridge+Roverloom.Module",
+    "write_protected": [
+      "~/Roverloom",
+      "~/Roverloom-backup-20261107",
+      "~/RoverloomNight/bin",
+      "~/RoverloomNight/repo.git",
+      "~/.ssh",
+      "~/Library/LaunchAgents",
+      "~/Library/Logs/Unreal Engine/RoverloomEditor",
+      "~/UnrealEngineInstall"
+    ]
+  },
+  "evaluation": {
+    "resolution": [1600, 900],
+    "perf_mode": "exclusive fullscreen, uncapped",
+    "gpu_regression_budget_ms": 0.5,
+    "max_variants_per_cycle": 3
+  },
+  "priorities": {
+    "deadline_first": "G2 formally done: run logs scored by the Python Mission Core",
+    "starvation_nights": 5,
+    "propose_only": ["model K", "method D", "hold or resume of a theme", "change of project direction", "architecture change"]
+  },
+  "protected_repo_paths": [
+    "python/src/roverloom/scoring.py",
+    "docs/release-gates.md",
+    "docs/results/unreal-wheel-model/",
+    "docs/results/unreal-physics-spike/",
+    "schemas/",
+    "rd/charter.json"
+  ],
+  "forbidden": [
+    "push or merge to any GitHub branch",
+    "paid API calls",
+    "uploads to external services",
+    "assets of unconfirmed license",
+    "stopping or signaling a process the night did not start",
+    "edits to scoring, gates, registered criteria, phase C records, or raw research data"
+  ]
+}

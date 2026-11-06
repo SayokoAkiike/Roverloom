@@ -1,7 +1,10 @@
 # Autonomous R&D Director and night visual factory: design
 
-**Status: a design, 2026-11-07. Nothing here is built, scheduled, or running.** No night clone, launch agent, key, or hook
-exists yet. It adds an unattended night mode beside the present workflow, where the owner approves each step. It replaces
+**Status: a design, 2026-11-07. Stage 0 is complete on the Mac mini, including a final integration test with the
+night key. Stage 1 is blocked: night processes can still read the owner's credentials.** No night loop has run, and
+nothing is scheduled. See the [Stage 0 record](results/rd-stage0/README.md), which lists what must close first. Every limit and setting lives in one file,
+[`rd/charter.json`](../rd/charter.json); this page names charter keys instead of repeating values. The repository is
+private; it still holds no secrets or host names. It adds an unattended night mode beside the present workflow, where the owner approves each step. It replaces
 nothing, and every decision marked "owner" stays with the owner.
 
 ## Purpose and priorities
@@ -64,7 +67,7 @@ No fixed shares. Work is ordered by:
 1. owner-set deadlines (G2 now);
 2. the dependency graph of the gates (a domain blocking another's gate ranks higher);
 3. research need: open questions whose answer a near decision depends on;
-4. a starvation check: any domain with an open gate and no progress for five nights is raised in the report, with a
+4. a starvation check: any domain with an open gate and no progress for `priorities.starvation_nights` nights is raised in the report, with a
    proposal.
 
 ### Ranking candidate tasks
@@ -77,7 +80,7 @@ Tasks on held themes are blocked.
 ### What it never does
 
 - Edit scoring, `MODEL_VERSION`, `SCORING_VERSION`, gate thresholds, registered criteria, phase C records, finished
-  experiment records, or raw research data. These paths are listed with SHA-256 hashes in the charter, checked at
+  experiment records, or raw research data. These paths are listed in the charter's `protected_repo_paths`, hashed and checked at
   start and end of every night, and blocked by hook.
 - Present a check as run when it did not run, or a person's judgment as received when it was not.
 
@@ -85,8 +88,8 @@ Tasks on held themes are blocked.
 
 - **The present dry run is retrospective. It shows the rules can reproduce one past decision; it does not show they
   predict.** The thresholds were chosen knowing the outcome.
-- Before the first night, rules, weights, and limits are written in `rd/charter.yaml` and committed by the owner. The
-  Director reads the charter's commit hash into every decision record.
+- Before the first night, the owner reviews `rd/charter.json`, sets `approved_by_owner`, and commits it. The Director
+  reads the charter's commit hash into every decision record.
 - **Validation on cases it has not seen:** before the charter is frozen, the owner writes three to five short case files
   from projects or periods the rules were not tuned on, including at least one where persisting paid off. A separate
   agent with no access to the charter's rationale runs the review on them. The charter is changed only by the owner,
@@ -139,13 +142,15 @@ rd/bin/night.sh            wrapper, limits, report        work/                 
 - **Shared per-user state, handled explicitly.** Both projects are named `Roverloom`, so default logs go to the same
   `~/Library/Logs/Unreal Engine/RoverloomEditor/`, where a new run rotates the owner's log. Night runs always pass
   `-abslog=` into `evidence/`. The derived data cache is shared, which is safe: it only caches.
-- **MCP on another port.** The night editor starts with `-ModelContextProtocolStartServer -ModelContextProtocolPort=8100`,
-  so a night client can never reach an owner's editor on 8000. The night SSH key forwards only `127.0.0.1:8100`.
-- **One night key with a forced command.** A new key, used only at night, is installed in the Mac mini's
-  `authorized_keys` with `command="~/RoverloomNight/bin/dispatch",permitopen="127.0.0.1:8100",no-agent-forwarding,no-X11-forwarding,no-pty`.
-  `dispatch` accepts a fixed set of verbs: `status`, `lock`, `unlock`, `sync`, `build`, `test`, `game`, `bench`,
-  `editor-start`, `editor-stop-own`, `shots`, `fetch-evidence`, `memory`, and `git-receive-pack` for `repo.git` only.
-  Everything else is refused and logged.
+- **MCP on its own port,** `mini.mcp_port`, loopback only, so a night client can never reach an owner's editor on the
+  default port. The night SSH key may forward only to that port.
+- **Four boundaries, not one.** (1) The night key's `authorized_keys` line is `restrict`, with a forced command and a
+  single `permitopen`, so it can neither open a shell nor forward elsewhere. (2) The dispatcher accepts fixed verbs with
+  validated arguments and runs programs from argument lists, never a shell. (3) Every Unreal process runs under
+  `sandbox-exec` with a profile, rendered from `mini.write_protected`, so the kernel refuses writes to the owner's clone,
+  research data, the dispatcher, `~/.ssh`, launch agents, the engine, and the owner's Unreal logs. **Reads and network
+  are not yet restricted;** closing that, or moving the night to its own macOS user, is a condition for Stage 1. (4) All night paths are
+  fixed under `mini.root`. The verbs and the install are in [`rd/mini/README.md`](../rd/mini/README.md).
 - **Moving code.** The Air commits to `rd/night-<date>` and pushes to `repo.git` on the Mac mini, not to GitHub. The night
   worktree fetches from there.
 - **Isolation of assets.** Maps and assets made at night go under `/Game/Night/` in the night clone only. They are LFS
@@ -153,11 +158,11 @@ rd/bin/night.sh            wrapper, limits, report        work/                 
 
 ## Mutual exclusion with the owner
 
-Before every Unreal step, `dispatch` checks, in this order, and skips the step if any holds:
+Before every Unreal step, `dispatch` checks, in this order, and refuses the step, before creating anything, if any holds:
 1. any `UnrealEditor` or `UnrealEditor-Cmd` process not started by the night (by PID file) is running;
-2. `unreal.lock` is held by another night step;
-3. the owner is at the Mac mini: HID idle time under 15 minutes, read from `ioreg` without administrator rights;
-4. free memory below 20%, or swap grew by more than 2 GB since the night started.
+2. `unreal.lock` is held by a live night step;
+3. the owner used the Mac mini within `mini.owner_idle_min_s`, read from `ioreg` without administrator rights;
+4. free memory is below `mini.min_free_memory_pct`.
 
 **The night never stops, kills, or signals a process it did not start.** It stops only its own, by PID, and only
 gracefully, as the benchmark did.
@@ -167,22 +172,22 @@ gracefully, as the benchmark did.
 | Method | Used for | Why |
 | --- | --- | --- |
 | **C++ game modes and command-line modes** (`-RoverBench`, `-RoverShotDir`, and a planned `-RoverShotSet`) | All evaluation runs | Reproducible from source; no asset; already measured |
-| **Unreal MCP** on port 8100 | Exploring a scene: placing actors, setting properties, capturing the viewport | Fast to try; results must then be written as C++, a script, or a saved night map to count |
+| **Unreal MCP** on `mini.mcp_port` | Exploring a scene: placing actors, setting properties, capturing the viewport | Fast to try; results must then be written as C++, a script, or a saved night map to count |
 | **Editor Python** with `-ExecutePythonScript` | Batch edits a night repeats | Versioned, reviewable |
 | **`Build.sh`** for `RoverloomEditor` | Builds | The editor must be closed: the night closes only its own |
 
-Known open questions for stage 0: whether Metal renders at full rate with the display asleep or the screen locked (an
-occluded window ran at about 1.5 fps on 2026-11-07), and whether `-RenderOffscreen` works on macOS.
+Stage 0 found that a game launched from the SSH session renders, and that with the display asleep it renders **uncapped**,
+matching exclusive fullscreen. Screen lock is untested, and `-RenderOffscreen` is untried.
 
 ## Evaluation
 
-Each cycle compares a baseline, from the night branch's tip, and up to three variants, under the same conditions.
+Each cycle compares a baseline, from the night branch's tip, and up to `evaluation.max_variants_per_cycle` variants, under the same conditions.
 
 | Kind | What | Pass rule, registered per task |
 | --- | --- | --- |
 | Fixed shots | Chase, mast, hazard on the greybox; later the three shots of [site-and-look-references.md](site-and-look-references.md). Fixed seed, time of day, exposure | Shots exist, same size, no black or invalid frame |
 | Image metrics | Mean color per region, luminance histogram and clipped share, local contrast, a high-frequency check for grid and aliasing patterns, a difference map against the baseline with the share of changed pixels inside and outside the intended region | The intended region changed in the intended direction; the rest did not change beyond a set share |
-| Performance | Exclusive fullscreen, uncapped, 1600 × 900, the `Play` candidate: GPU mean, frame mean and p95, game thread, process memory peak; one `ProfileGPU` frame | GPU no more than 0.5 ms worse unless the task declared a budget |
+| Performance | Uncapped (`evaluation.perf_mode`) at `evaluation.resolution`, the `Play` candidate: GPU mean, frame mean and p95, game thread, process memory peak; one `ProfileGPU` frame | GPU worse by no more than `evaluation.gpu_regression_budget_ms`, unless the task declared a budget |
 | Tests | `pytest` and the other repository checks; Unreal automation tests | All pass |
 | Model review | A fixed rubric, applied to unlabeled, shuffled baseline and variant shots: Mars plausibility against reference notes, legibility of the rover, artifacts | Recorded as a model's judgment, never as a person's |
 
@@ -195,28 +200,29 @@ branch, with their shots, so the morning report can show them, and nothing is de
 
 ## Stop conditions
 
-Checked by the wrapper before each step and by a watcher every 30 seconds, not only at the end of a cycle.
+Checked by the wrapper before each step and by a watcher every `night.watcher_interval_s`, not only at the end of a cycle.
+Values are in the charter; Stage 1 starts with 3 cycles, 2 hours, and the same failure twice.
 
-| Limit | Stage 1 value |
+| Limit | Charter key |
 | --- | --- |
-| Cycles | 3 |
-| Wall time | 2 hours, with a hard deadline at which the night's own processes are stopped gracefully |
-| Same failure | 2 occurrences of one failure signature, such as one compiler error at one place or one kind of bad frame |
-| Unreal | Crash of a night process; 4 builds; 8 launches |
-| Memory | Free memory under 20%, or swap growth over 2 GB |
-| Spending | A per-cycle cap passed as `--max-budget-usd`, and a nightly cap, both set by the owner |
-| Owner | Owner present at the Mac mini, or the owner's editor running: Unreal steps are skipped; three skips end the night |
-| Manual | `~/.roverloom-rd/STOP` exists |
-| Integrity | A protected file's hash changed, or a hook was bypassed |
+| Cycles | `night.max_cycles` |
+| Wall time, with a hard deadline at which the night's own processes are stopped gracefully | `night.max_minutes` |
+| One failure signature, such as one compiler error at one place, or one kind of bad frame | `night.same_failure_limit` |
+| A night process crashes; builds; launches | `night.max_builds`, `night.max_unreal_launches` |
+| Memory | `mini.min_free_memory_pct`, `mini.max_swap_growth_gb` |
+| Spending per cycle (passed as `--max-budget-usd`) and per night | `night.usd_per_cycle`, `night.usd_per_night`, unset until the owner sets them |
+| Owner present, or the owner's editor running: Unreal steps refused; this many refusals end the night | `night.owner_skips_before_stop` |
+| `~/.roverloom-rd/STOP` exists | — |
+| A protected file's hash changed, or a hook was bypassed | `protected_repo_paths` |
 
 ## Settings to be written
 
 | File | Content |
 | --- | --- |
-| `rd/charter.yaml` | Owner-approved rules, weights, limits, deadlines, protected paths with hashes |
+| `rd/charter.json` (exists) | Every limit and setting; owner-approved |
 | `rd/settings.json`, passed with `--settings` | Permissions: allow edits under the night worktree; deny edits to protected paths; allow `ssh rd-mini <verb>`, `git` add, commit, switch, and push to `night-mini`; deny other `git` writes, `curl`, `wget`, `scp`, `rsync`, `kill`, `sudo`, `launchctl`, package installs. `PreToolUse` hook running the same policy as code, so a wildcard cannot widen it |
 | `rd/agents.json`, passed with `--agents` | The five specialists, with their tool lists |
-| `rd/mcp-night.json`, passed with `--mcp-config --strict-mcp-config` | `http://127.0.0.1:8100/mcp` only |
+| `rd/mcp-night.json`, passed with `--mcp-config --strict-mcp-config` | The night MCP port only, through the night tunnel |
 | `rd/cycle.schema.json`, passed with `--json-schema` | The structured output each cycle must produce; a schema failure ends the night |
 | `rd/bin/night.sh` | The wrapper: limits, watcher, STOP, report on every exit path |
 | `~/RoverloomNight/bin/dispatch` on the Mac mini | The allowlisted verbs and the exclusion checks |
@@ -228,7 +234,7 @@ clone.
 
 | File | Content | Changed by |
 | --- | --- | --- |
-| `rd/charter.yaml` | Rules, limits, protected paths | Owner only |
+| `rd/charter.json` | Rules, limits, protected paths | Owner only |
 | `rd/metrics.jsonl` | Each measurement: domain, metric, value, unit, commit, machine, engine, method, evidence path | Specialists, append only |
 | `rd/ledger/experiments.jsonl` | Hypothesis, registered method, result, verdict (kept, held, rejected, inconclusive), cost, conditions to revisit | Append only; verdicts never edited |
 | `rd/ledger/research.jsonl` | Question, sources with URL, date read, claim, location in the page, applicability, expiry | Research, append only |
@@ -276,22 +282,24 @@ controller against 8 scripted nights.
 | --- | --- | --- | --- |
 | 1 | Verification, G2 priority | A first slice of run logs: `run.json` with hashes and `telemetry.jsonl` from the pawn, checked by `check_run_contract` on the night clone | Python contract check; Unreal build; one game run |
 | 2 | Visual | `Dev` profile at Scalability High, which the benchmark proposed but did not measure | Uncapped measurement; shadow presence in the three shots |
-| 3 | Visual | Ground and rock material variation on the greybox, two variants against the baseline | Image metrics inside the ground region; GPU within 0.5 ms; model review |
+| 3 | Gameplay or Visual | A HUD or camera improvement from the G2 checklist, or ground and rock material variation with two variants | Image metrics in the changed region; GPU within budget; model review |
 
 ## Rollout
 
 | Stage | What runs | Before it starts |
 | --- | --- | --- |
-| 0. Setup checks, with the owner present | Create the night clone and key; test `dispatch`, the lock, the exclusion checks, `-abslog`, MCP on 8100, rendering with the display asleep and with the screen locked | **Owner approves** creating the clone, the key, and the files on the Mac mini |
-| 1. Night factory, limited | 3 cycles, 2 hours, local commits on the night branch, Unreal in the night clone; started by the owner by hand, not scheduled | Charter v1 committed by the owner; blind-case validation done |
+| 0. Setup checks, with the owner present | **Complete 2026-11-07,** [record](results/rd-stage0/README.md): night clone, key, dispatcher, write sandbox, exclusion, MCP, a render with the display asleep, and a final run with the night key alone. Screen lock untested | Approved by the owner |
+| 1. Night factory, limited | Within the charter's limits, local commits on the night branch, Unreal in the night clone; started by the owner by hand, not scheduled | Credential reads and network denied, or a separate macOS user; shared Unreal user files resolved; port 1985 condition; Air wrapper and hook built; charter v1 committed by the owner; blind-case validation done |
 | 2. Scheduled nights | A launch agent on the Air at a fixed hour | **Owner approves** the launch agent and caffeinate settings |
 | 3. Wider limits | More cycles, longer windows, more domains | Owner review of at least five Stage 1 nights |
 
 ## Decisions for the owner
 
-- Approve the charter: rules, weights, limits, deadlines, protected paths.
-- Spending caps per cycle and per night.
-- Stage 0: the night clone, the forced-command key, and the dispatcher on the Mac mini.
-- Whether the Mac mini's display may stay awake, and the screen unlocked, at night, if Stage 0 shows rendering needs it.
+- Approve `rd/charter.json`: rules, weights, limits, deadlines, protected paths; set the spending caps.
+- The recent-projects side effect of Stage 0: remove the night project's entry from the shared editor settings, or leave it.
+- Closing Stage 0's security items: read-denial of credential folders and network limits in the sandbox, a separate
+  macOS user for the night, or both. A separate user needs an administrator.
+- Port 1985: accept for night runs on a trusted network with a trace check, or require it closed first.
+- Screen lock: whether to test it, which needs a setting or UI automation. With the display asleep, rendering works.
 - Whether an image library may be added for SSIM and similar metrics.
-- Two to five blind validation cases.
+- Three to five blind validation cases.

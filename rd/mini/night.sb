@@ -1,0 +1,7 @@
+;; Sandbox profile for every Unreal process the night starts on the Mac mini (sandbox-exec -f).
+;; Everything is allowed except writes under the paths below, which the kernel refuses. Generated from
+;; rd/charter.json "write_protected" by install; @HOME@ is replaced with the account's home directory.
+(version 1)
+(allow default)
+(deny file-write*
+@DENY@)
