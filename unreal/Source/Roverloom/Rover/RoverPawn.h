@@ -85,6 +85,7 @@ private:
 	void AddMappingContext();
 	void LogAndCapture(double NowS);
 	void RecordFrame(double DeltaSeconds);
+	void LogRenderSettings(const TCHAR* When) const;
 
 	void OnDrive(const FInputActionValue& Value);
 	void OnDriveReleased(const FInputActionValue& Value);
@@ -165,4 +166,8 @@ private:
 	double GpuMsSum = 0.0;
 	int32 FocusFrames = 0;
 	double WindowStartS = -1.0;
+	// -RoverBench=<seconds>: a benchmark run. No camera tour; at the end, one chase screenshot if -RoverShotDir is set,
+	// the effective render settings logged again, and the game exits.
+	double BenchSeconds = 0.0;
+	double BenchShotS = -1.0;
 };

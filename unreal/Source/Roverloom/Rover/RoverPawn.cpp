@@ -20,6 +20,10 @@
 #include "DynamicRHI.h"
 #include "HAL/PlatformTime.h"
 #include "Misc/App.h"
+#include "Engine/Engine.h"
+#include "Engine/GameViewportClient.h"
+#include "HAL/IConsoleManager.h"
+#include "HAL/PlatformMisc.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
@@ -168,6 +172,7 @@ void ARoverPawn::BeginPlay()
 	Super::BeginPlay();
 	StartTransform = FTransform(GetActorQuat(), GetActorLocation());
 	FParse::Value(FCommandLine::Get(), TEXT("RoverShotDir="), ShotDir);
+	FParse::Value(FCommandLine::Get(), TEXT("RoverBench="), BenchSeconds);
 	for (UStaticMeshComponent* Wheel : Wheels)
 	{
 		Tint(Wheel, FLinearColor(0.05f, 0.05f, 0.05f));
@@ -259,6 +264,7 @@ void ARoverPawn::Tick(float DeltaSeconds)
 			ReadyTimeS = GetWorld()->GetTimeSeconds();
 			bLoggedSettle = false;
 			UE_LOG(LogRoverloom, Display, TEXT("Rover rig ready at %.2f s: %d wheels, drive model P (provisional)"), ReadyTimeS, Rig->NumWheels());
+			LogRenderSettings(TEXT("start"));
 		}
 		FollowBody();
 		UpdateFreeCamera(DeltaSeconds);
@@ -354,6 +360,29 @@ void ARoverPawn::RecordFrame(double DeltaSeconds)
 	WindowStartS = NowS;
 }
 
+void ARoverPawn::LogRenderSettings(const TCHAR* When) const
+{
+	// The effective values, after the command line, -ExecCmds, and scalability have all applied.
+	static const TCHAR* Names[] = {TEXT("r.VSync"), TEXT("t.MaxFPS"), TEXT("r.DynamicGlobalIlluminationMethod"), TEXT("r.ReflectionMethod"),
+		TEXT("r.Lumen.HardwareRayTracing"), TEXT("r.RayTracing"), TEXT("r.Shadow.Virtual.Enable"), TEXT("r.AntiAliasingMethod"),
+		TEXT("r.ScreenPercentage"), TEXT("r.DynamicRes.OperationMode"), TEXT("r.Nanite"), TEXT("r.MegaLights.Enable"),
+		TEXT("sg.ResolutionQuality"), TEXT("sg.ViewDistanceQuality"), TEXT("sg.AntiAliasingQuality"), TEXT("sg.ShadowQuality"),
+		TEXT("sg.GlobalIlluminationQuality"), TEXT("sg.ReflectionQuality"), TEXT("sg.PostProcessQuality"), TEXT("sg.TextureQuality"),
+		TEXT("sg.EffectsQuality"), TEXT("sg.FoliageQuality"), TEXT("sg.ShadingQuality")};
+	FString Line;
+	for (const TCHAR* Name : Names)
+	{
+		const IConsoleVariable* Variable = IConsoleManager::Get().FindConsoleVariable(Name);
+		Line += FString::Printf(TEXT(" %s=%s"), Name, Variable ? *Variable->GetString() : TEXT("absent"));
+	}
+	FIntPoint Size = FIntPoint::ZeroValue;
+	if (GEngine && GEngine->GameViewport && GEngine->GameViewport->Viewport)
+	{
+		Size = GEngine->GameViewport->Viewport->GetSizeXY();
+	}
+	UE_LOG(LogRoverloom, Display, TEXT("Rover render settings (%s): viewport=%dx%d%s"), When, Size.X, Size.Y, *Line);
+}
+
 void ARoverPawn::LogAndCapture(double NowS)
 {
 	if (ReadyTimeS < 0.0)
@@ -367,6 +396,26 @@ void ARoverPawn::LogAndCapture(double NowS)
 		UE_LOG(LogRoverloom, Display, TEXT("Rover settled: site (%.3f, %.3f, %.3f) m, tilt %.2f deg, speed %.3f m/s, wheels on ground %d/6, resets %d"),
 			Status.SitePositionM.X, Status.SitePositionM.Y, Status.SitePositionM.Z, Status.TiltDeg, Status.ForwardMps, Status.WheelsInContact,
 			Status.Resets);
+	}
+	if (BenchSeconds > 0.0)
+	{
+		if (BenchShotS < 0.0 && SinceReadyS >= BenchSeconds)
+		{
+			BenchShotS = NowS;
+			if (!ShotDir.IsEmpty())
+			{
+				FScreenshotRequest::RequestScreenshot(FPaths::Combine(ShotDir, TEXT("Chase.png")), true, false);
+			}
+		}
+		else if (BenchShotS >= 0.0 && NowS - BenchShotS >= 2.0)
+		{
+			LogRenderSettings(TEXT("end"));
+			UE_LOG(LogRoverloom, Display, TEXT("Rover bench finished after %.1f s"), SinceReadyS);
+			BenchSeconds = 0.0;
+			ShotStep = 7;
+			FPlatformMisc::RequestExit(false, TEXT("RoverBench"));
+		}
+		return;
 	}
 	// Each camera is chosen at 12, 14, and 16 s, and captured 1 s later, after it has rendered. The first 10 s frame
 	// window has been logged by then, so the HUD's frame line is in the shots.
