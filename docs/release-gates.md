@@ -23,7 +23,7 @@ the gates and that page keeps its procedures.
 | --- | --- | --- | --- |
 | [G0](#g0-development-base) | Verified tools on the development machine | — | Partly done |
 | [G1](#g1-drive-model-decision) | A drive model chosen for the alpha, within a timebox | G0 | 2 weeks at most |
-| [G2](#g2-greybox-playable) | A person drives the rover on test terrain, and the run scores in Python | G1 | 2–3 weeks |
+| [G2](#g2-greybox-playable) | A person drives the rover on test terrain, and the run scores in Python | G0; a provisional drive model, not G1 | 2–3 weeks |
 | [G3](#g3-the-site) | The rover drives on a real-terrain site | G2 | 2–3 weeks |
 | [G4](#g4-the-mission-loop) | One 15–25 minute mission, with a fault, scored from logs | G3 | 2–3 weeks |
 | [G5](#g5-the-look) | The site reads as Mars in `Capture` frames | G3; parallel with G4 | 2–4 weeks |
@@ -45,6 +45,11 @@ candidates and fixed shots for G3 to G5 in [site-and-look-references.md](site-an
 | Owner | Install UE 5.8.4 on the Air, or keep Unreal work on the M4 Mac. Either needs a record superseding [ADR 0012](decisions/0012-m4-mac-for-unreal.md) |
 
 ## G1. Drive model decision
+
+**Owner decision, 2026-11-07:** solver research stops after the X2 and single-precision checks. The playable
+milestone, G2, comes first, and does not wait for this gate or for any solver to be resolved. It uses the existing
+wheel model P as a provisional drive model, or K if P misbehaves in play, and says so on screen. G1 still records
+its choice in an ADR before G4.
 
 The game needs a rover that drives plausibly. It does not need the physics research to finish. This gate ends
 that research's hold on the game, whatever its outcome.
@@ -95,7 +100,7 @@ buildable, because it needs no contact solver. The physics research can replace 
 | | |
 | --- | --- |
 | Items | Test map with flat ground, slopes, and steps; the G1 rover; Enhanced Input to `Action`; chase, mast, hazard, and free cameras; watchdog; minimal HUD; logs in the shared formats; `frames.py` ported to one C++ file |
-| Depends on | G1 |
+| Depends on | G0. A provisional drive model, P or K, by the owner's decision of 2026-11-07; G1 is not required |
 | Acceptance | A person drives it for 10 minutes; the watchdog stops it within 2 s of lost input; its logs pass `check_run_contract` and score with `roverloom score`; the C++ frame conversion matches every [golden vector](../schemas/conformance/frame_vectors.json) |
 | Test | Unreal automation tests for input, watchdog, and frames; Python contract check on the run directory |
 | Done when | Results and a short video are recorded, with machine and engine version |

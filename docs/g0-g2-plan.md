@@ -78,6 +78,10 @@ K's slip uses the Mission Core's documented formula as a game rule, and inherits
 
 ## G2: greybox playable
 
+**Owner decision, 2026-11-07:** G2 starts without G1. The first drive model is the existing wheel model P, from
+`WheelSpike/`, labeled provisional on screen; K replaces it if P misbehaves in play. Work runs on the Mac mini's
+existing UE 5.8.4 over Tailscale, so the Air needs no Unreal install for this milestone.
+
 | Task | Where | Test | Size |
 | --- | --- | --- | --- |
 | Test map spawned from C++, with no new assets: flat ground, 10° and 15° slopes, a 25 cm step | Game mode, as `WheelSpikeGameMode` spawns blocks | Opens from a clean clone | 0.5 day |

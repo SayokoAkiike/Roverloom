@@ -1,5 +1,8 @@
 # Wheel model: where method D's 37 stalls come from
 
+**Research closed on 2026-11-07, by the owner's decision,** after the X2 and single-precision checks below. The next
+steps proposed here are recorded, not scheduled.
+
 The owner approved this analysis on 2026-11-07. It uses only saved data: no Unreal run, no long simulation, and
 no change to any solver, criterion, or record. Phase C stays failed, 2 of 9; ADR 0014 stays Proposed; the motor
 limit stays 60 N m. **This is a game-style wheel model; nothing here is checked against a real rover or regolith.**
