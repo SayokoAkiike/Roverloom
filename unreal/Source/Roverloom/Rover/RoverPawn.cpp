@@ -368,7 +368,8 @@ void ARoverPawn::LogAndCapture(double NowS)
 			Status.SitePositionM.X, Status.SitePositionM.Y, Status.SitePositionM.Z, Status.TiltDeg, Status.ForwardMps, Status.WheelsInContact,
 			Status.Resets);
 	}
-	// Each camera is chosen at 4, 6, and 8 s, and captured 1 s later, after it has rendered.
+	// Each camera is chosen at 12, 14, and 16 s, and captured 1 s later, after it has rendered. The first 10 s frame
+	// window has been logged by then, so the HUD's frame line is in the shots.
 	if (ShotDir.IsEmpty() || ShotStep >= 7)
 	{
 		return;
@@ -382,7 +383,7 @@ void ARoverPawn::LogAndCapture(double NowS)
 		return;
 	}
 	const bool bCapture = ShotStep % 2 == 1;
-	if (SinceReadyS >= 4.0 + 2.0 * Index + (bCapture ? 1.0 : 0.0))
+	if (SinceReadyS >= 12.0 + 2.0 * Index + (bCapture ? 1.0 : 0.0))
 	{
 		if (bCapture)
 		{
