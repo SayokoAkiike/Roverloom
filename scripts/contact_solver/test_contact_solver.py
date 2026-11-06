@@ -166,3 +166,46 @@ class MethodTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class GeometryTest(unittest.TestCase):
+    """State rewriting for docs/results/unreal-wheel-model/stall-geometry.md."""
+
+    def state(self) -> Any:
+        from contact_solver.export_states import state_line
+        from contact_solver.geometry import State
+
+        data = six_wheel(yaw_rate_degps=18.98)
+        for w in data["wheels"]:
+            w["result"] = {"f_long": 0.0, "f_lat": 0.0, "motor": 0.0, "brake": 0.0}
+        data["wheels"][1]["normal"] = [0.01, 0.0, 1.0]  # tilted, and not unit length
+        data["wheels"][4]["point"][0] += 1e-5
+        return State(state_line("synthetic", 0, data))
+
+    def test_state_line_round_trips(self) -> None:
+        from contact_solver.geometry import State
+
+        s = self.state()
+        self.assertEqual(State(s.line()).line(), s.line())
+
+    def test_one_plane_gives_one_normal_and_orthonormal_frames(self) -> None:
+        import random as rnd
+
+        from contact_solver.geometry import dot, measures, variant
+
+        ideal = variant(self.state(), "V4", rnd.Random(0))
+        m = measures(ideal)
+        self.assertLess(m["M1"], 1e-9)
+        self.assertLess(m["M2"], 1e-9)
+        self.assertLess(m["M3"], 1e-12)
+        for w in range(6):
+            self.assertLess(abs(dot(ideal.vec(w, "forward"), ideal.vec(w, "lateral"))), 1e-12)
+
+    def test_aligning_pairs_removes_the_middle_offset(self) -> None:
+        from contact_solver.geometry import align_pairs, measures, wheel_order
+
+        s = self.state()
+        self.assertAlmostEqual(measures(s)["M5_dx"], 1e-5, delta=1e-9)
+        self.assertLess(measures(align_pairs(s))["M5_dx"], 1e-12)
+        expected = {"checked": 1, "sides": 1, "middle": 1, "front_to_back": 1}
+        self.assertEqual(wheel_order([s]), expected)

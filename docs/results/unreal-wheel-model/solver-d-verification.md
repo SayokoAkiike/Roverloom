@@ -178,6 +178,8 @@ written.
 ## Unresolved
 
 - **Where the inconsistent constraints come from.** That is the cause of the 37-state floor, and it is not yet found.
+  A later [analysis](stall-geometry.md) ruled out normals, planarity, and frames. An exploratory check there points
+  to single-precision offsets of the middle wheels' contact points, not yet confirmed.
 - **No trajectory in engine geometry.** D has driven only the symmetric stand-in rig, with no stall. A trajectory
   through the engine's own contact geometry has not been run.
 - **Real-time cost.** Preemption makes any time budget a target, not a bound.
