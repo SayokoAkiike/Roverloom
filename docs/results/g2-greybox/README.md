@@ -56,6 +56,8 @@ Logs and screenshots stay outside Git, under `unreal/Saved/G2Tests/` and `unreal
   provisional `Play` target of 30 fps at the 95th percentile on this scene, so no performance change was made. The GPU
   uses 14 of the 16.7 ms a 60 Hz frame allows, on a scene with almost nothing in it. Not measured: driving, 25 minutes,
   the Air, or a packaged build.
+  A later [render benchmark](render-benchmark.md) found that this windowed figure is capped by display sync and
+  overstates GPU time; uncapped, the same scene took 10.75 ms of GPU time at 83.5 fps.
 - Each screenshot from `-RoverShotDir` costs one long frame, up to 400 ms.
 - `-game` with the editor binary logs 15 Python errors from the experimental EditorToolset plugin's start-up script. None
   comes from project code.
