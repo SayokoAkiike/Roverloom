@@ -148,9 +148,13 @@ void ARoverPlaygroundGameMode::SpawnLights()
 	const FTransform SunTransform(FRotator(-20.0, 45.0, 0.0));
 	ADirectionalLight* Sun = World->SpawnActorDeferred<ADirectionalLight>(ADirectionalLight::StaticClass(), SunTransform, nullptr,
 		nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
-	Sun->GetComponent()->SetMobility(EComponentMobility::Movable);
+	// ADirectionalLight::GetComponent is editor-only; ALight::GetLightComponent exists in every build.
+	Sun->GetLightComponent()->SetMobility(EComponentMobility::Movable);
 	Sun->FinishSpawning(SunTransform);
-	Sun->GetComponent()->SetAtmosphereSunLight(true);
+	if (UDirectionalLightComponent* SunLight = Cast<UDirectionalLightComponent>(Sun->GetLightComponent()))
+	{
+		SunLight->SetAtmosphereSunLight(true);
+	}
 
 	World->SpawnActor<ASkyAtmosphere>(ASkyAtmosphere::StaticClass(), FTransform::Identity, SpawnParams);
 
