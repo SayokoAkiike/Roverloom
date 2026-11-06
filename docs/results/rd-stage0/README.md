@@ -73,6 +73,11 @@ reverted, pending the owner's decision.
 
 ## Open items before Stage 1
 
+Checks made after this record, on read denial, network rules, port 1985, and offscreen rendering, and the resulting
+plan, are in [rd-stage1-isolation-plan.md](../../rd-stage1-isolation-plan.md). In short: reads and outbound traffic can be
+denied by the sandbox; binds and inbound traffic cannot be limited by it without breaking MCP; `-RenderOffscreen`
+renders without a window; a separate macOS user is the recommended fix for item 1.
+
 ### 1. Credentials are readable from the sandbox (blocking)
 
 Measured: a process under `night.sb` can read two SSH private keys in `~/.ssh`, `~/.ssh/authorized_keys`,
@@ -98,8 +103,8 @@ was left as it is.
 
 Every editor and game process, the owner's and the night's, listens on `*:1985`: the UE Trace issue already open in
 [security.md](../../security.md#unresolved), where what it accepts is unverified. Night runs widen the time it is open. Until
-it is understood: run night Unreal only on a trusted network, check the macOS firewall state, and try disabling trace for
-night runs (for example `-trace=none` or `-notrace`), confirming with `lsof` that the port is closed.
+it is understood: run night Unreal only on a trusted network, check the macOS firewall state, and `-notracethreading` was tried and does not
+close it: TraceLog binds all interfaces in its Apple code, with no option for the address.
 
 ### 4. Other items
 

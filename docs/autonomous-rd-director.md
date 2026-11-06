@@ -2,7 +2,7 @@
 
 **Status: a design, 2026-11-07. Stage 0 is complete on the Mac mini, including a final integration test with the
 night key. Stage 1 is blocked: night processes can still read the owner's credentials.** No night loop has run, and
-nothing is scheduled. See the [Stage 0 record](results/rd-stage0/README.md), which lists what must close first. Every limit and setting lives in one file,
+nothing is scheduled. See the [Stage 0 record](results/rd-stage0/README.md), which lists what must close first, and the [isolation plan](rd-stage1-isolation-plan.md) for closing it. Every limit and setting lives in one file,
 [`rd/charter.json`](../rd/charter.json); this page names charter keys instead of repeating values. The repository is
 private; it still holds no secrets or host names. It adds an unattended night mode beside the present workflow, where the owner approves each step. It replaces
 nothing, and every decision marked "owner" stays with the owner.
