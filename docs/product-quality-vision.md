@@ -140,6 +140,9 @@ Targets are provisional. Each names how it will be measured, so that it can be p
 | No oversaturated red, Earth-blue day sky, strong bloom, or visible tiling from the mast camera | Reviewer checklist from the [production plan](unreal-production-plan.md#visual-direction) |
 | Dust plumes, tracks, and haze present in play | Checklist on `Dev` and `Capture` |
 
+Tools and the site pipeline for these targets are compared in
+[visual-technology-review.md](visual-technology-review.md).
+
 ### UI
 
 | Target | Measure |
