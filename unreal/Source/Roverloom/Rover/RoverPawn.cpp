@@ -18,8 +18,12 @@
 #include "InputMappingContext.h"
 #include "InputModifiers.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
+#include "Misc/Paths.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "PhysicsEngine/PhysicsSettings.h"
+#include "UnrealClient.h"
 #include "UObject/ConstructorHelpers.h"
 
 #include "../Bridge/Frames.h"
@@ -163,6 +167,7 @@ void ARoverPawn::BeginPlay()
 {
 	Super::BeginPlay();
 	StartTransform = FTransform(GetActorQuat(), GetActorLocation());
+	FParse::Value(FCommandLine::Get(), TEXT("RoverShotDir="), ShotDir);
 	for (UStaticMeshComponent* Wheel : Wheels)
 	{
 		Tint(Wheel, FLinearColor(0.05f, 0.05f, 0.05f));
@@ -248,6 +253,12 @@ void ARoverPawn::Tick(float DeltaSeconds)
 		// The body exists only after registration, and simulates from the frame IsReady first returns true.
 		bRigReady = Rig->IsReady();
 		Status.bReady = bRigReady;
+		if (bRigReady)
+		{
+			ReadyTimeS = GetWorld()->GetTimeSeconds();
+			bLoggedSettle = false;
+			UE_LOG(LogRoverloom, Display, TEXT("Rover rig ready at %.2f s: %d wheels, drive model P (provisional)"), ReadyTimeS, Rig->NumWheels());
+		}
 		FollowBody();
 		UpdateFreeCamera(DeltaSeconds);
 		return;
@@ -300,6 +311,52 @@ void ARoverPawn::Tick(float DeltaSeconds)
 	for (const AWheelRig::FWheelRecord& Record : Rig->GetRecords())
 	{
 		Status.WheelsInContact += Record.Contact.bHit ? 1 : 0;
+	}
+	LogAndCapture(NowS);
+}
+
+void ARoverPawn::LogAndCapture(double NowS)
+{
+	if (ReadyTimeS < 0.0)
+	{
+		return;
+	}
+	const double SinceReadyS = NowS - ReadyTimeS;
+	if (!bLoggedSettle && SinceReadyS >= 3.0)
+	{
+		bLoggedSettle = true;
+		UE_LOG(LogRoverloom, Display, TEXT("Rover settled: site (%.3f, %.3f, %.3f) m, tilt %.2f deg, speed %.3f m/s, wheels on ground %d/6, resets %d"),
+			Status.SitePositionM.X, Status.SitePositionM.Y, Status.SitePositionM.Z, Status.TiltDeg, Status.ForwardMps, Status.WheelsInContact,
+			Status.Resets);
+	}
+	// Each camera is chosen at 4, 6, and 8 s, and captured 1 s later, after it has rendered.
+	if (ShotDir.IsEmpty() || ShotStep >= 7)
+	{
+		return;
+	}
+	static const ERoverCamera Shots[3] = {ERoverCamera::Chase, ERoverCamera::Mast, ERoverCamera::Hazard};
+	const int32 Index = ShotStep / 2;
+	if (Index >= 3)
+	{
+		SetCamera(ERoverCamera::Chase);
+		ShotStep = 7;
+		return;
+	}
+	const bool bCapture = ShotStep % 2 == 1;
+	if (SinceReadyS >= 4.0 + 2.0 * Index + (bCapture ? 1.0 : 0.0))
+	{
+		if (bCapture)
+		{
+			const FString Name = FString(CameraName(Shots[Index])).Replace(TEXT(", "), TEXT("-")).Replace(TEXT(" "), TEXT("-")).Replace(TEXT("."), TEXT(""));
+			const FString Path = FPaths::Combine(ShotDir, Name + TEXT(".png"));
+			FScreenshotRequest::RequestScreenshot(Path, true, false);
+			UE_LOG(LogRoverloom, Display, TEXT("Rover screenshot requested: %s"), *Path);
+		}
+		else
+		{
+			SetCamera(Shots[Index]);
+		}
+		++ShotStep;
 	}
 }
 
@@ -379,6 +436,7 @@ void ARoverPawn::SetCamera(ERoverCamera NewCamera)
 		}
 	}
 	Status.Camera = Camera;
+	UE_LOG(LogRoverloom, Display, TEXT("Rover camera: %s"), CameraName(Camera));
 }
 
 void ARoverPawn::CreateInput()

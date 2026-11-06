@@ -45,6 +45,8 @@ void ARoverPlaygroundGameMode::StartPlay()
 	SpawnRover();
 	Super::StartPlay();
 	UE_LOG(LogRoverloom, Display, TEXT("Rover playground started, gravity %.3f, drive model P (provisional)"), GetWorld()->GetGravityZ());
+	UE_LOG(LogRoverloom, Display, TEXT("Rover playground spawned: %d blocks (ground, step, 2 ramps, 2 plateaus, %d rocks), %d light actors, rover %s"),
+		BlocksSpawned, RocksSpawned, LightsSpawned, Rover ? *Rover->GetName() : TEXT("missing"));
 }
 
 void ARoverPlaygroundGameMode::RestartPlayer(AController* NewPlayer)
@@ -89,6 +91,7 @@ AActor* ARoverPlaygroundGameMode::SpawnBlock(const FVector& Center, const FRotat
 	Mesh->SetStaticMesh(LoadObject<UStaticMesh>(nullptr, MeshPath));
 	Mesh->SetPhysMaterialOverride(GroundMaterial);
 	Block->FinishSpawning(Transform);
+	++BlocksSpawned;
 	if (UMaterialInstanceDynamic* Material = Mesh->CreateDynamicMaterialInstance(0))
 	{
 		Material->SetVectorParameterValue(TEXT("Color"), Color);
@@ -135,6 +138,7 @@ void ARoverPlaygroundGameMode::SpawnTerrain()
 		const double Size = Random.FRandRange(20.0, 120.0);
 		const FVector Scale(Size * Random.FRandRange(0.8, 1.6), Size * Random.FRandRange(0.8, 1.4), Size * Random.FRandRange(0.4, 0.8));
 		SpawnBlock(Center, FRotator(0.0, Random.FRandRange(0.0, 360.0), 0.0), Scale, Rock, TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+		++RocksSpawned;
 	}
 }
 
@@ -165,4 +169,5 @@ void ARoverPlaygroundGameMode::SpawnLights()
 	Sky->FinishSpawning(FTransform::Identity);
 
 	World->SpawnActor<AExponentialHeightFog>(AExponentialHeightFog::StaticClass(), FTransform::Identity, SpawnParams);
+	LightsSpawned = 4; // Sun, sky atmosphere, sky light, fog
 }

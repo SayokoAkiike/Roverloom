@@ -38,4 +38,7 @@ private:
 	TObjectPtr<UPhysicalMaterial> GroundMaterial;
 
 	bool bTerrainSpawned = false;
+	int32 BlocksSpawned = 0; // Every block, ramp, plateau, and rock, for the start-up log
+	int32 RocksSpawned = 0;
+	int32 LightsSpawned = 0;
 };

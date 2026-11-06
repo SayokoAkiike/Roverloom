@@ -79,6 +79,7 @@ private:
 	void SetCamera(ERoverCamera Camera);
 	void CreateInput();
 	void AddMappingContext();
+	void LogAndCapture(double NowS);
 
 	void OnDrive(const FInputActionValue& Value);
 	void OnDriveReleased(const FInputActionValue& Value);
@@ -146,4 +147,10 @@ private:
 	TArray<double> WheelAnglesRad;
 	ERoverCamera Camera = ERoverCamera::Chase;
 	FRoverStatus Status;
+	// Start-up checks: one status line 3 s after the rig is ready, and with -RoverShotDir=<dir> one screenshot per
+	// rover camera, which switches cameras by itself once and then returns to the chase camera.
+	double ReadyTimeS = -1.0;
+	bool bLoggedSettle = false;
+	FString ShotDir;
+	int32 ShotStep = 0;
 };
