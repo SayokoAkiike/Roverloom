@@ -30,7 +30,8 @@ the gates and that page keeps its procedures.
 | [G6](#g6-play-quality-and-stability) | Tutorial, HUD, and 10 clean missions in a row | G4, G5 | 1–2 weeks |
 | [G7](#g7-playable-alpha) | A packaged alpha, playtested, with its limits published | G6 | 1–2 weeks |
 
-Sizes are guesses, to plan with, not commitments.
+Sizes are guesses, to plan with, not commitments. The work for G0 to G2 on the MacBook Air is broken down in [g0-g2-plan.md](g0-g2-plan.md), and the site
+candidates and fixed shots for G3 to G5 in [site-and-look-references.md](site-and-look-references.md).
 
 ## G0. Development base
 
