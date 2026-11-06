@@ -416,6 +416,23 @@ namespace wheel_solver
 
 		double Now() { return std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count(); }
 
+		// The slowest Newton step so far in this solve, so that a step is not begun if it might overrun.
+		struct StepClock
+		{
+			double Slowest = 0, Last = 0;
+			bool Denied = false; // A step was refused for lack of time
+			bool Allows(double Deadline)
+			{
+				const double T = Now();
+				if (Last > 0) Slowest = std::max(Slowest, T - Last);
+				Last = T;
+				const bool Ok = T + Slowest <= Deadline;
+				Denied = Denied || !Ok;
+				return Ok;
+			}
+		};
+		thread_local StepClock StepTimer;
+
 		Predicted SmoothedNewton(const Problem& P, const Term* Terms, int N, double EpsFinal, double EpsStart, int& Budget,
 			double Deadline)
 		{
@@ -429,7 +446,7 @@ namespace wheel_solver
 			{
 				double Size = 0;
 				for (int K = 0; K < N; ++K) Size += Terms[K].Weight * Eps * Terms[K].Scale;
-				for (int It = 0; It < 60 && Budget > 0 && Now() <= Deadline; ++It, --Budget)
+				for (int It = 0; It < 60 && Budget > 0 && StepTimer.Allows(Deadline); ++It, --Budget)
 				{
 					VecQ D{};
 					for (int K = 0; K < NQ; ++K) D[K] = Q[K] - P.QStar[K];
@@ -559,7 +576,7 @@ namespace wheel_solver
 				}
 				return DotQ(R1, R1) + R2;
 			};
-			for (int It = 0; It < 50 && Budget > 0 && Now() <= Deadline; ++It, --Budget)
+			for (int It = 0; It < O.MaxNewtonPerPartition && Budget > 0 && StepTimer.Allows(Deadline); ++It, --Budget)
 			{
 				++Out.Steps;
 				VecQ D{};
@@ -646,9 +663,18 @@ namespace wheel_solver
 				}
 				for (int C = 0; C < NQ; ++C) Q[C] += Alpha * Dq[C];
 				for (int J = 0; J < Rows; ++J) Lam[J] += Alpha * Dl[J];
-				if (std::sqrt(DotQ(Dq, Dq)) * Alpha < 1e-13 * (1.0 + std::sqrt(DotQ(Q, Q))))
+				if (O.History && It < 64)
+				{
+					O.History->Steps = It + 1;
+					O.History->StepNorm[It] = std::sqrt(DotQ(Dq, Dq));
+					O.History->Alpha[It] = Alpha;
+					O.History->Merit[It] = Merit(Q, Lam);
+				}
+				const double Moved = std::sqrt(DotQ(Dq, Dq)) * (O.ConvergeOnFullStep ? 1.0 : Alpha);
+				if (Moved < 1e-13 * (1.0 + std::sqrt(DotQ(Q, Q))))
 				{
 					Out.Converged = true;
+					if (O.History) O.History->Converged = true;
 					break;
 				}
 			}
@@ -859,7 +885,11 @@ namespace wheel_solver
 		Result Out;
 		double Change = 0;
 		int Used = 0;
-		for (int Step = 0; Step < O.Passes; ++Step)
+		double SlowestPass = 0;
+		bool TimedOut = false;
+		double PassStart = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+		if (O.Deadline > 0 && PassStart > O.Deadline) Used = 0;
+		for (int Step = 0; Step < O.Passes && !(O.Deadline > 0 && PassStart > O.Deadline); ++Step)
 		{
 			Change = 0;
 			const bool Back = O.PassOrder == Order::Alternate && Step % 2 == 1;
@@ -892,8 +922,18 @@ namespace wheel_solver
 				Change = std::max({Change, std::abs(New[0] - Old[0]) * BodyLong, std::abs(New[1] - Old[1]) * P.A[3 * I + 1][3 * I + 1]});
 			}
 			Used = Step + 1;
-			if (O.Deadline > 0 && std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count() > O.Deadline)
-				break;
+			if (O.Deadline > 0)
+			{
+				// Stop if another pass as slow as the slowest so far would end past the deadline.
+				const double Now = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+				SlowestPass = std::max(SlowestPass, Now - PassStart);
+				PassStart = Now;
+				if (Now + SlowestPass > O.Deadline)
+				{
+					TimedOut = true;
+					break;
+				}
+			}
 			if (O.StopNatural > 0)
 			{
 				if (Used % 5 == 0 && NaturalResidual(P, X) <= O.StopNatural) break;
@@ -909,7 +949,7 @@ namespace wheel_solver
 		Out.LastChange = Change;
 		Out.Natural = NaturalResidual(P, X);
 		Out.Stopped = O.StopNatural > 0 ? Out.Natural <= O.StopNatural : Change < O.Tolerance;
-		Out.BudgetHit = !Out.Stopped;
+		Out.BudgetHit = O.Deadline > 0 ? TimedOut : !Out.Stopped;
 		return Out;
 	}
 
@@ -918,7 +958,8 @@ namespace wheel_solver
 		using Clock = std::chrono::steady_clock;
 		const auto Begin = Clock::now();
 		auto Elapsed = [&] { return std::chrono::duration<double>(Clock::now() - Begin).count(); };
-		const double Deadline = O.MaxSeconds < 1e29 ? Now() + O.MaxSeconds : 1e300;
+		const double Deadline = O.MaxSeconds < 1e29 ? Now() + O.MaxSeconds - O.FinalReserve : 1e300;
+		StepTimer = StepClock{};
 		Term Terms[2 * Wheels];
 		const int N = MakeTerms(P, Terms);
 		int Budget = O.MaxNewtonTotal;
@@ -996,6 +1037,7 @@ namespace wheel_solver
 		Out.X = Best.X;
 		Out.Q = Best.Q;
 		Out.Natural = BestNatural;
+		bool FallbackTimedOut = false;
 		if (BestNatural > O.Target && O.Fallback)
 		{
 			const auto FallBegin = Clock::now();
@@ -1006,6 +1048,7 @@ namespace wheel_solver
 			Po.Start = &Best.X;
 			Po.Deadline = Deadline < 1e299 ? Deadline : 0;
 			const Result Fb = Pgs(P, Po);
+			FallbackTimedOut = Po.Deadline > 0 && Fb.BudgetHit;
 			Out.FallbackPasses = Fb.Iterations;
 			Out.FallbackSeconds = std::chrono::duration<double>(Clock::now() - FallBegin).count();
 			if (Fb.Natural < Out.Natural)
@@ -1019,7 +1062,66 @@ namespace wheel_solver
 		Out.Rounds = Rounds;
 		Out.Attempts = Attempts;
 		Out.Stopped = Out.Natural <= O.Target;
-		Out.BudgetHit = Budget <= 0 || Elapsed() > O.MaxSeconds;
+		Out.BudgetHit = Budget <= 0 || StepTimer.Denied || FallbackTimedOut || Elapsed() > O.MaxSeconds;
 		return Out;
+	}
+
+	VecX MakeSafe(const Problem& P, const VecX& X, const VecX* Previous, double RejectAbove, Safety& Report)
+	{
+		Report = Safety{};
+		auto Check = [&](const VecX& Y, bool Record) {
+			bool Finite = true, Within = true, Plausible = true;
+			for (double V : Y) Finite = Finite && std::isfinite(V);
+			if (!Finite)
+			{
+				if (Record) Report.NonFinite = true;
+				return false;
+			}
+			for (int I = 0; I < Wheels; ++I)
+			{
+				const double F = std::hypot(Y[3 * I], Y[3 * I + 1]);
+				if ((P.FrictionLimit[I] > 0 || F > 0) && F > P.FrictionLimit[I] * (1 + 1e-9) + 1e-300) Within = false;
+				if (std::abs(Y[3 * I + 2]) > P.TorqueLimit[I] * (1 + 1e-9) + 1e-300) Within = false;
+			}
+			const VecQ Q = VelocityAfter(P, Y);
+			for (int K = 0; K < NQ; ++K)
+			{
+				if (!std::isfinite(Q[K])) Finite = false;
+				if (std::abs(Q[K]) > (K < 6 ? 1e5 : 1e3)) Plausible = false;
+			}
+			const double Nat = Finite ? NaturalResidual(P, Y) : 1e300;
+			if (Record)
+			{
+				Report.NonFinite = !Finite;
+				Report.OutsideLimits = !Within;
+				Report.Implausible = !Plausible;
+				Report.Unconverged = Nat > RejectAbove;
+				Report.Natural = Nat;
+			}
+			return Finite && Within && Plausible && Nat <= RejectAbove;
+		};
+		if (Check(X, true)) return X;
+		VecX Repaired = X;
+		for (double& V : Repaired)
+			if (!std::isfinite(V)) V = 0;
+		Repaired = Project(P, Repaired);
+		for (int I = 0; I < Wheels; ++I)
+			if (!P.InContact[I]) Repaired[3 * I] = Repaired[3 * I + 1] = 0;
+		if (Check(Repaired, false)) return Repaired;
+		if (Previous)
+		{
+			VecX Prior = Project(P, *Previous);
+			for (int I = 0; I < Wheels; ++I)
+				if (!P.InContact[I]) Prior[3 * I] = Prior[3 * I + 1] = 0;
+			bool Finite = true;
+			for (double V : Prior) Finite = Finite && std::isfinite(V);
+			if (Finite)
+			{
+				Report.UsedPrevious = true;
+				return Prior;
+			}
+		}
+		Report.Zeroed = true;
+		return VecX{};
 	}
 }

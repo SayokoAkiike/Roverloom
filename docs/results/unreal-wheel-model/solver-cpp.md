@@ -139,8 +139,8 @@ build from the standalone A above, so the two are not compared directly.
 - **The size.** D's residual stalls at 1e-8 to 4.8e-8 there. The velocities are still within 2.5e-7 cm/s of the
   reference.
 
-**What is not established is why it stalls there.** One candidate is rounding in the Schur complement of the middle
-wheels' dependent lateral rows. This was not proven.
+**Why it stalls there** was found later: the sticking and holding rows there are dependent and slightly
+inconsistent. See [the verification](solver-d-verification.md#why-37-states-stall-above-1e-8).
 
 ## Bounding the worst time
 

@@ -101,6 +101,32 @@ int main()
 		const Checks K = Evaluate(P, D(P, DOptions{}).X);
 		Check(K.SlideAngleDeg < 1e-9, "diagonal slide: force opposes slip", K.SlideAngleDeg);
 	}
+	// Safe failure: an answer that cannot be trusted is repaired or replaced, never passed on.
+	{
+		const Problem P = Build(SixWheel(18.98, 28.178, 0, 0, Drive, 0.6));
+		const VecX Good = D(P, DOptions{}).X;
+		Safety Report;
+		VecX Out = MakeSafe(P, Good, nullptr, 1e-3, Report);
+		Check(!Report.NonFinite && !Report.OutsideLimits && !Report.UsedPrevious && !Report.Zeroed && Out == Good,
+			"safety: a good answer passes unchanged", Report.Natural);
+		VecX Bad = Good;
+		Bad[4] = std::nan("");
+		Out = MakeSafe(P, Bad, &Good, 1e-3, Report);
+		bool Finite = true;
+		for (double V : Out) Finite = Finite && std::isfinite(V);
+		Check(Report.NonFinite && Finite, "safety: a NaN is caught and the answer is finite", 0);
+		Bad = Good;
+		Bad[0] *= 50;
+		Out = MakeSafe(P, Bad, &Good, 1e-3, Report);
+		Check(Report.OutsideLimits && std::hypot(Out[0], Out[1]) <= P.FrictionLimit[0] * (1 + 1e-9),
+			"safety: a force beyond its circle is caught and the answer is within limits", std::hypot(Out[0], Out[1]) / P.FrictionLimit[0]);
+		VecX Wild{};
+		for (int I = 0; I < Wheels; ++I) Wild[3 * I] = P.FrictionLimit[I]; // feasible but far from optimal
+		Out = MakeSafe(P, Wild, &Good, 1e-3, Report);
+		Check(Report.Unconverged && Report.UsedPrevious, "safety: an unconverged answer is replaced by the previous step's", Report.Natural);
+		Out = MakeSafe(P, Wild, nullptr, 1e-3, Report);
+		Check(Report.Zeroed, "safety: with no previous answer, forces are zeroed", Report.Natural);
+	}
 	std::printf("%d failures\n", Failures);
 	return Failures ? 1 : 0;
 }

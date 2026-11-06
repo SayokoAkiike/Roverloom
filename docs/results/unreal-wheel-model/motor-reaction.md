@@ -96,3 +96,44 @@ None was run.
 - The 60 N m motor limit and all of phase C's criteria and records.
 - **The turn's shortfall.** It is set by the motor's limit and friction, and the error is zero in the turn.
 - Anything in the Python Mission Core.
+
+## Experiment, 2026-11-04: before and after, in the Python stand-in rig
+
+The owner approved a numerical experiment on 2026-11-04, outside Unreal. `scripts/contact_solver/reaction.py` drives
+the [Python stand-in rig](solver-research.md#short-trajectories-60-and-120-hz) with two models, both solved by method
+D:
+- **current:** as `WheelModel.cpp`.
+- **coupled:** each wheel's spin is taken relative to the body, and its kinetic energy is `½ I_w (σ_i + a_i·ω)²`.
+  - The mass matrix then couples the body's rotation to each spin about its axle.
+  - The motor's reaction on the body follows from that coupling, with no added term.
+  - Contact slip is unchanged, because it already uses the relative spin.
+
+**What is measured.** Angular momentum of body and wheels about the center of mass, `L = I ω + Σ I_w (σ_i + a_i·ω) a_i`,
+is checked each step against the ground's torque times `dt`. The **balance** is the largest difference.
+
+| Scenario | Model | Largest pitch | Largest pitch rate | Peak forward speed of the center | Angular momentum balance, largest per step |
+| --- | --- | --- | --- | --- | --- |
+| Start, 50 cm/s from 0.5 s | current | 1.1898° | 6.105 °/s | 55.263 cm/s | 6.9e3 |
+| | coupled | 1.2017° | 6.308 °/s | 55.314 cm/s | 1.5e-10 |
+| Stop, brake from 1.5 s | current | 1.4732° | 8.558 °/s | 55.263 cm/s | 4.3e4 |
+| | coupled | 1.4892° | 8.594 °/s | 55.314 cm/s | 2.4e-10 |
+| Climb 10° from 0.5 s | current | 1.3341° | 3.351 °/s | 53.331 cm/s | 6.3e3 |
+| | coupled | 1.3403° | 3.563 °/s | 53.355 cm/s | 1.2e-10 |
+| Turn in place | current | 0 | 0 | 0 | 3.3e-10 |
+| | coupled | 0 | 0 | 0 | 3.3e-10 |
+| No ground, wheels spun up | current | 0 | 0 | 0 | 4.5e4 |
+| | coupled | 0.6054° | 0.865 °/s | 0 | 3.6e-12 |
+
+Figures are at 60 Hz. At 120 Hz they agree to within 0.01°, 0.2 °/s, and 0.02 cm/s, and the balances are of the same
+orders.
+
+**What it shows:**
+- **The coupled model conserves angular momentum to rounding.** The current one does not while wheels spin up or slow
+  down, as the analysis above predicted.
+- **The turn yaws at 18.9798 °/s in both models.** It is unchanged and needs no correction.
+- **Pitch at the start changes by about 0.01°, and the center's peak speed rises by 0.05 cm/s.** The missing reaction
+  does not explain C2's 55.29 cm/s peak, and correcting it would raise that peak slightly.
+- **Without ground, only the coupled body counter-rotates,** by 0.6° in 0.7 s, as a free body must.
+
+No Unreal model was changed. Adding the coupling to `WheelModel.cpp` would be a model change and needs the owner's
+approval.

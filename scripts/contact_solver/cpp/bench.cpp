@@ -245,7 +245,7 @@ int main(int Argc, char** Argv)
 	std::FILE* Out = std::fopen(Argv[3], "w");
 	std::fprintf(Out, "window,index,method,natural,natural_python_d,dq_vs_python_d,dv_vs_ref_cmps,dw_vs_ref_radps,dspin_vs_ref,"
 		"circle_excess,torque_excess,friction_power,energy_identity_error,iterations,rounds,attempts,fallback_passes,"
-		"fallback_us,median_us,max_us,allocations,stopped,budget_hit,engine_natural\n");
+		"fallback_us,median_us,max_us,allocations,stopped,budget_hit,engine_natural,safety,contact_states\n");
 	std::map<std::string, Memory> Warm;
 	std::string LastWindow;
 	for (size_t S = 0; S < Rows.size(); ++S)
@@ -304,14 +304,28 @@ int main(int Argc, char** Argv)
 		{
 			const Result& Res = Results[K];
 			const Checks C = Evaluate(P, Res.X);
+			// Would the safety check have stopped this answer? Previous: the engine's own answer, as a stand-in.
+			Safety Report;
+			const VecX Engine = EngineX(R.In);
+			MakeSafe(P, Res.X, &Engine, 1e-3, Report);
+			const int Flags = (Report.NonFinite ? 1 : 0) | (Report.OutsideLimits ? 2 : 0) | (Report.Unconverged ? 4 : 0) |
+				(Report.Implausible ? 8 : 0);
+			// Each wheel: 0 no contact, 1 stick, 2 slide; then each motor: h holding, s saturated, - none.
+			char States[13]{};
+			for (int I = 0; I < Wheels; ++I)
+			{
+				const double F = std::hypot(Res.X[3 * I], Res.X[3 * I + 1]);
+				States[I] = !P.InContact[I] ? '0' : (F >= P.FrictionLimit[I] * (1 - 1e-6) ? '2' : '1');
+				States[6 + I] = P.TorqueLimit[I] <= 0 ? '-' : (std::abs(Res.X[3 * I + 2]) >= P.TorqueLimit[I] * (1 - 1e-6) ? 's' : 'h');
+			}
 			double DqPy = 0;
 			for (int J = 0; J < NQ; ++J) DqPy = std::max(DqPy, std::abs(C.Q[J] - PyQ[J]));
-			std::fprintf(Out, "%s,%d,%s,%.6e,%.6e,%.6e,%.6e,%.6e,%.6e,%.6e,%.6e,%.6e,%.6e,%d,%d,%d,%d,%.3f,%.3f,%.3f,%llu,%d,%d,%.6e\n",
+			std::fprintf(Out, "%s,%d,%s,%.6e,%.6e,%.6e,%.6e,%.6e,%.6e,%.6e,%.6e,%.6e,%.6e,%d,%d,%d,%d,%.3f,%.3f,%.3f,%llu,%d,%d,%.6e,%d,%s\n",
 				R.Window.c_str(), R.Index, Chosen[K].Name.c_str(), C.Natural, Py[S].Natural, DqPy, Distance3(C.Q, RefQ, 0),
 				Distance3(C.Q, RefQ, 3), DistanceSpins(C.Q, RefQ), C.CircleExcess, C.TorqueExcess, C.FrictionPower,
 				C.EnergyIdentityError, Res.Iterations, Res.Rounds, Res.Attempts, Res.FallbackPasses, Res.FallbackSeconds * 1e6,
 				Medians[K], Maxes[K], static_cast<unsigned long long>(Allocs[K]), Res.Stopped ? 1 : 0, Res.BudgetHit ? 1 : 0,
-				EngineNatural);
+				EngineNatural, Flags, States);
 		}
 	}
 	std::fclose(Out);

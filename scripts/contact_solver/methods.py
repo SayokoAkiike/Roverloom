@@ -615,6 +615,8 @@ def pseudo_solve(a: Mat, b: Vec, cutoff: float = 1e-10) -> Vec:
 
 
 def _mass_matrix(problem: Problem) -> Mat:
+    if problem.dense_mass is not None:
+        return [list(row) for row in problem.dense_mass]
     m = [[0.0] * 12 for _ in range(12)]
     for k in range(3):
         m[k][k] = problem.mass

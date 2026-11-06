@@ -40,6 +40,16 @@ SCENARIOS = {
     "turn": {"slope": 0.0, "forward": 0.0, "yaw": 28.178, "seconds": 4.0},
     "climb10": {"slope": 10.0, "forward": 50.0, "yaw": 0.0, "seconds": 3.0},
     "hold10": {"slope": 10.0, "forward": 0.0, "yaw": 0.0, "seconds": 3.0},
+    # Contact switching: braking on low friction from 1.5 s, and a release 20 cm above ride height.
+    "stop": {
+        "slope": 0.0,
+        "forward": 50.0,
+        "yaw": 0.0,
+        "seconds": 3.0,
+        "friction": 0.2,
+        "brake_at": 1.5,
+    },
+    "drop": {"slope": 0.0, "forward": 0.0, "yaw": 0.0, "seconds": 2.0, "start_z": 90.0},
 }
 
 
@@ -80,7 +90,9 @@ def run(job: tuple[str, str, int]) -> dict[str, Any]:
     dt = 1.0 / rate
     slope = math.radians(spec["slope"])
     gravity = [-GRAVITY * math.sin(slope), 0.0, -GRAVITY * math.cos(slope)]
-    pos, orient = [0.0, 0.0, 70.0], [1.0, 0.0, 0.0, 0.0]
+    pos, orient = [0.0, 0.0, spec.get("start_z", 70.0)], [1.0, 0.0, 0.0, 0.0]
+    friction = spec.get("friction", 0.6)
+    brake_at = spec.get("brake_at")
     vel, omega, spins = [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0] * 6
     last = None
     states, solve_times, residuals, sliding = [], [], [], []
@@ -90,6 +102,7 @@ def run(job: tuple[str, str, int]) -> dict[str, Any]:
         driving = t >= SETTLE
         turn = math.radians(spec["yaw"] if driving else 0.0) * 103.7
         forward = spec["forward"] if driving else 0.0
+        braking = brake_at is not None and t >= brake_at
         up = rotate(orient, [0, 0, 1])
         fwd_axis, right_axis = rotate(orient, [1, 0, 0]), rotate(orient, [0, 1, 0])
         wheels = []
@@ -119,8 +132,8 @@ def run(job: tuple[str, str, int]) -> dict[str, Any]:
                     "normal": normal,
                     "forward": f,
                     "lateral": lat,
-                    "mode": 0,
-                    "target": target,
+                    "mode": 1 if braking else 0,
+                    "target": 0.0 if braking else target,
                     "spin": spins[i],
                 }
             )
@@ -131,7 +144,7 @@ def run(job: tuple[str, str, int]) -> dict[str, Any]:
                 "inertia": 0.4 * 15 * RADIUS**2,
                 "spring": SPRING,
                 "damper": DAMPER,
-                "friction": 0.6,
+                "friction": friction,
                 "motor": 6e5,
                 "brake": 2e6,
             },
@@ -188,7 +201,17 @@ def run(job: tuple[str, str, int]) -> dict[str, Any]:
                 1 - 2 * (orient[2] ** 2 + orient[3] ** 2),
             )
         )
-        states.append({"t": (step + 1) * dt, "pos": pos, "yaw": yaw, "vel": vel, "omega": omega})
+        states.append(
+            {
+                "t": (step + 1) * dt,
+                "pos": pos,
+                "yaw": yaw,
+                "vel": vel,
+                "omega": omega,
+                "orient": orient,
+                "spins": spins,
+            }
+        )
     switches = sum(
         1 for a, b in zip(sliding, sliding[1:], strict=False) for i in range(6) if a[i] != b[i]
     )
@@ -222,11 +245,19 @@ def main() -> int:
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--workers", type=int, default=6)
     parser.add_argument("--methods", nargs="*", default=list(METHODS))
+    parser.add_argument(
+        "--traces", type=Path, help="Also write every step's state, one JSON file per run"
+    )
     args = parser.parse_args()
     jobs = [(m, s, r) for m in args.methods for s in SCENARIOS for r in (60, 120)]
     with Pool(args.workers) as pool:
         runs = pool.map(run, jobs)
     by_key = {(r["method"], r["scenario"], r["rate"]): r for r in runs}
+    if args.traces:
+        args.traces.mkdir(parents=True, exist_ok=True)
+        for (method, scenario, rate), r in by_key.items():
+            path = args.traces / f"{method}_{scenario}_{rate}.json"
+            path.write_text(json.dumps(r["states"]) + "\n", encoding="utf-8")
     report: dict[str, Any] = {}
     for (method, scenario, rate), r in by_key.items():
         ref = by_key.get(("D", scenario, rate))

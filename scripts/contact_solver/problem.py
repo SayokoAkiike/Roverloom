@@ -93,6 +93,9 @@ class Problem:
     lateral: list[Vec]
     arms: list[tuple[Vec, Vec]]  # r x f, r x l per wheel
     raw: dict[str, Any] = field(default_factory=dict)
+    # Optional full mass matrix and its inverse, for models that couple the body and the wheels.
+    dense_mass: Mat | None = None
+    dense_inv: Mat | None = None
 
     @property
     def wheels(self) -> int:
@@ -100,12 +103,16 @@ class Problem:
 
     def inv_mass_apply(self, impulse: Vec) -> Vec:
         """M^-1 applied to a generalized impulse."""
+        if self.dense_inv is not None:
+            return matvec(self.dense_inv, impulse)
         out = [x / self.mass for x in impulse[:3]]
         out += matvec(self.inv_inertia, impulse[3:6])
         out += [x / self.wheel_inertia for x in impulse[6:]]
         return out
 
     def mass_apply(self, velocity: Vec) -> Vec:
+        if self.dense_mass is not None:
+            return matvec(self.dense_mass, velocity)
         out = [x * self.mass for x in velocity[:3]]
         out += matvec(self.inertia, velocity[3:6])
         out += [x * self.wheel_inertia for x in velocity[6:]]
