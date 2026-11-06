@@ -40,12 +40,23 @@ Code at `b0ad00a`. Driven from a MacBook Air over Tailscale screen sharing.
 
 Logs and screenshots stay outside Git, under `unreal/Saved/G2Tests/` and `unreal/Saved/G2Play/` on the Mac mini.
 
-## Known problems seen
+## Known problems seen, and what followed
 
-- **No colors.** Ground, rocks, and rover render white and gray, and the ground shows a black and white speckle, although
-  the code sets a color on each mesh. Not yet investigated.
-- **Frame rate.** The log's frame counter gave about 60 frames per second in the first seconds, then about 1.5 over the
-  next two minutes, while the window was probably not in front. Not measured with the window focused.
+- **No colors, fixed in `65ccaab`.** Ground, rocks, and rover rendered white and gray, and the ground showed a black and
+  white speckle. Cause, read through Unreal MCP: in UE 5.8.4 the engine's `Cube` uses `WorldGridMaterial`, and `Sphere`
+  and `Cylinder` use `DefaultMaterial`. Neither has a color parameter, so the dynamic instances, made from each mesh's own
+  material, ignored the colors, and the 200 m ground showed the world grid. Instances are now made from
+  `BasicShapeMaterial`, whose parameters are `Color` and `Roughness`. In the chase camera's screenshot, distant ground
+  went from RGB 172, 169, 164 to 200, 166, 130, and the luminance range of a 60-pixel patch from 56–192 to 164–169.
+  Screenshots before and after, from the same three cameras, are kept outside Git.
+- **Frame rate.** The first run's frame counter gave about 1.5 frames per second for two minutes, while the window was
+  probably not in front; the cause is not confirmed. With the window in focus, at `ee5f546`, 1600 × 900, default
+  scalability, rover at rest, six 10 s windows gave 60.0 fps, frame time mean 16.67 ms and 95th percentile 16.93–16.98 ms,
+  game thread 2.5–3.7 ms, GPU 14.0–14.2 ms, focus 100%. The rate is held by the display's 60 Hz. This meets the
+  provisional `Play` target of 30 fps at the 95th percentile on this scene, so no performance change was made. The GPU
+  uses 14 of the 16.7 ms a 60 Hz frame allows, on a scene with almost nothing in it. Not measured: driving, 25 minutes,
+  the Air, or a packaged build.
+- Each screenshot from `-RoverShotDir` costs one long frame, up to 400 ms.
 - `-game` with the editor binary logs 15 Python errors from the experimental EditorToolset plugin's start-up script. None
   comes from project code.
 
