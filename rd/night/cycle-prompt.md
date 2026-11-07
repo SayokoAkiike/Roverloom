@@ -16,7 +16,10 @@ Do exactly one small task:
    Run ids must be unique: {night}-c{cycle}-<short>.
 4. Run the registered checks. If they fail, undo the change with `git restore --source=<commit before it> -- <files>`
    and a new commit saying it was undone, and leave the notes. Never rewrite history.
-5. Never edit scoring, gates, phase C records, research data, or rd/charter.json; never run git push, merge, or install.
+5. Python tests inside the night sandbox have 23 known environment failures (test_evaluator_safety, test_league_competition, and two
+   test_rd_dispatch tests that need /bin/ps); judge Python checks against the baseline commit in the same sandbox, not
+   against zero failures.
+6. Never edit scoring, gates, phase C records, research data, or rd/charter.json; never run git push, merge, or install.
 
 Answer with JSON matching the given schema. Count every build and Unreal launch you caused. If something failed, give a
 short, stable failure_signature, such as "build: RoverPawn.cpp C2065", so that a repeat can be recognized.
