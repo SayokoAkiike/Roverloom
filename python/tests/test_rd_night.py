@@ -416,3 +416,27 @@ def test_cycle_resumes_in_the_same_session_after_an_outage(tmp_path: Path) -> No
     assert "resuming session" in log
     assert "| kept |" in report
     assert (state / "nights" / "t1" / "c1-r1.json").exists()
+
+
+def test_hook_protects_charter_paths_with_windows_separators(monkeypatch) -> None:
+    """Windows CI let protected writes through: relpath gave "\\" separators the charter's "/" paths never matched."""
+    import importlib.util
+    import ntpath
+    import types
+
+    spec = importlib.util.spec_from_file_location("hook_under_test", HOOK)
+    assert spec and spec.loader
+    hook = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(hook)
+    monkeypatch.setattr(hook, "os", types.SimpleNamespace(path=ntpath, sep="\\", environ={}))
+    root = "C:\\night"
+    protected = json.loads((ROOT / "rd" / "charter.json").read_text())["protected_repo_paths"]
+    for target in (
+        "C:\\night\\python\\src\\roverloom\\scoring.py",
+        "C:\\night\\docs\\results\\unreal-wheel-model\\phase-c-design.md",
+        "C:\\night\\rd\\charter.json",
+        "C:\\night\\RD\\Charter.json",
+    ):
+        with pytest.raises(SystemExit):
+            hook.check_write(target, root, protected)
+    hook.check_write("C:\\night\\unreal\\Source\\Roverloom\\Rover\\RoverHud.cpp", root, protected)

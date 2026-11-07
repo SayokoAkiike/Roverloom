@@ -106,9 +106,13 @@ def check_write(path, root, protected):
     ok, real = inside(path, root)
     if not ok:
         deny(f"writes are allowed only inside the night worktree, not {real}")
-    rel = os.path.relpath(real, root)
-    for p in protected:
-        if rel == p.rstrip("/") or rel.startswith(p if p.endswith("/") else p + "/") or rel == p:
+    # One form on every OS: "/" separators and, on Windows, case-insensitive names
+    # (normcase is a no-op elsewhere). Windows's relpath gives "\\" separators,
+    # which never matched the charter's "/" paths.
+    rel = os.path.normcase(os.path.relpath(real, root)).replace("\\", "/")
+    for entry in protected:
+        p = os.path.normcase(entry).replace("\\", "/")
+        if rel == p.rstrip("/") or rel.startswith(p if p.endswith("/") else p + "/"):
             deny(f"{rel} is protected by the charter")
 
 

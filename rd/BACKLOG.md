@@ -41,6 +41,9 @@ Earlier next items:
 
 ## Ideas (not started)
 
+- Hook: on macOS's case-insensitive APFS a protected path written in another case (`PYTHON/src/...`) may not match
+  the charter's list; Windows is handled by normcase (from the Windows CI fix).
+
 - G3 link: move Unreal's socket calls to a thread as the contract asks; add `telemetry` and `mission_state` to
   the contract and schemas; keyboard-driven mission run; Unreal run logs and scores (from G3).
 
