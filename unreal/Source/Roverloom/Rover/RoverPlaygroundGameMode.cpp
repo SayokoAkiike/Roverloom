@@ -1,6 +1,7 @@
 #include "RoverPlaygroundGameMode.h"
 
 #include "Components/DirectionalLightComponent.h"
+#include "Components/ExponentialHeightFogComponent.h"
 #include "Components/SkyAtmosphereComponent.h"
 #include "Components/SkyLightComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -155,9 +156,29 @@ void ARoverPlaygroundGameMode::SpawnLights()
 	if (UDirectionalLightComponent* SunLight = Cast<UDirectionalLightComponent>(Sun->GetLightComponent()))
 	{
 		SunLight->SetAtmosphereSunLight(true);
+		SunLight->SetLightColor(FLinearColor(1.0f, 0.96f, 0.90f)); // Slightly warm white; the dusty sky does the rest
 	}
 
-	World->SpawnActor<ASkyAtmosphere>(ASkyAtmosphere::StaticClass(), FTransform::Identity, SpawnParams);
+	// A Mars-inspired sky (mars_inspired: an artistic preset, not a validated atmosphere model): Mars's radius, a thin
+	// CO2 atmosphere with little Rayleigh scattering, and suspended dust that scatters warm light and absorbs blue,
+	// so the daytime sky turns butterscotch instead of blue. Values chosen by eye against the greybox.
+	// Set through the component's setters after spawning: assigning the fields directly before FinishSpawning did not
+	// reach the renderer (measured 2026-11-07: two different presets rendered the same sky).
+	ASkyAtmosphere* Atmosphere = World->SpawnActor<ASkyAtmosphere>(ASkyAtmosphere::StaticClass(), FTransform::Identity, SpawnParams);
+	if (USkyAtmosphereComponent* Air = Atmosphere ? Atmosphere->FindComponentByClass<USkyAtmosphereComponent>() : nullptr)
+	{
+		Air->SetBottomRadius(3389.5f);   // km
+		Air->SetAtmosphereHeight(80.0f); // km
+		Air->SetGroundAlbedo(FColor(170, 110, 70));
+		Air->SetRayleighScatteringScale(0.0005f);
+		Air->SetRayleighExponentialDistribution(11.0f); // km, Mars's scale height
+		Air->SetMieScatteringScale(0.02f);
+		Air->SetMieScattering(FLinearColor(0.95f, 0.60f, 0.32f));
+		Air->SetMieAbsorptionScale(0.006f);
+		Air->SetMieAbsorption(FLinearColor(0.35f, 0.55f, 0.75f));
+		Air->SetMieAnisotropy(0.5f);
+		Air->SetMieExponentialDistribution(11.0f);
+	}
 
 	ASkyLight* Sky = World->SpawnActorDeferred<ASkyLight>(ASkyLight::StaticClass(), FTransform::Identity, nullptr, nullptr,
 		ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
@@ -165,6 +186,11 @@ void ARoverPlaygroundGameMode::SpawnLights()
 	Sky->GetLightComponent()->SetRealTimeCapture(true);
 	Sky->FinishSpawning(FTransform::Identity);
 
-	World->SpawnActor<AExponentialHeightFog>(AExponentialHeightFog::StaticClass(), FTransform::Identity, SpawnParams);
+	AExponentialHeightFog* Fog = World->SpawnActor<AExponentialHeightFog>(AExponentialHeightFog::StaticClass(), FTransform::Identity, SpawnParams);
+	if (UExponentialHeightFogComponent* FogComponent = Fog ? Fog->FindComponentByClass<UExponentialHeightFogComponent>() : nullptr)
+	{
+		FogComponent->SetFogInscatteringColor(FLinearColor(0.55f, 0.38f, 0.25f)); // Dust haze toward the horizon
+		FogComponent->SetFogDensity(0.01f); // Half the default, so the horizon and shadows stay readable
+	}
 	LightsSpawned = 4; // Sun, sky atmosphere, sky light, fog
 }
