@@ -26,6 +26,29 @@ owner's home, `.ssh`, Keychains, Claude data, clone, research data, and backup, 
 area with `install-night-area.sh`; and runs a build, the automation tests, and an offscreen game with no graphical
 session.
 
+## Step 1b. A temporary graphical session for `rdnight` (trial only)
+
+Unreal needs a graphical session of its user (see the Stage 1 results). This trial logs `rdnight` in once, alongside the
+owner's session, changes no setting, and is undone by logging out. No automatic login, no launchd, no firewall.
+
+Read on 2026-11-07, with no change: FileVault off; no automatic login; no `com.apple.access_screensharing` group, so
+Screen Sharing is not limited to listed users; Tailscale is the standalone app in the owner's session plus its system
+extension. Do not restart the Mac mini during the trial: with no automatic login, the owner's session and its Tailscale
+app would not come back by themselves.
+
+On the MacBook Air, in Screen Sharing (the owner's own connection stays open):
+
+1. Open a second connection to the Mac mini. Enter user `rdnight` and its password. When told another user is logged in,
+   choose to log in as yourself (a separate virtual session), not to ask for permission.
+2. On the first login, macOS runs its setup: skip the Apple Account, decline Siri, Screen Time, analytics, and location.
+3. Leave the window open and tell Claude. Answer any prompt from Unreal in this window during the first run; decline
+   local network access, which loopback MCP does not need.
+4. After Claude's checks: in `rdnight`'s session, Apple menu, Log Out. Close the window.
+
+If `rdnight` is not accepted because it is hidden, stop and tell Claude; unhiding it is a separate decision. If the
+session hangs, log it out from its window; failing that, in the owner's Terminal, `sudo launchctl bootout gui/601`, which
+ends only `rdnight`'s graphical session.
+
 ## Step 2. Remove the night key from the owner's account
 
 Only after step 1's checks pass. Restores `~/.ssh/authorized_keys` to its state before Stage 0:
