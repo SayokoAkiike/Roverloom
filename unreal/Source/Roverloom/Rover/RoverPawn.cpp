@@ -174,6 +174,24 @@ void ARoverPawn::BeginPlay()
 	StartTransform = FTransform(GetActorQuat(), GetActorLocation());
 	FParse::Value(FCommandLine::Get(), TEXT("RoverShotDir="), ShotDir);
 	FParse::Value(FCommandLine::Get(), TEXT("RoverBench="), BenchSeconds);
+	FString DrivePreset;
+	if (FParse::Value(FCommandLine::Get(), TEXT("RoverDrive="), DrivePreset))
+	{
+		// f1-flat: straight, spin, and arc on the flat ground at the start, with stops between, at the command limits.
+		if (DrivePreset == TEXT("f1-flat"))
+		{
+			DrivePhases = {
+				{TEXT("settle"), 3.0, 0.0, 0.0},
+				{TEXT("straight"), 8.0, MaxSpeedMps, 0.0},
+				{TEXT("stop-after-straight"), 4.0, 0.0, 0.0},
+				{TEXT("spin-left"), 8.0, 0.0, MaxYawRateRadps},
+				{TEXT("stop-after-spin"), 4.0, 0.0, 0.0},
+				{TEXT("arc-left"), 8.0, 0.5 * MaxSpeedMps, 0.5 * MaxYawRateRadps},
+				{TEXT("stop-after-arc"), 4.0, 0.0, 0.0},
+			};
+		}
+		UE_LOG(LogRoverloom, Display, TEXT("Rover drive script '%s': %d phases"), *DrivePreset, DrivePhases.Num());
+	}
 	for (UStaticMeshComponent* Wheel : Wheels)
 	{
 		Tint(Wheel, FLinearColor(0.05f, 0.05f, 0.05f));
@@ -273,6 +291,7 @@ void ARoverPawn::Tick(float DeltaSeconds)
 	}
 
 	const double NowS = GetWorld()->GetTimeSeconds();
+	DriveScriptCommand(NowS);
 	if (bKeyboardHeld)
 	{
 		FAction Requested;
@@ -320,7 +339,72 @@ void ARoverPawn::Tick(float DeltaSeconds)
 	{
 		Status.WheelsInContact += Record.Contact.bHit ? 1 : 0;
 	}
+	DriveScriptSample(NowS, StepDt);
 	LogAndCapture(NowS);
+}
+
+void ARoverPawn::DriveScriptCommand(double NowS)
+{
+	if (DrivePhases.IsEmpty() || DriveIndex >= DrivePhases.Num())
+	{
+		return;
+	}
+	if (DriveIndex < 0 || NowS - DrivePhaseStartS >= DrivePhases[DriveIndex].Seconds)
+	{
+		++DriveIndex;
+		DrivePhaseStartS = NowS;
+		DriveStartCm = Rig->GetBody()->GetComponentLocation();
+		DriveStartForward = Rig->GetBody()->GetForwardVector().GetSafeNormal2D();
+		DriveTimeS = DriveDistanceAlongM = DriveHeadingRad = DriveMaxTiltDeg = 0.0;
+		DriveMinWheels = 6;
+		DriveStartResets = Status.Resets;
+		DriveClampedFrames = DriveFrames = 0;
+		if (DriveIndex >= DrivePhases.Num())
+		{
+			UE_LOG(LogRoverloom, Display, TEXT("Rover drive script done"));
+			return;
+		}
+	}
+	const FDrivePhase& Phase = DrivePhases[DriveIndex];
+	FAction Requested;
+	Requested.LinearVelocityMps = Phase.LinearMps;
+	Requested.YawRateRadps = Phase.YawRadps;
+	Status.bClamped = Router->Submit(KeyboardSource, Requested, NowS).bClamped;
+}
+
+void ARoverPawn::DriveScriptSample(double NowS, double StepDt)
+{
+	if (DriveIndex < 0 || DriveIndex >= DrivePhases.Num())
+	{
+		return;
+	}
+	const FDrivePhase& Phase = DrivePhases[DriveIndex];
+	DriveTimeS += StepDt;
+	DriveDistanceAlongM += Status.ForwardMps * StepDt;
+	DriveHeadingRad += Status.YawRateRadps * StepDt;
+	DriveMaxTiltDeg = FMath::Max(DriveMaxTiltDeg, Status.TiltDeg);
+	DriveMinWheels = FMath::Min(DriveMinWheels, Status.WheelsInContact);
+	DriveClampedFrames += Status.bClamped ? 1 : 0;
+	++DriveFrames;
+	if (NowS + StepDt - DrivePhaseStartS < Phase.Seconds)
+	{
+		return;
+	}
+	// Last frame of the phase: commanded against measured, in SI units.
+	const double T = FMath::Max(DriveTimeS, 1e-6);
+	// Ground-plane displacement from the phase start, split along and across the heading the phase started with.
+	FVector DeltaCm = Rig->GetBody()->GetComponentLocation() - DriveStartCm;
+	DeltaCm.Z = 0.0;
+	const double AlongM = FVector::DotProduct(DeltaCm, DriveStartForward) / RoverloomFrames::UnrealCmPerM;
+	const double AcrossM = (DeltaCm - FVector::DotProduct(DeltaCm, DriveStartForward) * DriveStartForward).Size() / RoverloomFrames::UnrealCmPerM;
+	UE_LOG(LogRoverloom, Display,
+		TEXT("Rover drive phase %s: %.2f s, cmd v %.3f m/s yaw %.4f rad/s; mean v %.3f m/s (%.0f%%), mean yaw %.4f rad/s (%.0f%%), "
+			 "net along %.3f m across %.3f m, heading %.1f deg, max tilt %.2f deg, min wheels %d/6, clamped %d/%d frames, resets %d"),
+		*Phase.Name, DriveTimeS, Phase.LinearMps, Phase.YawRadps, DriveDistanceAlongM / T,
+		Phase.LinearMps != 0.0 ? 100.0 * DriveDistanceAlongM / T / Phase.LinearMps : 0.0, DriveHeadingRad / T,
+		Phase.YawRadps != 0.0 ? 100.0 * DriveHeadingRad / T / Phase.YawRadps : 0.0, AlongM, AcrossM,
+		FMath::RadiansToDegrees(DriveHeadingRad),
+		DriveMaxTiltDeg, DriveMinWheels, DriveClampedFrames, DriveFrames, Status.Resets - DriveStartResets);
 }
 
 void ARoverPawn::RecordFrame(double DeltaSeconds)
