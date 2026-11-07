@@ -301,7 +301,7 @@ void ARoverPawn::Tick(float DeltaSeconds)
 	}
 	const FAction Applied = Router->Current(NowS);
 	TArray<double> Targets;
-	SkidSteerTargets(Applied, Targets);
+	SkidSteerTargets(Applied, Targets, RoverloomRover::DriveTrackScale);
 	Rig->SetTargets(Targets, Applied.IsStop() ? RoverloomWheel::EWheelMode::Brake : RoverloomWheel::EWheelMode::Drive);
 
 	// Chaos clamps its step to MaxPhysicsDeltaTime; the wheel solve must use the same step, or a hitch would apply a

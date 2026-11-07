@@ -24,7 +24,12 @@ namespace RoverloomRover
 	// Wheels 0-2 are left (-Y in Unreal) and 3-5 right, each front, middle, rear; the order of phase C.
 	FVector WheelMountCm(int32 Index);
 
-	// Skid steering as in phase C: rim speed v plus or minus yaw rate times half track. Takes a contract action and
-	// fills the six wheels' target spins in rad/s, positive rolling forward.
-	void SkidSteerTargets(const RoverloomCommand::FAction& Action, TArray<double>& OutTargetsRadps);
+	// Controller calibration, not physics: skid-steer wheels scrub sideways in a turn, so the body turns slower than
+	// the kinematic track predicts. The driven rover computes its left-right difference with this effective track
+	// factor. F1/F2 measurement 2026-11-07 (flat ground, friction 0.6): yaw reached 66% at factor 1.0.
+	inline constexpr double DriveTrackScale = 1.5;
+
+	// Skid steering as in phase C: rim speed v plus or minus yaw rate times half track (times TrackScale; 1.0 is phase
+	// C's CommandSix). Takes a contract action and fills the six wheels' target spins in rad/s, positive rolling forward.
+	void SkidSteerTargets(const RoverloomCommand::FAction& Action, TArray<double>& OutTargetsRadps, double TrackScale = 1.0);
 }
