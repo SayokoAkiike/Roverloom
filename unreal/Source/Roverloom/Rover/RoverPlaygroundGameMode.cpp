@@ -25,9 +25,12 @@ namespace
 {
 	const double MarsGravityCmps2 = 371.0; // As WheelSpikeGameMode
 	const int32 RockSeed = 7;
-	const FLinearColor Regolith(0.42f, 0.24f, 0.14f);
-	const FLinearColor Outcrop(0.33f, 0.2f, 0.13f);
-	const FLinearColor Rock(0.25f, 0.17f, 0.12f);
+	// mars_inspired palette matched to V1's dusty sky: rust regolith, darker basaltic outcrops and rocks, so the step,
+	// ramps, and rocks read against the ground.
+	const FLinearColor Regolith(0.46f, 0.21f, 0.10f);
+	const FLinearColor Outcrop(0.17f, 0.11f, 0.08f);
+	const FLinearColor Rock(0.13f, 0.09f, 0.07f);
+	const int32 FarRockSeed = 11;
 }
 
 ARoverPlaygroundGameMode::ARoverPlaygroundGameMode()
@@ -135,7 +138,19 @@ void ARoverPlaygroundGameMode::SpawnTerrain()
 		const FVector Center(Random.FRandRange(-6000.0, -800.0), Random.FRandRange(-4000.0, 4000.0), 0.0);
 		const double Size = Random.FRandRange(20.0, 120.0);
 		const FVector Scale(Size * Random.FRandRange(0.8, 1.6), Size * Random.FRandRange(0.8, 1.4), Size * Random.FRandRange(0.4, 0.8));
-		SpawnBlock(Center, FRotator(0.0, Random.FRandRange(0.0, 360.0), 0.0), Scale, Rock, TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+		SpawnBlock(Center, FRotator(0.0, Random.FRandRange(0.0, 360.0), 0.0), Scale, Rock * Random.FRandRange(0.8f, 1.25f),
+			TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+		++RocksSpawned;
+	}
+	// Rocks in the view ahead, beyond every test lane (the step ends at x 18 m, the ramps' plateaus at x 25.6 m).
+	FRandomStream Far(FarRockSeed);
+	for (int32 Index = 0; Index < 36; ++Index)
+	{
+		const FVector Center(Far.FRandRange(3000.0, 8000.0), Far.FRandRange(-4500.0, 4500.0), 0.0);
+		const double Size = Far.FRandRange(25.0, 160.0);
+		const FVector Scale(Size * Far.FRandRange(0.8, 1.6), Size * Far.FRandRange(0.8, 1.4), Size * Far.FRandRange(0.4, 0.8));
+		SpawnBlock(Center, FRotator(0.0, Far.FRandRange(0.0, 360.0), 0.0), Scale, Rock * Far.FRandRange(0.8f, 1.25f),
+			TEXT("/Engine/BasicShapes/Sphere.Sphere"));
 		++RocksSpawned;
 	}
 }
