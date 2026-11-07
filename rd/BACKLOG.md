@@ -12,6 +12,7 @@ with `git revert -m 1 <merge commit>`.
 | --- | --- | --- | --- |
 | P1, F1 | ae2f0ba, 95f3ee7 | d1a0847 | build ok, 5/5 automation, HUD and drive logs present, pytest 818 passed |
 | F2 + F1b, V1 | ed22597, 024fa94 | 95f3ee7 | build ok, 5/5 automation, turning 98%, Mars sky, pytest 821 passed |
+| V1b | 6547fe7 | 9a058a4 | build ok, 5/5 automation, bench render, GPU +0.33 ms, check_repo ok |
 
 ## Done (task branches)
 
@@ -26,9 +27,11 @@ with `git revert -m 1 <merge commit>`.
 ## Next
 
 - P2b: chase camera that keeps the rover framed while turning at the new yaw rate.
-- V2: rocks and terrain variation around the start, within the GPU budget.
 
 ## Ideas (not started)
+
+- Microsoft Update Assistant started again as rdnight at 20:55 through its on-demand XPC service, though its agents
+  are disabled; the dispatcher refused Unreal steps until rdnight's own process was ended (from V1b).
 
 - 15° climb speed 88%; two wheels in contact at slope edges; 10° ramp and downhill runs (from F1b).
 
