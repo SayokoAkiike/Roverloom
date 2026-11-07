@@ -352,7 +352,7 @@ void ARoverPawn::Tick(float DeltaSeconds)
 		UEnhancedInputLocalPlayerSubsystem* Input = LocalPlayer ? LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>() : nullptr;
 		if (bHold && Input)
 		{
-			Input->InjectInputForAction(DriveAction, FInputActionValue(1.0f)); // W, through the player's mapping
+			Input->InjectInputForAction(DriveAction, FInputActionValue(1.0f), {}, {}); // W, through the player's mapping
 		}
 		if (bHold != bKeySimLogged)
 		{
