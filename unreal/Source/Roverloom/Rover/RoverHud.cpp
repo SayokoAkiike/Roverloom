@@ -35,6 +35,7 @@ void ARoverHud::DrawHUD()
 	const FLinearColor Amber(1.0f, 0.72f, 0.2f);
 	const FLinearColor White(0.95f, 0.95f, 0.95f);
 	const FLinearColor Red(1.0f, 0.3f, 0.25f);
+	const FLinearColor Green(0.45f, 1.0f, 0.5f);
 
 	// The label comes first and is always drawn: model P is a provisional choice by the owner's decision of 2026-11-07.
 	Line(TEXT("PROVISIONAL DRIVE MODEL P: WheelSpike wheel model, gated PGS"), Amber, 1.3f);
@@ -78,6 +79,10 @@ void ARoverHud::DrawHUD()
 			Line(FString::Printf(TEXT("Rig resets %d, last: %s"), S->Resets, *S->LastReset), Red);
 		}
 		Gap = 8.0f;
+		if (!S->MissionLine.IsEmpty())
+		{
+			Line(S->MissionLine, S->bMissionEnded ? Green : Amber);
+		}
 		Line(TEXT("W/S drive   A/D turn   C camera   R reset"), White, 1.0f);
 		Line(TEXT("Free camera: mouse to look, arrows to move, Page Up/Down to rise"), White, 1.0f);
 	}
