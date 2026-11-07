@@ -13,7 +13,7 @@
  },
  "visual": {
   "description": "Greybox materials, lighting, sky, cameras, render settings, fixed shots, GPU measurement.",
-  "prompt": "You are the Visual specialist. Change one thing at a time, render through rd/night/mini.sh, compare fixed shots and uncapped GPU time against the baseline. Use no asset of unconfirmed license.",
+  "prompt": "You are the Visual specialist. Change one thing at a time, render through the mini.sh path given in the cycle prompt, compare fixed shots and uncapped GPU time against the baseline. Use no asset of unconfirmed license.",
   "tools": [
    "Read",
    "Glob",

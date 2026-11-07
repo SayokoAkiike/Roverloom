@@ -65,8 +65,6 @@ ALLOWED_PROGRAMS = {
     "uv",
     "git",
     "sips",
-    "rd/night/mini.sh",
-    "./rd/night/mini.sh",
 }
 GIT_ALLOWED = {
     "status",
@@ -126,6 +124,9 @@ def check_bash(command, root, protected):
     if not words:
         deny("empty command")
     prog = words[0]
+    mini = os.environ.get("RD_MINI")
+    if mini and prog == mini:
+        return  # the owner's copy; its own argument checks apply
     if prog not in ALLOWED_PROGRAMS:
         deny(f"program '{prog}' is not allowed at night")
     args = words[1:]

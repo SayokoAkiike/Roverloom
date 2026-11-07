@@ -11,7 +11,7 @@ Do exactly one small task:
 1. Read docs/project-status.md, docs/release-gates.md (G2), the last night report under rd/sessions/, and git log -10.
 2. Choose one task from Verification, Visual, or Gameplay (or Research), and write its checks and pass criteria in
    rd/sessions/{night}-c{cycle}.md before changing anything.
-3. Make the change in this worktree and commit it on the night branch. Use rd/night/mini.sh for every Mac mini step:
+3. Make the change in this worktree and commit it on the night branch. Use {mini} for every Mac mini step:
    `push <branch>` (to the night repository on the Mac mini only), then sync, build, test, game, fetch-evidence.
    Run ids must be unique: {night}-c{cycle}-<short>.
 4. Run the registered checks. If they fail, undo the change with `git restore --source=<commit before it> -- <files>`

@@ -252,6 +252,7 @@ class Night:
             cycle=index + 1,
             max_cycles=self.limits["max_cycles"],
             night=self.stamp,
+            mini=os.path.join(HERE, "mini.sh"),
             minutes_left=int((self.deadline - time.time()) / 60),
             priorities=", ".join(self.charter["priorities"]["night_domains"])
             + (
@@ -291,7 +292,13 @@ class Night:
         env = {
             k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"
         }  # Never switch billing to an API key
-        env.update(RD_WORKTREE=self.worktree, RD_CHARTER=self.charter_path)
+        env.update(
+            RD_WORKTREE=self.worktree,
+            RD_CHARTER=self.charter_path,
+            # The owner's clone, which the Air sandbox keeps read-only: the night cannot edit these.
+            RD_HOOK=os.path.join(HERE, "hook.py"),
+            RD_MINI=os.path.join(HERE, "mini.sh"),
+        )
         out_path = os.path.join(self.dir, f"c{index + 1}.json")
         done = threading.Event()
         watcher = threading.Thread(target=self.watch, args=(index, done), daemon=True)

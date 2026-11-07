@@ -5,7 +5,7 @@
   },
   "hooks": {
     "PreToolUse": [
-      {"matcher": "*", "hooks": [{"type": "command", "command": "/usr/bin/python3 \"$CLAUDE_PROJECT_DIR\"/rd/night/hook.py"}]}
+      {"matcher": "*", "hooks": [{"type": "command", "command": "test -f \"$RD_HOOK\" || exit 2; /usr/bin/python3 \"$RD_HOOK\" || exit 2"}]}
     ]
   }
 }
