@@ -135,7 +135,7 @@ Unreal's resident size at most 2.5 GB in the samples. The 10 s sampling can miss
 
 Same dispatcher steps, once per condition, memory sampled every 5 s. A: `rdnight`'s screen locked by the owner, its
 session on the console. B: the owner switched back with fast user switching; `rdnight` stayed logged in behind
-(`IOConsoleUsers`: `csmm_19` on the console, `rdnight` not). This macOS has no `CGSSessionScreenIsLocked` key, so the
+(`IOConsoleUsers`: the owner on the console, `rdnight` not). This macOS has no `CGSSessionScreenIsLocked` key, so the
 lock in A is the owner's report, not a measurement.
 
 | | A: locked | B: background |
