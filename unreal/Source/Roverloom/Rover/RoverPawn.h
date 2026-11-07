@@ -85,6 +85,8 @@ private:
 	void AddMappingContext();
 	void LogAndCapture(double NowS);
 	void RecordFrame(double DeltaSeconds);
+	void DriveScriptCommand(double NowS);
+	void DriveScriptSample(double NowS, double StepDt);
 	void LogRenderSettings(const TCHAR* When) const;
 
 	void OnDrive(const FInputActionValue& Value);
@@ -171,4 +173,26 @@ private:
 	double BenchSeconds = 0.0;
 	double BenchShotS = -1.0;
 	bool bBenchProfiled = false;
+	// -RoverDrive=<preset>: a fixed drive script for measuring drive model P, sent through the same command path as the
+	// keyboard. Each phase logs commanded and measured values; nothing in the model changes.
+	struct FDrivePhase
+	{
+		FString Name;
+		double Seconds = 0.0;
+		double LinearMps = 0.0;
+		double YawRadps = 0.0;
+	};
+	TArray<FDrivePhase> DrivePhases;
+	int32 DriveIndex = -1;
+	double DrivePhaseStartS = 0.0;
+	FVector DriveStartCm = FVector::ZeroVector;
+	FVector DriveStartForward = FVector::ForwardVector;
+	double DriveTimeS = 0.0;
+	double DriveDistanceAlongM = 0.0;
+	double DriveHeadingRad = 0.0;
+	double DriveMaxTiltDeg = 0.0;
+	int32 DriveMinWheels = 6;
+	int32 DriveStartResets = 0;
+	int32 DriveClampedFrames = 0;
+	int32 DriveFrames = 0;
 };
