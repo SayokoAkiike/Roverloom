@@ -162,23 +162,23 @@ void ARoverPlaygroundGameMode::SpawnLights()
 	// A Mars-inspired sky (mars_inspired: an artistic preset, not a validated atmosphere model): Mars's radius, a thin
 	// CO2 atmosphere with little Rayleigh scattering, and suspended dust that scatters warm light and absorbs blue,
 	// so the daytime sky turns butterscotch instead of blue. Values chosen by eye against the greybox.
-	ASkyAtmosphere* Atmosphere = World->SpawnActorDeferred<ASkyAtmosphere>(ASkyAtmosphere::StaticClass(), FTransform::Identity,
-		nullptr, nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
-	if (USkyAtmosphereComponent* Air = Atmosphere->FindComponentByClass<USkyAtmosphereComponent>())
+	// Set through the component's setters after spawning: assigning the fields directly before FinishSpawning did not
+	// reach the renderer (measured 2026-11-07: two different presets rendered the same sky).
+	ASkyAtmosphere* Atmosphere = World->SpawnActor<ASkyAtmosphere>(ASkyAtmosphere::StaticClass(), FTransform::Identity, SpawnParams);
+	if (USkyAtmosphereComponent* Air = Atmosphere ? Atmosphere->FindComponentByClass<USkyAtmosphereComponent>() : nullptr)
 	{
-		Air->BottomRadius = 3389.5f;           // km
-		Air->AtmosphereHeight = 80.0f;         // km
-		Air->GroundAlbedo = FColor(170, 110, 70);
-		Air->RayleighScatteringScale = 0.0005f;
-		Air->RayleighExponentialDistribution = 11.0f; // km, Mars's scale height
-		Air->MieScatteringScale = 0.04f;
-		Air->MieScattering = FLinearColor(0.95f, 0.60f, 0.32f);
-		Air->MieAbsorptionScale = 0.006f;
-		Air->MieAbsorption = FLinearColor(0.35f, 0.55f, 0.75f);
-		Air->MieAnisotropy = 0.5f;
-		Air->MieExponentialDistribution = 11.0f;
+		Air->SetBottomRadius(3389.5f);   // km
+		Air->SetAtmosphereHeight(80.0f); // km
+		Air->SetGroundAlbedo(FColor(170, 110, 70));
+		Air->SetRayleighScatteringScale(0.0005f);
+		Air->SetRayleighExponentialDistribution(11.0f); // km, Mars's scale height
+		Air->SetMieScatteringScale(0.04f);
+		Air->SetMieScattering(FLinearColor(0.95f, 0.60f, 0.32f));
+		Air->SetMieAbsorptionScale(0.006f);
+		Air->SetMieAbsorption(FLinearColor(0.35f, 0.55f, 0.75f));
+		Air->SetMieAnisotropy(0.5f);
+		Air->SetMieExponentialDistribution(11.0f);
 	}
-	Atmosphere->FinishSpawning(FTransform::Identity);
 
 	ASkyLight* Sky = World->SpawnActorDeferred<ASkyLight>(ASkyLight::StaticClass(), FTransform::Identity, nullptr, nullptr,
 		ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
