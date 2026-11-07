@@ -84,7 +84,14 @@ def charter_copy(tmp_path: Path, **night: object) -> Path:
     charter = json.loads((ROOT / "rd" / "charter.json").read_text())
     charter["approved_by_owner"] = False
     charter["night"].update(
-        {"max_cycles": 3, "usd_per_cycle": None, "usd_per_night": None, **night}
+        {
+            "max_cycles": 3,
+            "usd_per_cycle": None,
+            "usd_per_night": None,
+            "owner_busy_stop_s": 0.3,
+            "mini_unreachable_stop_s": 0.3,
+            **night,
+        }
     )
     path = tmp_path / "charter.json"
     path.write_text(json.dumps(charter))
@@ -313,3 +320,18 @@ def test_hook_command_fails_closed_without_its_path() -> None:
         ["/bin/sh", "-c", command], input="{}", capture_output=True, text=True, env=env
     )
     assert done.returncode == 2
+
+
+def test_owner_input_that_never_stops_ends_the_cycle(tmp_path: Path) -> None:
+    code, report, _ = run_night(tmp_path, [cycle(sleep=30, owner_idle_s=0.0)])
+    assert "owner input on the Mac mini" in report
+
+
+def test_unreachable_mini_ends_the_cycle(tmp_path: Path) -> None:
+    code, report, _ = run_night(tmp_path, [cycle(sleep=30, mini_unreachable=True)])
+    assert "Mac mini unreachable" in report
+
+
+def test_owner_input_that_stops_in_time_does_not_end_the_cycle(tmp_path: Path) -> None:
+    code, report, _ = run_night(tmp_path, [cycle(owner_idle_s=99999)])
+    assert "owner input" not in report

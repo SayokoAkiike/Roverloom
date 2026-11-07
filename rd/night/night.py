@@ -69,6 +69,8 @@ class Night:
         self.launches = 0
         self.cost = 0.0
         self.owner_skips = 0
+        self.busy_since = None
+        self.unreachable_since = None
         self.fake = load_json(args.fake) if args.fake else None
         self.worktree = None
         self.tunnel = None
@@ -190,6 +192,8 @@ class Night:
     def mini_status(self, cycle_index):
         if self.fake:
             outcome = self.fake[min(cycle_index, len(self.fake) - 1)]
+            if outcome.get("mini_unreachable"):
+                return None
             return {
                 "memory": {"free_pct": outcome.get("free_pct", 70)},
                 "foreign_unreal": [],
@@ -215,8 +219,20 @@ class Night:
         if time.time() >= self.deadline:
             return f"time cap {self.limits['max_minutes']} min"
         status = self.mini_status(cycle_index)
+        now = time.time()
         if status is None:
+            self.unreachable_since = self.unreachable_since or now
+            if now - self.unreachable_since >= self.limits["mini_unreachable_stop_s"]:
+                return f"Mac mini unreachable for {now - self.unreachable_since:.0f} s"
             return None
+        self.unreachable_since = None
+        idle = status.get("owner_idle_s")
+        if idle is not None and idle < self.charter["mini"]["owner_idle_min_s"]:
+            self.busy_since = self.busy_since or now
+            if now - self.busy_since >= self.limits["owner_busy_stop_s"]:
+                return f"owner input on the Mac mini for {now - self.busy_since:.0f} s"
+        else:
+            self.busy_since = None
         free = status.get("memory", {}).get("free_pct")
         if free is not None and free < self.charter["mini"]["min_free_memory_pct"]:
             return f"memory: Mac mini free {free}%"
