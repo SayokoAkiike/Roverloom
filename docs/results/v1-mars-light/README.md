@@ -1,6 +1,7 @@
 # V1: a Mars-inspired sky and dust haze, 2026-11-07
 
-**Status: candidate on branch `rd/task-v1-mars-light`, for the owner's visual review. An artistic preset
+**Status: kept on branch `rd/task-v1-mars-light`. Criteria: a Mars-like sky color, a readable horizon (sky − ground
+luma at least 20 apart), GPU no more than 0.5 ms worse; all three met. An artistic preset
 (mars_inspired), not a validated atmosphere model. No change to the camera, terrain, sun direction, physics, or HUD.**
 
 ## Change (`RoverPlaygroundGameMode::SpawnLights`)
