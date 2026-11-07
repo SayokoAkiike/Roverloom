@@ -24,6 +24,11 @@ with `git revert -m 1 <merge commit>`.
 | V1 | `rd/task-v1-mars-light` | Kept: Mars-inspired sky and haze, horizon readable, GPU unchanged |
 | F1b | `rd/task-f1b-terrain` | Measured: 25 cm step climbed; 15° ramp at 88% speed, 2/6 wheels at edges, no resets |
 
+## High priority, safety
+
+- S1: the night hook's protected-path check may miss a path written in another case on macOS's case-insensitive
+  APFS (`PYTHON/src/...`). Windows is handled by normcase (6cfa9f9). Fix without weakening any existing refusal.
+
 ## Next (prioritized in docs/results/game-readiness/README.md, 2026-11-07)
 
 1. Run-log writer in Unreal and `check_run_contract` on it.
@@ -41,8 +46,6 @@ Earlier next items:
 
 ## Ideas (not started)
 
-- Hook: on macOS's case-insensitive APFS a protected path written in another case (`PYTHON/src/...`) may not match
-  the charter's list; Windows is handled by normcase (from the Windows CI fix).
 
 - G3 link: move Unreal's socket calls to a thread as the contract asks; add `telemetry` and `mission_state` to
   the contract and schemas; keyboard-driven mission run; Unreal run logs and scores (from G3).
