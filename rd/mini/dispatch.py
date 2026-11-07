@@ -138,8 +138,27 @@ def lock_holder():
 
 
 # ------------------------------------------------------------------ guards
+def night_user_forbidden_processes():
+    """Processes of the night user whose command line names a forbidden program (charter)."""
+    text = subprocess.run(
+        ["/bin/ps", "-U", str(os.getuid()), "-ww", "-o", "pid=,command="],
+        capture_output=True,
+        text=True,
+    ).stdout
+    names = M.get("forbidden_night_processes", [])
+    found = []
+    for line in text.splitlines():
+        pid, _, cmd = line.strip().partition(" ")
+        if any(n in cmd for n in names):
+            found.append(int(pid))
+    return found
+
+
 def preflight():
     """Refuse an Unreal step if the owner might be affected or memory is short."""
+    banned = night_user_forbidden_processes()
+    if banned:
+        raise Refused(f"isolation: forbidden processes run as the night user: {banned}")
     foreign = foreign_unreal()
     if foreign:
         raise Refused(
@@ -203,6 +222,7 @@ def v_status(args):
             "foreign_unreal": [p for p, _ in foreign_unreal()],
             "memory": memory(),
             "owner_idle_s": owner_idle_s(),
+            "forbidden_processes": night_user_forbidden_processes(),
             "work_head": head,
         }
     )

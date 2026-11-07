@@ -59,3 +59,18 @@ def test_already_exited_child_is_not_an_error(dispatch) -> None:
     proc = child("pass")
     time.sleep(0.5)  # exited but not reaped: a zombie
     assert dispatch.stop_gracefully(proc.pid, proc) in ("gone", "exited")
+
+
+def test_preflight_refuses_while_a_forbidden_process_runs_as_this_user(dispatch) -> None:
+    proc = subprocess.Popen(
+        [sys.executable, "-c", "import time; time.sleep(30)", "OneDrive Sync Service stand-in"]
+    )
+    try:
+        time.sleep(0.5)
+        assert proc.pid in dispatch.night_user_forbidden_processes()
+        with pytest.raises(dispatch.Refused, match="isolation"):
+            dispatch.preflight()
+    finally:
+        proc.kill()
+        proc.wait()
+    assert proc.pid not in dispatch.night_user_forbidden_processes()

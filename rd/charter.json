@@ -60,7 +60,14 @@
       "~/.bash_login",
       "~/.gitconfig"
     ],
-    "_write_protected_files": "Literal paths: sshd runs the dispatcher through the user's shell, which reads these files; the dispatcher runs git in work/ outside the sandbox. A sandboxed process must not be able to write them, or rename work/ or the night root."
+    "_write_protected_files": "Literal paths: sshd runs the dispatcher through the user's shell, which reads these files; the dispatcher runs git in work/ outside the sandbox. A sandboxed process must not be able to write them, or rename work/ or the night root.",
+    "forbidden_night_processes": [
+      "OneDrive",
+      "Microsoft AutoUpdate",
+      "Microsoft Update Assistant",
+      "SyncReporter"
+    ],
+    "_forbidden_night_processes": "The night user runs no Microsoft process: its launchd overrides disable com.microsoft.update.agent, com.microsoft.OneDriveStandaloneUpdater, and com.microsoft.SyncReporter (measured 2026-11-07: they started at its first login; no account, sync folder, or token existed). The dispatcher refuses Unreal steps while one runs as the night user. This lowers the risk; it does not prove separation from the employer's Microsoft 365, which also depends on machine and tenant settings outside this charter."
   },
   "evaluation": {
     "resolution": [
@@ -102,7 +109,9 @@
     "uploads to external services",
     "assets of unconfirmed license",
     "stopping or signaling a process the night did not start",
-    "edits to scoring, gates, registered criteria, phase C records, or raw research data"
+    "edits to scoring, gates, registered criteria, phase C records, or raw research data",
+    "sign-in, authentication, device registration, or sync with any Microsoft, OneDrive, Microsoft 365, or employer account",
+    "copying Roverloom, QUODVIS, Claude Code, or personal research files into OneDrive or any other sync folder"
   ],
   "_billing": "The Air uses a claude.ai subscription login, not an API key. usd_* caps are compared with Claude Code's list-price estimate (--max-budget-usd, total_cost_usd), not with billing. The wrapper removes ANTHROPIC_API_KEY from each cycle's environment. Caps stay null until the owner sets them; a real night refuses to start while they are null.",
   "air": {
