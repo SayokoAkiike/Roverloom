@@ -1,12 +1,15 @@
 ;; Sandbox profile for every Unreal process the night starts on the Mac mini (sandbox-exec -f), as the night user.
-;; install-night-area.sh fills the two lists below from rd/charter.json, mini.write_protected and mini.read_protected,
-;; with ~ expanded for the night user. The night user's own permissions already keep the owner's files out of reach;
-;; this profile is a second layer. Outbound network is limited to loopback. Binds and inbound traffic cannot be
+;; install-night-area.sh fills the lists below from rd/charter.json (mini.write_protected, mini.write_protected_files,
+;; mini.read_protected), with ~ expanded for the night user. The literal list holds the shell startup files that sshd
+;; reads before the forced command, and the entries of the night root and clone, so work/ cannot be swapped: the
+;; dispatcher runs git there outside the sandbox. The night user's own permissions already keep the owner's files out
+;; of reach; this profile is a second layer. Outbound network is limited to loopback. Binds and inbound traffic cannot be
 ;; limited here without breaking MCP (measured 2026-11-07); the firewall handles ports 1985 and 8558.
 (version 1)
 (allow default)
 (deny file-write*
-@DENY_WRITE@)
+@DENY_WRITE@
+@DENY_WRITE_FILES@)
 (deny file-read*
 @DENY_READ@)
 (deny network-outbound (remote ip "*:*"))

@@ -49,7 +49,8 @@ and Unreal user files out of reach, and the night gets its own `~/Library`, so t
 | 6. Keep the sandbox as a second layer: writes denied as now, reads of anything outside the night user's home and the engine copy denied, outbound network to loopback only | Claude, after review | Probes as above; build, tests, game, editor, MCP all run |
 | 7. Retire `~/RoverloomNight` in the owner's account, after the move is verified | Owner decides | — |
 
-**Open question for step 4:** whether `-RenderOffscreen` renders for a user with **no graphical session**. If not, the
+**Answered 2026-11-07 ([results](results/rd-stage1/README.md)): no Unreal process starts without one.** Open question
+for step 4 was whether `-RenderOffscreen` renders for a user with **no graphical session**. If not, the
 night user needs a background login session (fast user switching), which changes the login window and Screen Sharing's
 choices, and is a further owner decision. Exclusion from the owner's Unreal must then also look at processes of both
 users; the dispatcher's `ps` check already sees all users' processes.

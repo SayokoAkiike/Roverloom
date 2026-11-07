@@ -31,8 +31,12 @@
     "write_protected": [
       "~/RoverloomNight/bin",
       "~/RoverloomNight/repo.git",
+      "~/RoverloomNight/work/.git",
+      "~/RoverloomNight/logs",
+      "~/RoverloomNight/run",
       "~/.ssh",
       "~/Library/LaunchAgents",
+      "~/.config/git",
       "/Users/Shared/UE_5.8-night",
       "/Users/Shared/rdnight-setup"
     ],
@@ -41,7 +45,22 @@
       "~/.ssh",
       "/Users/Shared/rdnight-setup"
     ],
-    "network_outbound": "loopback only"
+    "network_outbound": "loopback only",
+    "write_protected_files": [
+      "~/RoverloomNight",
+      "~/RoverloomNight/work",
+      "~/.zshenv",
+      "~/.zshrc",
+      "~/.zprofile",
+      "~/.zlogin",
+      "~/.zlogout",
+      "~/.profile",
+      "~/.bashrc",
+      "~/.bash_profile",
+      "~/.bash_login",
+      "~/.gitconfig"
+    ],
+    "_write_protected_files": "Literal paths: sshd runs the dispatcher through the user's shell, which reads these files; the dispatcher runs git in work/ outside the sandbox. A sandboxed process must not be able to write them, or rename work/ or the night root."
   },
   "evaluation": {
     "resolution": [

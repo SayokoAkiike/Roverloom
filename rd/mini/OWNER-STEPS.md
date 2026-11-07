@@ -5,6 +5,8 @@ the result from the MacBook Air after each step and reports before the next. Not
 
 ## Step 1. Create the night user
 
+Done 2026-11-07; results in [`docs/results/rd-stage1/README.md`](../../docs/results/rd-stage1/README.md).
+
 The script and the two public keys are already in `/Users/Shared/rdnight-setup/` (no private key is there). Its
 SHA-256 must start with `e502a8663ef7ad4b`.
 

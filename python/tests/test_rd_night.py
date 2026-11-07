@@ -225,3 +225,32 @@ def test_existing_stop_file_refuses_to_start(tmp_path: Path) -> None:
     )
     assert done.returncode == 2
     assert "STOP file present" in done.stderr
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["push", "main"],
+        ["push", "feature/unreal-project"],
+        ["push", "rd/x", "extra"],
+        ["push"],
+        ["push", "rd/a;b"],
+        ["shell"],
+    ],
+)
+def test_mini_push_refuses_other_branches_and_verbs(args: list[str], tmp_path: Path) -> None:
+    """Refused before any SSH: HOME points at a throwaway folder whose host cannot resolve."""
+    state = tmp_path / ".roverloom-rd"
+    state.mkdir()
+    (state / "local.json").write_text(
+        json.dumps({"mini_host": "invalid.invalid", "mini_user": "nobody", "night_key": "~/none"})
+    )
+    done = subprocess.run(
+        [str(NIGHT / "mini.sh"), *args],
+        capture_output=True,
+        text=True,
+        env=dict(os.environ, HOME=str(tmp_path)),
+        timeout=30,
+    )
+    assert done.returncode == 2
+    assert "mini.sh:" in done.stderr

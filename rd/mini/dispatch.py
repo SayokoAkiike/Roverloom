@@ -38,6 +38,8 @@ ENGINE = os.path.expanduser(M["engine"])
 EDITOR = os.path.join(ENGINE, "Engine/Binaries/Mac/UnrealEditor.app/Contents/MacOS/UnrealEditor")
 BUILD = os.path.join(ENGINE, "Engine/Build/BatchFiles/Mac/Build.sh")
 PROFILE = os.path.join(BIN, "night.sb")
+# The dispatcher runs git outside the sandbox; never let the clone's own config start a program.
+GIT = ["/usr/bin/git", "-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null", "-C"]
 RUN_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")
 BRANCH = re.compile(r"^rd/[a-z0-9][a-z0-9._-]{0,59}$")
 # Set only when the owner runs the dispatcher directly with their own key. A forced command never
@@ -188,7 +190,7 @@ def v_status(args):
     if args:
         raise Refused("status takes no arguments")
     head = subprocess.run(
-        ["/usr/bin/git", "-C", WORK, "rev-parse", "--short", "HEAD"], capture_output=True, text=True
+        [*GIT, WORK, "rev-parse", "--short", "HEAD"], capture_output=True, text=True
     ).stdout.strip()
     out(
         {
@@ -208,7 +210,7 @@ def v_sync(args):
     if lock_holder():
         raise Refused("busy: lock held")
     dirty = subprocess.run(
-        ["/usr/bin/git", "-C", WORK, "status", "--porcelain"], capture_output=True, text=True
+        [*GIT, WORK, "status", "--porcelain"], capture_output=True, text=True
     ).stdout
     if dirty.strip():
         raise Refused("night worktree has changes; not syncing over them")
@@ -216,8 +218,7 @@ def v_sync(args):
     ref = "refs/remotes/origin/" + args[0]
     subprocess.run(
         [
-            "/usr/bin/git",
-            "-C",
+            *GIT,
             WORK,
             "fetch",
             "--quiet",
@@ -227,9 +228,7 @@ def v_sync(args):
         check=True,
         env=env,
     )
-    subprocess.run(
-        ["/usr/bin/git", "-C", WORK, "checkout", "--quiet", "--detach", ref], check=True, env=env
-    )
+    subprocess.run([*GIT, WORK, "checkout", "--quiet", "--detach", ref], check=True, env=env)
     v_status([])
 
 
@@ -239,8 +238,7 @@ def run_logged(cmd, logfile, timeout):
         try:
             return proc.wait(timeout=timeout)
         except subprocess.TimeoutExpired:
-            stop_gracefully(proc.pid)
-            return "timeout"
+            return "timeout: " + stop_gracefully(proc.pid, proc)
 
 
 def v_build(args):
@@ -326,7 +324,8 @@ def v_game(args):
                     PROJECT,
                     "/Engine/Maps/Entry?game=/Script/Roverloom.RoverPlaygroundGameMode",
                     "-game",
-                    "-windowed",
+                    # No graphical session for the night user: render without a window.
+                    "-RenderOffscreen",
                     "-ResX=1600",
                     "-ResY=900",
                     "-nosplash",
@@ -340,8 +339,7 @@ def v_game(args):
         try:
             rc = proc.wait(timeout=seconds + M["game_timeout_extra_s"])
         except subprocess.TimeoutExpired:
-            stop_gracefully(proc.pid)
-            rc = "timeout"
+            rc = "timeout: " + stop_gracefully(proc.pid, proc)
     finally:
         forget("game")
         release()
@@ -361,6 +359,7 @@ def v_editor_start(args):
             [
                 EDITOR,
                 PROJECT,
+                "-RenderOffscreen",
                 "-ModelContextProtocolStartServer",
                 f"-ModelContextProtocolPort={M['mcp_port']}",
                 "-nosplash",
@@ -374,25 +373,45 @@ def v_editor_start(args):
     out({"editor_pid": proc.pid, "mcp": f"127.0.0.1:{M['mcp_port']}"})
 
 
-def stop_gracefully(pid):
-    """SIGINT, which Unreal's Mac handler turns into a normal exit; SIGTERM after a wait.
+def stop_gracefully(pid, proc=None):
+    """SIGINT, which Unreal's Mac handler turns into a normal exit; then SIGTERM, then SIGKILL.
 
-    Called only for processes the night started: run_logged and start_own children, and the PID in
-    run/editor.pid after its command line is checked against the night project.
+    Called only for processes the night started: run_logged and start_own children (with their
+    Popen, so an exited child is reaped instead of lingering as a zombie), and the PID in
+    run/editor.pid after its command line is checked against the night project. macOS answers
+    EPERM when a group holds only zombies; that counts as exited, not as an error.
     """
-    try:
-        os.killpg(pid, signal.SIGINT)
-    except ProcessLookupError:
+
+    def alive():
+        if proc is not None:
+            return proc.poll() is None
+        return any(p == pid for p, _ in processes())
+
+    def signal_group(sig):
+        try:
+            os.killpg(pid, sig)
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            return alive()
+        return True
+
+    def wait(seconds):
+        deadline = time.time() + seconds
+        while time.time() < deadline:
+            if not alive():
+                return True
+            time.sleep(1)
+        return not alive()
+
+    if not signal_group(signal.SIGINT):
         return "gone"
-    deadline = time.time() + M["graceful_stop_wait_s"]
-    while time.time() < deadline:
-        if not any(p == pid for p, _ in processes()):
-            return "exited"
-        time.sleep(1)
-    try:
-        os.killpg(pid, signal.SIGTERM)
-    except ProcessLookupError:
+    if wait(M["graceful_stop_wait_s"]):
         return "exited"
+    if signal_group(signal.SIGTERM) and not wait(10):
+        signal_group(signal.SIGKILL)
+        wait(10)
+        return "killed" if not alive() else "still running"
     return "terminated"
 
 
