@@ -363,9 +363,15 @@ def start_own(name, cmd, logfile):
     return proc
 
 
+DRIVE = re.compile(r"^[a-z0-9-]{1,32}$")
+
+
 def v_game(args):
-    if len(args) != 2 or not args[1].isdigit():
-        raise Refused("game <run-id> <seconds>")
+    if len(args) not in (2, 3) or not args[1].isdigit():
+        raise Refused("game <run-id> <seconds> [drive-preset]")
+    if len(args) == 3 and not DRIVE.match(args[2]):
+        raise Refused("bad drive preset")
+    drive = [f"-RoverDrive={args[2]}"] if len(args) == 3 else []
     seconds = int(args[1])
     if not M["game_seconds_min"] <= seconds <= M["game_seconds_max"]:
         raise Refused("seconds out of range")
@@ -388,6 +394,7 @@ def v_game(args):
             "-abslog=" + os.path.join(ev, "game.log"),
             "-RoverShotDir=" + os.path.join(ev, "shots"),
             f"-RoverBench={seconds}",
+            *drive,
         ]
         proc = start_own("game", sandboxed(cmd), os.path.join(ev, "stdout.txt"))
         try:
