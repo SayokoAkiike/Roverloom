@@ -167,7 +167,7 @@ def ancestors():
     return pids
 
 
-def preflight(gpu=False):
+def preflight(gpu=False, playing=False):
     """Refuse an Unreal step if the owner might be affected or memory is short.
 
     Builds and tests (gpu=False) run while the owner works, at utility priority (see niced());
@@ -183,7 +183,14 @@ def preflight(gpu=False):
             f"busy: an Unreal process the night did not start is running: {[p for p, _ in foreign]}"
         )
     idle = owner_idle_s()
-    if gpu and idle is not None and idle < M["owner_idle_gpu_s"] and not OWNER_OVERRIDE:
+    # A play- preset is the owner at the keyboard: owner input is expected, not a reason to wait.
+    if (
+        gpu
+        and not playing
+        and idle is not None
+        and idle < M["owner_idle_gpu_s"]
+        and not OWNER_OVERRIDE
+    ):
         raise Refused(
             f"busy: the owner used the Mac mini {idle:.0f} s ago; games and the editor wait "
             f"for {M['owner_idle_gpu_s']} s idle (builds and tests may run now)"
@@ -372,10 +379,11 @@ def v_game(args):
     if len(args) == 3 and not DRIVE.match(args[2]):
         raise Refused("bad drive preset")
     drive = [f"-RoverDrive={args[2]}"] if len(args) == 3 else []
+    playing = len(args) == 3 and args[2].startswith("play-")
     seconds = int(args[1])
     if not M["game_seconds_min"] <= seconds <= M["game_seconds_max"]:
         raise Refused("seconds out of range")
-    preflight(gpu=True)
+    preflight(gpu=True, playing=playing)
     acquire(f"game:{os.getpid()}")
     try:
         ev = step_dir(args[0], "game")
@@ -385,8 +393,8 @@ def v_game(args):
             PROJECT,
             "/Engine/Maps/Entry?game=/Script/Roverloom.RoverPlaygroundGameMode",
             "-game",
-            # No graphical session for the night user: render without a window.
-            "-RenderOffscreen",
+            # Offscreen when unattended; a window on rdnight's session for play- presets.
+            "-windowed" if playing else "-RenderOffscreen",
             NO_UDP_MESSAGING,
             "-ResX=1600",
             "-ResY=900",

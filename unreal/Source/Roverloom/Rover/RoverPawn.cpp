@@ -230,6 +230,16 @@ void ARoverPawn::BeginPlay()
 			};
 			MissionLinkStart();
 		}
+		// G4a: play-g3 opens the mission link for a person at the keyboard; keys-g3 does the same and simulates holding W.
+		else if (DrivePreset == TEXT("play-g3") || DrivePreset == TEXT("keys-g3"))
+		{
+			MissionLinkStart();
+			if (DrivePreset == TEXT("keys-g3"))
+			{
+				KeySimStartS = 6.0;
+				KeySimSeconds = 20.0;
+			}
+		}
 		UE_LOG(LogRoverloom, Display, TEXT("Rover drive script '%s': %d phases"), *DrivePreset, DrivePhases.Num());
 	}
 	for (UStaticMeshComponent* Wheel : Wheels)
@@ -333,6 +343,23 @@ void ARoverPawn::Tick(float DeltaSeconds)
 
 	const double NowS = GetWorld()->GetTimeSeconds();
 	MissionLinkTick(NowS);
+	if (KeySimStartS >= 0.0)
+	{
+		const double Since = NowS - ReadyTimeS;
+		const bool bHold = Since >= KeySimStartS && Since < KeySimStartS + KeySimSeconds;
+		const APlayerController* PC = Cast<APlayerController>(GetController());
+		const ULocalPlayer* LocalPlayer = PC ? PC->GetLocalPlayer() : nullptr;
+		UEnhancedInputLocalPlayerSubsystem* Input = LocalPlayer ? LocalPlayer->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>() : nullptr;
+		if (bHold && Input)
+		{
+			Input->InjectInputForAction(DriveAction, FInputActionValue(1.0f)); // W, through the player's mapping
+		}
+		if (bHold != bKeySimLogged)
+		{
+			bKeySimLogged = bHold;
+			UE_LOG(LogRoverloom, Display, TEXT("Rover simulated key W %s at %.2f s"), bHold ? TEXT("down") : TEXT("up"), Since);
+		}
+	}
 	DriveScriptCommand(NowS);
 	if (bKeyboardHeld)
 	{
@@ -521,6 +548,12 @@ void ARoverPawn::MissionLinkTick(double NowS)
 		{
 			LinkLastLogged = Key;
 			UE_LOG(LogRoverloom, Display, TEXT("Rover mission state from the Mission Core: %s"), *Status.MissionLine);
+		}
+		if (Status.bMissionEnded && !bMissionShotTaken && !ShotDir.IsEmpty())
+		{
+			bMissionShotTaken = true; // The HUD shows the verdict from the next frame on
+			FScreenshotRequest::RequestScreenshot(FPaths::Combine(ShotDir, TEXT("Mission.png")), true, false);
+			UE_LOG(LogRoverloom, Display, TEXT("Rover mission verdict captured: Mission.png"));
 		}
 	}
 }

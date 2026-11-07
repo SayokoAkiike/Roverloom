@@ -197,6 +197,12 @@ private:
 	FString LinkBuffer;
 	double LinkLastSendS = -1.0;
 	FString LinkLastLogged;
+	// G4a: keys-g3 presses W through Enhanced Input (as a key would) from KeySimStartS for KeySimSeconds after the rig
+	// is ready; the drive script is not used. The first mission verdict is captured as Mission.png.
+	double KeySimStartS = -1.0;
+	double KeySimSeconds = 0.0;
+	bool bKeySimLogged = false;
+	bool bMissionShotTaken = false;
 	int32 DriveIndex = -1;
 	double DrivePhaseStartS = 0.0;
 	FVector DriveStartCm = FVector::ZeroVector;
