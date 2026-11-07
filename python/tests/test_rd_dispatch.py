@@ -13,6 +13,11 @@ from pathlib import Path
 
 import pytest
 
+# The dispatcher runs only on the Mac mini: process groups, os.getuid, /bin/ps, /bin/sh.
+UNIX_ONLY = pytest.mark.skipif(
+    sys.platform == "win32", reason="the dispatcher is macOS-only (process groups, /bin/ps)"
+)
+
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -37,12 +42,14 @@ def child(code: str) -> subprocess.Popen:
 READY = "import signal, time\n"
 
 
+@UNIX_ONLY
 def test_child_that_exits_on_sigint(dispatch) -> None:
     proc = child(READY + "time.sleep(60)")
     assert dispatch.stop_gracefully(proc.pid, proc) == "exited"
     assert proc.poll() is not None
 
 
+@UNIX_ONLY
 def test_child_that_ignores_sigint_and_sigterm_is_killed(dispatch) -> None:
     proc = child(
         READY
@@ -55,12 +62,14 @@ def test_child_that_ignores_sigint_and_sigterm_is_killed(dispatch) -> None:
     assert proc.poll() is not None
 
 
+@UNIX_ONLY
 def test_already_exited_child_is_not_an_error(dispatch) -> None:
     proc = child("pass")
     time.sleep(0.5)  # exited but not reaped: a zombie
     assert dispatch.stop_gracefully(proc.pid, proc) in ("gone", "exited")
 
 
+@UNIX_ONLY
 def test_preflight_refuses_while_a_forbidden_process_runs_as_this_user(dispatch) -> None:
     proc = subprocess.Popen(
         [sys.executable, "-c", "import time; time.sleep(30)", "OneDrive Sync Service stand-in"]
@@ -76,6 +85,7 @@ def test_preflight_refuses_while_a_forbidden_process_runs_as_this_user(dispatch)
     assert proc.pid not in dispatch.night_user_forbidden_processes()
 
 
+@UNIX_ONLY
 def test_own_parent_shell_is_not_a_forbidden_process(dispatch) -> None:
     """A shell whose command line merely mentions a forbidden name, and runs the check, is not flagged."""
     code = (

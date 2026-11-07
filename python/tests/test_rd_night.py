@@ -13,6 +13,12 @@ from pathlib import Path
 
 import pytest
 
+# The night wrapper and mini.sh run only on the MacBook Air: process groups (os.killpg), sandbox-exec, bash.
+UNIX_ONLY = pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="night wrapper and mini.sh are macOS-only (process groups, bash)",
+)
+
 ROOT = Path(__file__).resolve().parents[2]
 NIGHT = ROOT / "rd" / "night"
 HOOK = NIGHT / "hook.py"
@@ -56,7 +62,9 @@ def worktree(tmp_path: Path) -> Path:
         ("Bash", {"command": "git reset --hard HEAD~1"}, False),
         ("Bash", {"command": "git -c core.hooksPath=/tmp commit -m x"}, False),
         ("Bash", {"command": "git commit --no-verify -m x"}, False),
-        ("Bash", {"command": f"{NIGHT / 'mini.sh'} build night-c1-a"}, True),
+        pytest.param(
+            "Bash", {"command": f"{NIGHT / 'mini.sh'} build night-c1-a"}, True, marks=UNIX_ONLY
+        ),  # a Windows path's backslashes are shell escapes
         ("Bash", {"command": "rd/night/mini.sh build night-c1-a"}, False),
         ("Bash", {"command": "./rd/night/mini.sh push rd/x"}, False),
         ("StructuredOutput", {"domain": "Visual"}, True),
@@ -205,6 +213,7 @@ def run_night(
     return proc.returncode, report + err, state
 
 
+@UNIX_ONLY
 def test_normal_night_runs_three_cycles_and_commits_report(tmp_path: Path) -> None:
     code, report, state = run_night(tmp_path, [cycle(), cycle("discarded"), cycle()])
     assert code == 0
@@ -221,6 +230,7 @@ def test_normal_night_runs_three_cycles_and_commits_report(tmp_path: Path) -> No
     assert "Night t1 report" in log
 
 
+@UNIX_ONLY
 def test_same_failure_twice_stops(tmp_path: Path) -> None:
     sig = "build: RoverPawn.cpp C2065"
     _, report, _ = run_night(tmp_path, [cycle("failed", sig), cycle("failed", sig), cycle()])
@@ -228,11 +238,13 @@ def test_same_failure_twice_stops(tmp_path: Path) -> None:
     assert report.count("| failed |") == 2
 
 
+@UNIX_ONLY
 def test_different_failures_continue(tmp_path: Path) -> None:
     _, report, _ = run_night(tmp_path, [cycle("failed", "a"), cycle("failed", "b"), cycle()])
     assert "cycle cap 3" in report
 
 
+@UNIX_ONLY
 def test_stop_file_ends_a_running_cycle(tmp_path: Path) -> None:
     start = time.time()
     _, report, _ = run_night(tmp_path, [cycle(sleep=30), cycle()], stop_after=1.5)
@@ -240,11 +252,13 @@ def test_stop_file_ends_a_running_cycle(tmp_path: Path) -> None:
     assert time.time() - start < 20, "the watcher must stop the running cycle, not wait for it"
 
 
+@UNIX_ONLY
 def test_memory_guard_stops(tmp_path: Path) -> None:
     _, report, _ = run_night(tmp_path, [cycle(sleep=2, free_pct=10), cycle()])
     assert "memory: Mac mini free 10%" in report
 
 
+@UNIX_ONLY
 def test_invalid_cycle_output_counts_as_failure(tmp_path: Path) -> None:
     _, report, _ = run_night(
         tmp_path, [{"output": {"result": "kept"}}, {"output": None, "exit": 1}]
@@ -252,6 +266,7 @@ def test_invalid_cycle_output_counts_as_failure(tmp_path: Path) -> None:
     assert "| failed |" in report
 
 
+@UNIX_ONLY
 def test_api_key_is_removed_from_cycles(tmp_path: Path) -> None:
     run_night(tmp_path, [cycle()], env_extra={"ANTHROPIC_API_KEY": "sk-test-not-real"})
     envelope = json.loads((tmp_path / "state" / "nights" / "t1" / "c1.json").read_text())
@@ -309,6 +324,7 @@ def test_existing_stop_file_refuses_to_start(tmp_path: Path) -> None:
     assert "STOP file present" in done.stderr
 
 
+@UNIX_ONLY
 @pytest.mark.parametrize(
     "args",
     [
@@ -338,6 +354,7 @@ def test_mini_push_refuses_other_branches_and_verbs(args: list[str], tmp_path: P
     assert "mini.sh:" in done.stderr
 
 
+@UNIX_ONLY
 def test_hook_command_fails_closed_without_its_path() -> None:
     """Claude Code lets a tool run when a hook errors; the settings' command turns any error into exit 2."""
     settings = json.loads((NIGHT / "settings.json").read_text())
@@ -354,21 +371,25 @@ def test_hook_command_fails_closed_without_its_path() -> None:
     assert done.returncode == 2
 
 
+@UNIX_ONLY
 def test_owner_input_that_never_stops_ends_the_cycle(tmp_path: Path) -> None:
     code, report, _ = run_night(tmp_path, [cycle(sleep=30, owner_idle_s=0.0)])
     assert "owner input on the Mac mini" in report
 
 
+@UNIX_ONLY
 def test_unreachable_mini_ends_the_cycle(tmp_path: Path) -> None:
     code, report, _ = run_night(tmp_path, [cycle(sleep=30, mini_unreachable=True)])
     assert "Mac mini unreachable" in report
 
 
+@UNIX_ONLY
 def test_owner_input_that_stops_in_time_does_not_end_the_cycle(tmp_path: Path) -> None:
     code, report, _ = run_night(tmp_path, [cycle(owner_idle_s=99999)])
     assert "owner input" not in report
 
 
+@UNIX_ONLY
 def test_mini_retries_only_when_the_connection_fails(tmp_path: Path) -> None:
     """127.0.0.1:22 refuses at once on the Air (no sshd): nothing ran remotely, so mini.sh retries."""
     state = tmp_path / ".roverloom-rd"
@@ -386,6 +407,7 @@ def test_mini_retries_only_when_the_connection_fails(tmp_path: Path) -> None:
     assert done.stderr.count("retry") == 2
 
 
+@UNIX_ONLY
 def test_cycle_resumes_in_the_same_session_after_an_outage(tmp_path: Path) -> None:
     """Status fails for a while, the cycle is stopped, then resumed once the Mac mini answers."""
     outcome = cycle(sleep=30, unreachable_polls=6, on_resume={"sleep": 0.1})
