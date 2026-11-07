@@ -172,7 +172,7 @@ void ARoverPlaygroundGameMode::SpawnLights()
 		Air->SetGroundAlbedo(FColor(170, 110, 70));
 		Air->SetRayleighScatteringScale(0.0005f);
 		Air->SetRayleighExponentialDistribution(11.0f); // km, Mars's scale height
-		Air->SetMieScatteringScale(0.04f);
+		Air->SetMieScatteringScale(0.02f);
 		Air->SetMieScattering(FLinearColor(0.95f, 0.60f, 0.32f));
 		Air->SetMieAbsorptionScale(0.006f);
 		Air->SetMieAbsorption(FLinearColor(0.35f, 0.55f, 0.75f));
@@ -190,6 +190,7 @@ void ARoverPlaygroundGameMode::SpawnLights()
 	if (UExponentialHeightFogComponent* FogComponent = Fog ? Fog->FindComponentByClass<UExponentialHeightFogComponent>() : nullptr)
 	{
 		FogComponent->SetFogInscatteringColor(FLinearColor(0.55f, 0.38f, 0.25f)); // Dust haze toward the horizon
+		FogComponent->SetFogDensity(0.01f); // Half the default, so the horizon and shadows stay readable
 	}
 	LightsSpawned = 4; // Sun, sky atmosphere, sky light, fog
 }
