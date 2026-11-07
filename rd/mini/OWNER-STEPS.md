@@ -71,20 +71,25 @@ sudo $FW --getglobalstate; sudo $FW --listapps          # record the starting st
 # 1. Arm the revert: the firewall turns itself off again in 15 minutes unless cancelled
 sudo sh -c 'nohup sh -c "sleep 900; /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate off" > /tmp/fw-revert.log 2>&1 &'
 
-# 2. Block incoming connections for Unreal and Zen, owner's and night's copies
-for app in "$HOME/UnrealEngineInstall/UE_5.8/Engine/Binaries/Mac/UnrealEditor.app" \
-           "/Users/Shared/UE_5.8-night/Engine/Binaries/Mac/UnrealEditor.app" \
-           "$HOME/Library/Application Support/Epic/UnrealEngine/Common/Zen/Install/zenserver"; do
-  sudo $FW --add "$app"; sudo $FW --blockapp "$app"
-done
+# 2. Block incoming connections for Unreal, its trace server, and Zen: owner's and night's copies.
+#    Record the binaries' hashes first; the firewall should not modify signed binaries, and step 4 checks it.
+E=$HOME/UnrealEngineInstall/UE_5.8/Engine/Binaries/Mac
+N=/Users/Shared/UE_5.8-night/Engine/Binaries/Mac
+Z="Library/Application Support/Epic/UnrealEngine/Common/Zen/Install/zenserver"
+APPS=("$E/UnrealEditor.app" "$E/UnrealTraceServer" "$HOME/$Z"
+      "$N/UnrealEditor.app" "$N/UnrealTraceServer" "/Users/rdnight/$Z")
+sudo shasum -a 256 "$E/UnrealEditor.app/Contents/MacOS/UnrealEditor" "$E/UnrealTraceServer" "$HOME/$Z" \
+  "$N/UnrealEditor.app/Contents/MacOS/UnrealEditor" "$N/UnrealTraceServer" "/Users/rdnight/$Z" > /tmp/fw-hashes-before.txt
+for app in "${APPS[@]}"; do sudo $FW --add "$app"; sudo $FW --blockapp "$app"; done
 
 # 3. Turn it on. Not "block all incoming", not stealth mode.
 sudo $FW --setglobalstate on
 ```
 
 Claude then checks from the Air: SSH as the owner and as `rdnight`; Tailscale ping; that Screen Sharing is still
-connected; that MCP through the night tunnel still answers; and that port 1985 of a running Unreal process and 8558 of
-Zen refuse a connection from the Air. If all pass, cancel the revert:
+connected; that MCP through the night tunnel still answers (loopback); and that 1985, 1981, 1989, and 8558 of a
+running night editor refuse a connection from the Air over Tailscale and the LAN. Then (step 4) the owner compares the
+hashes with `sudo shasum -a 256 -c /tmp/fw-hashes-before.txt`. If all pass, cancel the revert:
 
 ```shell
 sudo pkill -f "sleep 900; /usr/libexec/ApplicationFirewall"
@@ -93,7 +98,5 @@ sudo pkill -f "sleep 900; /usr/libexec/ApplicationFirewall"
 If anything fails, or remote access is lost, do nothing: the firewall turns off by itself within 15 minutes. To undo by
 hand: `sudo $FW --setglobalstate off`.
 
-The night user's own Zen server appears at `/Users/rdnight/Library/Application Support/Epic/UnrealEngine/Common/Zen/Install/zenserver`
-after its first Unreal run; add and block it the same way then, together with
-`/Users/Shared/UE_5.8-night/Engine/Binaries/Mac/UnrealTraceServer` (it listens on `*:1981` and `*:1989`, measured
-2026-11-07).
+Ports measured 2026-11-07 while the night editor ran: editor `*:1985`, UnrealTraceServer `*:1981` and `*:1989`, Zen
+`*:8558`; MCP `127.0.0.1:8100` only.
