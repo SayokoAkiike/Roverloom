@@ -146,12 +146,25 @@ def night_user_forbidden_processes():
         text=True,
     ).stdout
     names = M.get("forbidden_night_processes", [])
+    mine = ancestors()  # the shell that ran the dispatcher may carry any text in its command line
     found = []
     for line in text.splitlines():
         pid, _, cmd = line.strip().partition(" ")
-        if any(n in cmd for n in names):
+        if int(pid) not in mine and any(n in cmd for n in names):
             found.append(int(pid))
     return found
+
+
+def ancestors():
+    """This process and its parents, up to launchd."""
+    pids, pid = set(), os.getpid()
+    while pid > 1 and pid not in pids:
+        pids.add(pid)
+        out = subprocess.run(
+            ["/bin/ps", "-o", "ppid=", "-p", str(pid)], capture_output=True, text=True
+        ).stdout.strip()
+        pid = int(out) if out.isdigit() else 1
+    return pids
 
 
 def preflight():

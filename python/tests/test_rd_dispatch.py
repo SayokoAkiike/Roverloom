@@ -74,3 +74,20 @@ def test_preflight_refuses_while_a_forbidden_process_runs_as_this_user(dispatch)
         proc.kill()
         proc.wait()
     assert proc.pid not in dispatch.night_user_forbidden_processes()
+
+
+def test_own_parent_shell_is_not_a_forbidden_process(dispatch) -> None:
+    """A shell whose command line merely mentions a forbidden name, and runs the check, is not flagged."""
+    code = (
+        "import importlib.util,sys;"
+        f"s=importlib.util.spec_from_file_location('d',{str(dispatch.__file__)!r});"
+        "m=importlib.util.module_from_spec(s);s.loader.exec_module(m);"
+        "print(m.night_user_forbidden_processes())"
+    )
+    out = subprocess.run(
+        ["/bin/sh", "-c", f'{sys.executable} -c "{code}" # OneDrive'],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    assert out == "[]"
