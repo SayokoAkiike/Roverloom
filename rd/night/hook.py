@@ -26,6 +26,7 @@ READ_ONLY_TOOLS = {
     "Task",
     "Agent",
     "ToolSearch",
+    "StructuredOutput",  # how a cycle returns its answer (--json-schema); writes nothing
 }
 WRITE_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 # Programs a night may run through Bash. Everything else is refused, whatever its arguments.

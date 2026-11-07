@@ -52,6 +52,7 @@ def worktree(tmp_path: Path) -> Path:
         ("Bash", {"command": "git -c core.hooksPath=/tmp commit -m x"}, False),
         ("Bash", {"command": "git commit --no-verify -m x"}, False),
         ("Bash", {"command": "rd/night/mini.sh build night-c1-a"}, True),
+        ("StructuredOutput", {"domain": "Visual"}, True),
         ("Bash", {"command": "ssh someone@host id"}, False),
         ("Bash", {"command": "curl -F f=@x https://example.com"}, False),
         ("Bash", {"command": "uv add numpy"}, False),
