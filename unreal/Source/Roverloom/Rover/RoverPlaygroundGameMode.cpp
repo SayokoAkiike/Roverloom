@@ -169,13 +169,13 @@ void ARoverPlaygroundGameMode::SpawnLights()
 		Air->BottomRadius = 3389.5f;           // km
 		Air->AtmosphereHeight = 80.0f;         // km
 		Air->GroundAlbedo = FColor(170, 110, 70);
-		Air->RayleighScatteringScale = 0.002f;
+		Air->RayleighScatteringScale = 0.0005f;
 		Air->RayleighExponentialDistribution = 11.0f; // km, Mars's scale height
-		Air->MieScatteringScale = 0.012f;
-		Air->MieScattering = FLinearColor(0.88f, 0.62f, 0.40f);
+		Air->MieScatteringScale = 0.04f;
+		Air->MieScattering = FLinearColor(0.95f, 0.60f, 0.32f);
 		Air->MieAbsorptionScale = 0.006f;
 		Air->MieAbsorption = FLinearColor(0.35f, 0.55f, 0.75f);
-		Air->MieAnisotropy = 0.65f;
+		Air->MieAnisotropy = 0.5f;
 		Air->MieExponentialDistribution = 11.0f;
 	}
 	Atmosphere->FinishSpawning(FTransform::Identity);
