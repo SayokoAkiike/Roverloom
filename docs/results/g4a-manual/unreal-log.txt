@@ -1,0 +1,11 @@
+2026.11.07-16.43.28:729 Rover mission link listening on 127.0.0.1:8100
+2026.11.07-16.43.28:729 Rover drive script 'keys-g3': 0 phases
+2026.11.07-16.43.29:808 Rover mission link: Mission Core connected
+2026.11.07-16.43.29:836 Rover mission state from the Mission Core: Mission (Python): g3_reach_target   targets 0/1   RUNNING   t 0.0 s
+2026.11.07-16.43.35:804 Rover simulated key W down at 6.01 s
+2026.11.07-16.43.48:094 Rover mission state from the Mission Core: Mission (Python): g3_reach_target   targets 1/1   SUCCESS   t 18.2 s
+2026.11.07-16.43.48:094 Rover mission verdict captured: Mission.png
+2026.11.07-16.43.53:217 Rover mission link: client dropped (connection error)
+2026.11.07-16.43.56:661 Rover simulated key W up at 26.01 s
+2026.11.07-16.44.17:656 Rover bench finished after 47.0 s
+2026.11.07-16.44.17:692 Rover mission link: client dropped (stop)
