@@ -71,6 +71,18 @@ def test_hook_policy(tool: str, tool_input: dict, allowed: bool, worktree: Path)
     assert (code == 0) == allowed, err
 
 
+def charter_copy(tmp_path: Path, **night: object) -> Path:
+    """The real charter with the limits the tests were written for: 3 cycles, not approved."""
+    charter = json.loads((ROOT / "rd" / "charter.json").read_text())
+    charter["approved_by_owner"] = False
+    charter["night"].update(
+        {"max_cycles": 3, "usd_per_cycle": None, "usd_per_night": None, **night}
+    )
+    path = tmp_path / "charter.json"
+    path.write_text(json.dumps(charter))
+    return path
+
+
 def make_repo(tmp_path: Path) -> Path:
     root = tmp_path / "nightroot"
     repo = root / "repo"
@@ -134,6 +146,8 @@ def run_night(
         "--quiet",
         "--fake-interval",
         "0.1",
+        "--test-charter",
+        str(charter_copy(tmp_path)),
     ]
     proc = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     if stop_after is not None:
@@ -199,13 +213,32 @@ def test_api_key_is_removed_from_cycles(tmp_path: Path) -> None:
 
 def test_real_night_refuses_without_approval_or_caps(tmp_path: Path) -> None:
     done = subprocess.run(
-        [sys.executable, str(WRAPPER), "--check", "--state-dir", str(tmp_path)],
+        [
+            sys.executable,
+            str(WRAPPER),
+            "--check",
+            "--state-dir",
+            str(tmp_path),
+            "--test-charter",
+            str(charter_copy(tmp_path)),
+        ],
         capture_output=True,
         text=True,
     )
     assert done.returncode == 2
     assert "not approved" in done.stderr
     assert "caps are not set" in done.stderr
+
+
+def test_test_charter_is_refused_for_a_real_night(tmp_path: Path) -> None:
+    done = subprocess.run(
+        [sys.executable, str(WRAPPER), "--state-dir", str(tmp_path), "--test-charter", "x.json"],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert done.returncode != 0
+    assert "only for fake nights" in done.stderr
 
 
 def test_existing_stop_file_refuses_to_start(tmp_path: Path) -> None:

@@ -46,6 +46,10 @@ class Night:
     def __init__(self, args):
         self.args = args
         self.charter_path = os.path.join(REPO_ROOT, "rd", "charter.json")
+        if args.test_charter:
+            if not (args.fake or args.check):
+                raise SystemExit("--test-charter is only for fake nights and --check")
+            self.charter_path = args.test_charter
         self.charter = load_json(self.charter_path)
         air = self.charter["air"]
         self.limits = self.charter["night"]
@@ -249,7 +253,12 @@ class Night:
             max_cycles=self.limits["max_cycles"],
             night=self.stamp,
             minutes_left=int((self.deadline - time.time()) / 60),
-            priorities=", ".join(self.charter["priorities"]["night_domains"]),
+            priorities=", ".join(self.charter["priorities"]["night_domains"])
+            + (
+                "; this night: " + self.charter["priorities"]["first_night"]
+                if self.charter["priorities"].get("first_night")
+                else ""
+            ),
             history="\n".join(
                 f"- c{i + 1}: {c.get('domain')} {c.get('task')}: {c.get('result')}"
                 for i, c in enumerate(self.cycles)
@@ -449,6 +458,9 @@ def main(argv=None):
     p.add_argument("--check", action="store_true")
     p.add_argument("--fake")
     p.add_argument("--fake-interval", type=float, default=0.2)
+    p.add_argument(
+        "--test-charter", help="fake nights and --check only: a charter copy with test limits"
+    )
     p.add_argument("--state-dir")
     p.add_argument("--night-root")
     p.add_argument("--stamp")
