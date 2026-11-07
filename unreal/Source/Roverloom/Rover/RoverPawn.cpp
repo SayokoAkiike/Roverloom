@@ -359,6 +359,8 @@ void ARoverPawn::DriveScriptCommand(double NowS)
 		DriveMinWheels = 6;
 		DriveStartResets = Status.Resets;
 		DriveClampedFrames = DriveFrames = 0;
+		DriveSpinRatioSum = DriveDiffRatioSum = 0.0;
+		DriveSpinSamples = DriveDiffSamples = 0;
 		if (DriveIndex >= DrivePhases.Num())
 		{
 			UE_LOG(LogRoverloom, Display, TEXT("Rover drive script done"));
@@ -386,6 +388,26 @@ void ARoverPawn::DriveScriptSample(double NowS, double StepDt)
 	DriveMinWheels = FMath::Min(DriveMinWheels, Status.WheelsInContact);
 	DriveClampedFrames += Status.bClamped ? 1 : 0;
 	++DriveFrames;
+	{
+		const TArray<AWheelRig::FWheelRecord>& Records = Rig->GetRecords();
+		double Left = 0.0, Right = 0.0, LeftTarget = 0.0, RightTarget = 0.0;
+		for (int32 Index = 0; Index < Records.Num(); ++Index)
+		{
+			const AWheelRig::FWheelRecord& R = Records[Index];
+			if (FMath::Abs(R.TargetSpinRadps) > 0.05)
+			{
+				DriveSpinRatioSum += R.SpinRadps / R.TargetSpinRadps;
+				++DriveSpinSamples;
+			}
+			(Index < 3 ? Left : Right) += R.SpinRadps / 3.0;
+			(Index < 3 ? LeftTarget : RightTarget) += R.TargetSpinRadps / 3.0;
+		}
+		if (FMath::Abs(LeftTarget - RightTarget) > 0.05)
+		{
+			DriveDiffRatioSum += (Left - Right) / (LeftTarget - RightTarget);
+			++DriveDiffSamples;
+		}
+	}
 	if (NowS + StepDt - DrivePhaseStartS < Phase.Seconds)
 	{
 		return;
@@ -399,12 +421,15 @@ void ARoverPawn::DriveScriptSample(double NowS, double StepDt)
 	const double AcrossM = (DeltaCm - FVector::DotProduct(DeltaCm, DriveStartForward) * DriveStartForward).Size() / RoverloomFrames::UnrealCmPerM;
 	UE_LOG(LogRoverloom, Display,
 		TEXT("Rover drive phase %s: %.2f s, cmd v %.3f m/s yaw %.4f rad/s; mean v %.3f m/s (%.0f%%), mean yaw %.4f rad/s (%.0f%%), "
-			 "net along %.3f m across %.3f m, heading %.1f deg, max tilt %.2f deg, min wheels %d/6, clamped %d/%d frames, resets %d"),
+			 "net along %.3f m across %.3f m, heading %.1f deg, max tilt %.2f deg, min wheels %d/6, clamped %d/%d frames, resets %d, "
+			 "wheel spin/target %.0f%%, left-right spin difference/target %.0f%%"),
 		*Phase.Name, DriveTimeS, Phase.LinearMps, Phase.YawRadps, DriveDistanceAlongM / T,
 		Phase.LinearMps != 0.0 ? 100.0 * DriveDistanceAlongM / T / Phase.LinearMps : 0.0, DriveHeadingRad / T,
 		Phase.YawRadps != 0.0 ? 100.0 * DriveHeadingRad / T / Phase.YawRadps : 0.0, AlongM, AcrossM,
 		FMath::RadiansToDegrees(DriveHeadingRad),
-		DriveMaxTiltDeg, DriveMinWheels, DriveClampedFrames, DriveFrames, Status.Resets - DriveStartResets);
+		DriveMaxTiltDeg, DriveMinWheels, DriveClampedFrames, DriveFrames, Status.Resets - DriveStartResets,
+		DriveSpinSamples ? 100.0 * DriveSpinRatioSum / DriveSpinSamples : 0.0,
+		DriveDiffSamples ? 100.0 * DriveDiffRatioSum / DriveDiffSamples : 0.0);
 }
 
 void ARoverPawn::RecordFrame(double DeltaSeconds)
