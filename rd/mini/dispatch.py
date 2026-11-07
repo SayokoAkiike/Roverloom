@@ -40,6 +40,10 @@ BUILD = os.path.join(ENGINE, "Engine/Build/BatchFiles/Mac/Build.sh")
 PROFILE = os.path.join(BIN, "night.sb")
 # The dispatcher runs git outside the sandbox; never let the clone's own config start a program.
 GIT = ["/usr/bin/git", "-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null", "-C"]
+# Unreal's message bus binds 0.0.0.0 and joins multicast on every interface. The night needs
+# neither, and the sandbox's refused multicast send is logged as an error that fails whichever
+# test is running (measured 2026-11-07).
+NO_UDP_MESSAGING = "-ini:Engine:[/Script/UdpMessaging.UdpMessagingSettings]:EnableTransport=False"
 RUN_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")
 BRANCH = re.compile(r"^rd/[a-z0-9][a-z0-9._-]{0,59}$")
 # Set only when the owner runs the dispatcher directly with their own key. A forced command never
@@ -280,6 +284,7 @@ def v_test(args):
                     EDITOR,
                     PROJECT,
                     "-nullrhi",
+                    NO_UDP_MESSAGING,
                     "-unattended",
                     "-nosplash",
                     "-nosound",
@@ -326,6 +331,7 @@ def v_game(args):
                     "-game",
                     # No graphical session for the night user: render without a window.
                     "-RenderOffscreen",
+                    NO_UDP_MESSAGING,
                     "-ResX=1600",
                     "-ResY=900",
                     "-nosplash",
@@ -360,6 +366,7 @@ def v_editor_start(args):
                 EDITOR,
                 PROJECT,
                 "-RenderOffscreen",
+                NO_UDP_MESSAGING,
                 "-ModelContextProtocolStartServer",
                 f"-ModelContextProtocolPort={M['mcp_port']}",
                 "-nosplash",

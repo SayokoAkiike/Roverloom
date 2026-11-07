@@ -94,4 +94,6 @@ If anything fails, or remote access is lost, do nothing: the firewall turns off 
 hand: `sudo $FW --setglobalstate off`.
 
 The night user's own Zen server appears at `/Users/rdnight/Library/Application Support/Epic/UnrealEngine/Common/Zen/Install/zenserver`
-after its first Unreal run; add and block it the same way then.
+after its first Unreal run; add and block it the same way then, together with
+`/Users/Shared/UE_5.8-night/Engine/Binaries/Mac/UnrealTraceServer` (it listens on `*:1981` and `*:1989`, measured
+2026-11-07).

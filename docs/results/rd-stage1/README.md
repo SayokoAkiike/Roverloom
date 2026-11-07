@@ -1,8 +1,8 @@
 # Night factory Stage 1: the night user on the Mac mini, 2026-11-07
 
-**Status: isolation of files, keys, and network verified as `rdnight`; Unreal does not run as `rdnight`. A user with no
-graphical session cannot start any Unreal process on macOS, so build is the only Unreal step that passed. Stage 1
-cannot start until the owner decides how the night gets a graphical session (below). No night loop has run; nothing
+**Status: as `rdnight`, with its own graphical session (option A, a temporary trial), build, 5 of 5 automation tests,
+a 20 s offscreen game with a screenshot, and MCP start, a read-only call, and a clean stop all passed. Without a
+graphical session no Unreal process starts. File, key, and network isolation verified. No night loop has run; nothing
 is scheduled; the firewall is unchanged; nothing was pushed to GitHub.**
 
 Plan: [`docs/rd-stage1-isolation-plan.md`](../../rd-stage1-isolation-plan.md). Owner steps:
@@ -69,7 +69,7 @@ was opened for writing, and nothing that existed before was renamed or removed:
 dispatcher refused; `rd/night/mini.sh push <rd/branch>` now pushes to that one URL with the hook skipped, and refuses
 other branches (6 tests). `dispatch.py sync` checked out `2555cc7` in a clone made for `rdnight`.
 
-## Unreal as `rdnight`
+## Unreal as `rdnight`, without a graphical session
 
 | Step | Result |
 | --- | --- |
@@ -93,20 +93,50 @@ Read with the owner's key: `~/Roverloom` at `0f7b2f6`, clean, `stash@{0}` kept; 
 and the engine copy unchanged (03:59). No Unreal or Zen process of either user running. The only new files outside
 `rdnight`'s home were two stack samples in `/tmp` from this check; one was kept as evidence, both removed by name.
 
-## Decision needed: a graphical session for the night
+## Options considered for a graphical session
 
 | Option | What changes | Cost |
 | --- | --- | --- |
-| A. `rdnight` logged in to a background graphical session (fast user switching, or Screen Sharing's own-session login), then locked | A second logged-in session stays on the Mac mini; it needs rdnight's password at a login window or Screen Sharing, and Screen Sharing or login-window settings may need to list `rdnight` | Memory for a second session (not measured); keeps user isolation |
-| B. Run the night as the owner, as in Stage 0 | Nothing new | Loses user isolation: the sandbox is the only file barrier, and the owner's editor settings change again |
-| C. A different machine or a VM for the night | New hardware or a VM | Most isolation; a macOS VM has only a paravirtual GPU, and whether Unreal renders there is not measured |
+| A. `rdnight` logged in to its own graphical session alongside the owner's | A second logged-in session | Memory for a second session; keeps user isolation |
+| B. Run the night as the owner, as in Stage 0 | Nothing new | Loses user isolation |
+| C. A different machine or a VM | New hardware or a VM | A macOS VM has only a paravirtual GPU; not measured |
 
-A is the only option that keeps both isolation and the GPU. Each changes system settings or sessions, so Claude has
-not tried any.
+The owner chose A for a trial.
+
+## Option A trial: `rdnight` with its own graphical session
+
+How the session was made. Screen Sharing, given `rdnight`'s name and password, showed the owner's existing desktop and
+offered no session of its own; the Mac mini's Screen Sharing logs show one continuous connection since 05:15 and no
+new authentication, so the Air most likely reused the owner's connection (not proven). The owner then set `rdnight`'s
+`IsHidden` to 0, locked the screen, and used fast user switching to log `rdnight` in; the owner's session kept running
+behind it. Checks from the Air: `launchctl print gui/601` shows `type = login`, created by `loginwindow`; Finder, Dock,
+and SystemUIServer run as `rdnight`; `who` lists `rdnight` on the console; Tailscale ping and SSH kept working.
+OneDrive, installed in `/Applications`, started in `rdnight`'s session as a login item.
+
+Unreal steps, through the dispatcher (setup key, `RD_OWNER_PRESENT_OK=1`), sandboxed:
+
+| Step | Result |
+| --- | --- |
+| Automation tests | First run 4 of 5: `Frames.GoldenVectors` checked its 14 cases, then failed on an error logged during it by Unreal's UDP message bus, whose multicast send to `230.0.0.1:6666` the sandbox refused. The bus also bound `0.0.0.0` and joined multicast on the LAN and Tailscale interfaces. The dispatcher now passes `-ini:Engine:[/Script/UdpMessaging.UdpMessagingSettings]:EnableTransport=False` to every Unreal run. **Rerun: 5 of 5 passed**, no message-bus lines, 1 min 23 s |
+| Offscreen game, `-RenderOffscreen`, 1600 × 900, 20 s | **Rendered**: 81.7 fps, frame p95 14.09 ms, GPU 10.97 ms (ProfileGPU frame 11.52 ms); `Chase.png` shows the rover, terrain, shadows, and HUD; exit code 0; fetched to the Air with the night key's `fetch-evidence` |
+| Editor with MCP, `-RenderOffscreen` | MCP listened on `127.0.0.1:8100` only, after 25 s. Through the night key's tunnel: `initialize`, `tools/list` (3 meta tools), `list_toolsets` (19), and `call_tool` `SceneTools.get_current_level` → `/Temp/Untitled_1`; the editor log records the one `Dispatching toolset tool` line. `editor-stop-own` with the night key: `exited`; ports 8100 and 1985 closed; `run/` empty |
+
+Other listeners while the editor ran, all `rdnight`'s and on every interface: the editor's trace control port `*:1985`,
+UnrealTraceServer `*:1981` and `*:1989`, and `rdnight`'s own Zen `*:8558`. UnrealTraceServer and Zen outlive the
+editor briefly and then exited by themselves; none was left. Firewall step 3 must cover UnrealTraceServer too. What
+happens when the owner's Zen already holds 8558 is not tested; the dispatcher refuses while an owner Unreal process runs,
+but Zen can outlive it.
+
+Memory, sampled every 10 s from the Air, 11:51–12:00 (16 GB Mac mini, owner's apps open): free 47–50% between runs,
+**lowest 28%** during the game and the MCP editor (the charter's stop line is 20%); swap 2,809 → 2,892 MB (+83 MB);
+Unreal's resident size at most 2.5 GB in the samples. The 10 s sampling can miss short peaks.
 
 ## Still open for Stage 1
 
-- The owner's choice above, then: tests, offscreen game, MCP, and a clean stop as `rdnight`.
+- The trial session: log `rdnight` out and set `IsHidden` back to 1 (owner). How the night gets a graphical session
+  unattended is a separate decision: the trial does not provide one after a logout or restart.
 - Step 2: remove the night key from the owner's `authorized_keys`.
-- Step 3: firewall trial for 1985 and 8558.
+- Step 3: firewall trial for 1985, 8558, 1981, and 1989.
+- Memory headroom: 28% free at the lowest with the owner's apps open; decide whether nights need the owner's apps closed
+  or a lower `min_free_memory_pct` margin is acceptable.
 - Charter approval and spending caps; blind validation cases.
