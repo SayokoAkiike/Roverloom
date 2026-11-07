@@ -24,7 +24,18 @@ with `git revert -m 1 <merge commit>`.
 | V1 | `rd/task-v1-mars-light` | Kept: Mars-inspired sky and haze, horizon readable, GPU unchanged |
 | F1b | `rd/task-f1b-terrain` | Measured: 25 cm step climbed; 15° ramp at 88% speed, 2/6 wheels at edges, no resets |
 
-## Next
+## Next (prioritized in docs/results/game-readiness/README.md, 2026-11-07)
+
+1. Run-log writer in Unreal and `check_run_contract` on it.
+2. One Unreal mission: science targets reached and observed.
+3. Success and failure conditions.
+4. Results screen with the Mission Core's score.
+5. Ramp edge safety and the 15° ramp's run-to-run variation.
+6. Battery and a simple fault in Unreal.
+7. Target markers and terrain variety.
+8. Camera bounce (P2 attempt not adopted, branch `rd/task-p2-camera`).
+
+Earlier next items:
 
 - P2b: chase camera that keeps the rover framed while turning at the new yaw rate.
 
