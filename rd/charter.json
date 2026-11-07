@@ -98,7 +98,7 @@
       "Verification"
     ],
     "physics_scope": "measure drive model P and draft phase G registrations only; no change to P; model K and method D only as proposals",
-    "first_night": "one small Visual or Gameplay improvement that shows in a screenshot or a measured number"
+    "first_night": "no new task: verify the unverified HUD panel change of night 20261107-1622. Take its files with git restore --source=d04d6d5 -- unreal/Source/Roverloom/Rover/RoverHud.h unreal/Source/Roverloom/Rover/RoverHud.cpp rd/night/shot_metrics.py rd/night/fetch_evidence.py; its registered checks are in git show rd/night-20261107-1622:rd/sessions/20261107-1622-c1.md. Copy those checks unchanged into this cycle's notes, then run the baseline (this branch before the restore) and the variant: build, game 20 each, compare the screenshots, and the automation tests. Keep the change only if every registered check passes"
   },
   "protected_repo_paths": [
     "python/src/roverloom/scoring.py",
@@ -124,5 +124,5 @@
     "night_root": "~/RoverloomNightAir",
     "base_ref": "origin/feature/unreal-project"
   },
-  "_approval": "Approved by the owner on 2026-11-07 for the first trial night only: 1 cycle, 120 minutes, estimated caps 5 USD per cycle and 12 USD per night (list-price estimates, not billing), memory stop at 25% free, at most 8 Unreal launches; Visual or Gameplay small improvements first; no large change to physics models or evaluation criteria; no GitHub push or merge; no Microsoft or employer account connection or sync; rdnight keeps its own graphical session; no launchd, no automatic login. Approval of the charter and starting a night are separate owner decisions."
+  "_approval": "Approved by the owner on 2026-11-07 for the first trial night only: 1 cycle, 120 minutes, estimated caps 5 USD per cycle and 12 USD per night (list-price estimates, not billing), memory stop at 25% free, at most 8 Unreal launches; Visual or Gameplay small improvements first; no large change to physics models or evaluation criteria; no GitHub push or merge; no Microsoft or employer account connection or sync; rdnight keeps its own graphical session; no launchd, no automatic login. Approval of the charter and starting a night are separate owner decisions. Second trial (2026-11-07, owner): one cycle, same limits, only to verify the first night's HUD change."
 }
