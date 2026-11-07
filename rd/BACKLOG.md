@@ -41,6 +41,9 @@ Earlier next items:
 
 ## Ideas (not started)
 
+- G3 link: move Unreal's socket calls to a thread as the contract asks; add `telemetry` and `mission_state` to
+  the contract and schemas; keyboard-driven mission run; Unreal run logs and scores (from G3).
+
 - Microsoft Update Assistant started again as rdnight at 20:55 through its on-demand XPC service, though its agents
   are disabled; the dispatcher refused Unreal steps until rdnight's own process was ended (from V1b).
 

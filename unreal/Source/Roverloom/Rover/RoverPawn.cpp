@@ -12,6 +12,11 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "IPAddress.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
+#include "SocketSubsystem.h"
+#include "Sockets.h"
 #include "InputAction.h"
 #include "InputActionValue.h"
 #include "InputCoreTypes.h"
@@ -215,6 +220,16 @@ void ARoverPawn::BeginPlay()
 				{TEXT("stop-on-slope"), 6.0, 0.0, 0.0},
 			};
 		}
+		// g3-reach: drive 10 m straight ahead and stop, with the mission link open; the Mission Core judges the target.
+		else if (DrivePreset == TEXT("g3-reach"))
+		{
+			DrivePhases = {
+				{TEXT("settle"), 6.0, 0.0, 0.0},
+				{TEXT("drive-to-target"), 20.0, MaxSpeedMps, 0.0},
+				{TEXT("stop"), 10.0, 0.0, 0.0},
+			};
+			MissionLinkStart();
+		}
 		UE_LOG(LogRoverloom, Display, TEXT("Rover drive script '%s': %d phases"), *DrivePreset, DrivePhases.Num());
 	}
 	for (UStaticMeshComponent* Wheel : Wheels)
@@ -238,6 +253,7 @@ void ARoverPawn::BeginPlay()
 
 void ARoverPawn::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	MissionLinkStop();
 	if (Rig)
 	{
 		Rig->Destroy();
@@ -316,6 +332,7 @@ void ARoverPawn::Tick(float DeltaSeconds)
 	}
 
 	const double NowS = GetWorld()->GetTimeSeconds();
+	MissionLinkTick(NowS);
 	DriveScriptCommand(NowS);
 	if (bKeyboardHeld)
 	{
@@ -366,6 +383,146 @@ void ARoverPawn::Tick(float DeltaSeconds)
 	}
 	DriveScriptSample(NowS, StepDt);
 	LogAndCapture(NowS);
+}
+
+void ARoverPawn::MissionLinkStart()
+{
+	ISocketSubsystem* Sockets = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
+	TSharedRef<FInternetAddr> Address = Sockets->CreateInternetAddr();
+	bool bValid = false;
+	Address->SetIp(TEXT("127.0.0.1"), bValid); // Loopback only, never another interface
+	Address->SetPort(8100);
+	LinkListen = Sockets->CreateSocket(NAME_Stream, TEXT("RoverMissionLink"), false);
+	if (!LinkListen || !bValid || !LinkListen->SetReuseAddr(true) || !LinkListen->SetNonBlocking(true) || !LinkListen->Bind(*Address)
+		|| !LinkListen->Listen(1))
+	{
+		UE_LOG(LogRoverloom, Error, TEXT("Rover mission link: cannot listen on 127.0.0.1:8100"));
+		MissionLinkStop();
+		Status.MissionLine = TEXT("Mission (Python): link failed to open");
+		return;
+	}
+	Status.MissionLine = TEXT("Mission (Python): waiting for the Mission Core");
+	UE_LOG(LogRoverloom, Display, TEXT("Rover mission link listening on 127.0.0.1:8100"));
+}
+
+void ARoverPawn::MissionLinkDrop(const TCHAR* Why)
+{
+	if (LinkClient)
+	{
+		LinkClient->Close();
+		ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->DestroySocket(LinkClient);
+		LinkClient = nullptr;
+	}
+	LinkBuffer.Reset();
+	UE_LOG(LogRoverloom, Display, TEXT("Rover mission link: client dropped (%s)"), Why);
+	if (!Status.bMissionEnded)
+	{
+		Status.MissionLine = TEXT("Mission (Python): link lost; waiting");
+	}
+}
+
+void ARoverPawn::MissionLinkStop()
+{
+	MissionLinkDrop(TEXT("stop"));
+	if (LinkListen)
+	{
+		LinkListen->Close();
+		ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->DestroySocket(LinkListen);
+		LinkListen = nullptr;
+	}
+}
+
+void ARoverPawn::MissionLinkTick(double NowS)
+{
+	// Non-blocking calls on the game thread; the contract asks for a socket thread (backlog). Bad input or a lost
+	// client drops the client and never touches the simulation.
+	if (!LinkListen)
+	{
+		return;
+	}
+	if (!LinkClient)
+	{
+		bool bPending = false;
+		if (LinkListen->HasPendingConnection(bPending) && bPending)
+		{
+			LinkClient = LinkListen->Accept(TEXT("RoverMissionClient"));
+			if (LinkClient)
+			{
+				LinkClient->SetNonBlocking(true);
+				UE_LOG(LogRoverloom, Display, TEXT("Rover mission link: Mission Core connected"));
+			}
+		}
+		if (!LinkClient)
+		{
+			return;
+		}
+	}
+	if (bRigReady && NowS - LinkLastSendS >= 0.1)
+	{
+		LinkLastSendS = NowS;
+		const FVector P = Status.SitePositionM;
+		const FString Line = FString::Printf(TEXT("{\"type\":\"telemetry\",\"body\":{\"time_s\":%.3f,\"position_m\":[%.4f,%.4f,%.4f],\"forward_mps\":%.4f,\"resets\":%d}}\n"),
+			NowS - ReadyTimeS, P.X, P.Y, P.Z, Status.ForwardMps, Status.Resets);
+		const FTCHARToUTF8 Utf8(*Line);
+		int32 Sent = 0;
+		if (!LinkClient->Send(reinterpret_cast<const uint8*>(Utf8.Get()), Utf8.Length(), Sent) || Sent != Utf8.Length())
+		{
+			MissionLinkDrop(TEXT("send failed"));
+			return;
+		}
+	}
+	uint32 PendingBytes = 0;
+	while (LinkClient && LinkClient->HasPendingData(PendingBytes) && PendingBytes > 0)
+	{
+		TArray<uint8> Bytes;
+		Bytes.SetNumUninitialized(FMath::Min<uint32>(PendingBytes, 65536));
+		int32 Read = 0;
+		if (!LinkClient->Recv(Bytes.GetData(), Bytes.Num(), Read) || Read <= 0)
+		{
+			MissionLinkDrop(TEXT("receive failed"));
+			return;
+		}
+		const FUTF8ToTCHAR Text(reinterpret_cast<const ANSICHAR*>(Bytes.GetData()), Read);
+		LinkBuffer.Append(Text.Get(), Text.Length());
+		if (LinkBuffer.Len() > 1024 * 1024)
+		{
+			MissionLinkDrop(TEXT("line over 1 MiB"));
+			return;
+		}
+	}
+	if (LinkClient && LinkClient->GetConnectionState() == SCS_ConnectionError)
+	{
+		MissionLinkDrop(TEXT("connection error"));
+		return;
+	}
+	int32 NewLine = INDEX_NONE;
+	while (LinkBuffer.FindChar(TEXT('\n'), NewLine))
+	{
+		const FString Line = LinkBuffer.Left(NewLine);
+		LinkBuffer.RightChopInline(NewLine + 1);
+		TSharedPtr<FJsonObject> Message;
+		if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Line), Message) || !Message.IsValid()
+			|| Message->GetStringField(TEXT("type")) != TEXT("mission_state"))
+		{
+			continue; // Ignored, never fatal
+		}
+		const TSharedPtr<FJsonObject>* Body = nullptr;
+		if (!Message->TryGetObjectField(TEXT("body"), Body))
+		{
+			continue;
+		}
+		const FString Outcome = (*Body)->GetStringField(TEXT("outcome"));
+		Status.bMissionEnded = Outcome != TEXT("running");
+		Status.MissionLine = FString::Printf(TEXT("Mission (Python): %s   targets %d/%d   %s   t %.1f s"),
+			*(*Body)->GetStringField(TEXT("scenario")), static_cast<int32>((*Body)->GetNumberField(TEXT("targets_reached"))),
+			static_cast<int32>((*Body)->GetNumberField(TEXT("targets_total"))), *Outcome.ToUpper(), (*Body)->GetNumberField(TEXT("time_s")));
+		const FString Key = FString::Printf(TEXT("%d %s"), static_cast<int32>((*Body)->GetNumberField(TEXT("targets_reached"))), *Outcome);
+		if (Key != LinkLastLogged)
+		{
+			LinkLastLogged = Key;
+			UE_LOG(LogRoverloom, Display, TEXT("Rover mission state from the Mission Core: %s"), *Status.MissionLine);
+		}
+	}
 }
 
 void ARoverPawn::DriveScriptCommand(double NowS)

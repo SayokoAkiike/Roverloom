@@ -49,6 +49,9 @@ struct FRoverStatus
 	double FrameMsMean = 0.0;
 	double FrameMsP95 = 0.0;
 	double FocusShare = 0.0;
+	// G3: the Mission Core's verdict, shown as received; Unreal never judges the mission itself.
+	FString MissionLine;
+	bool bMissionEnded = false;
 };
 
 // The playable six-wheel rover. It drives the WheelSpike rig (drive model P, provisional) through the one command path,
@@ -86,6 +89,10 @@ private:
 	void LogAndCapture(double NowS);
 	void RecordFrame(double DeltaSeconds);
 	void DriveScriptCommand(double NowS);
+	void MissionLinkStart();
+	void MissionLinkTick(double NowS);
+	void MissionLinkStop();
+	void MissionLinkDrop(const TCHAR* Why);
 	void DriveScriptSample(double NowS, double StepDt);
 	void LogRenderSettings(const TCHAR* When) const;
 
@@ -183,6 +190,13 @@ private:
 		double YawRadps = 0.0;
 	};
 	TArray<FDrivePhase> DrivePhases;
+	// G3 mission link: a loopback listener on 127.0.0.1:8100 (the night tunnel's port). Sends telemetry at 10 Hz and
+	// shows the Mission Core's mission_state lines. JSON Lines as in the bridge protocol, 1 MiB per line.
+	class FSocket* LinkListen = nullptr;
+	class FSocket* LinkClient = nullptr;
+	FString LinkBuffer;
+	double LinkLastSendS = -1.0;
+	FString LinkLastLogged;
 	int32 DriveIndex = -1;
 	double DrivePhaseStartS = 0.0;
 	FVector DriveStartCm = FVector::ZeroVector;
