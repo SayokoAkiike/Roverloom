@@ -1,7 +1,8 @@
 # G4a: the G3 mission played through the keyboard path, 2026-11-08
 
-**Status: simulated-keyboard end-to-end run passed; a run by a person at the keyboard has not been made yet (owner
-step below). Not merged until CI on `feature/unreal-project` is confirmed green.**
+**Status: passed. The owner drove the rover to the target by keyboard and the Mission Core judged success on the HUD
+(run `g4a-human-1`); a simulated-keyboard run (`g4a-2`) passed before it. Merge waits for CI on
+`feature/unreal-project` to be confirmed green.**
 
 ## Change
 
@@ -29,7 +30,18 @@ step below). Not merged until CI on `feature/unreal-project` is confirmed green.
 
 A first build failed (`InjectInputForAction` takes four arguments in UE 5.8); fixed in one retry.
 
-## Owner step: a person at the keyboard
+## Run by a person (`g4a-human-1`)
 
-With Screen Sharing on the Mac mini switched to `rdnight`'s session, Claude starts the Mission Core link and
-`game <run> 120 play-g3`; the window appears on that session; drive with W/A/S/D to the target 8 m ahead.
+The owner, on the Mac mini through Screen Sharing switched to `rdnight`'s session, drove with the keyboard.
+
+| Item | Value |
+| --- | --- |
+| Machine, OS user | Mac mini, `rdnight` (game window on `rdnight`'s graphical session) |
+| Unreal process | PID 91808, started 2026-11-08 02:24:03 JST; log 02:24:17 to 02:26:21 JST; exited after the 120 s session |
+| Command | `... -game -windowed -ResX=1600 -ResY=900 -RoverBench=120 -RoverDrive=play-g3`, sandboxed (`night.sb`) |
+| Input | No simulated key lines in the log (0); window focus 0% for the first 40 s, then 70-100% after the owner clicked it |
+| Mission Core | `mission_started` 0.0 s, `target_reached` 57.1 s, `mission_ended` `success` 57.1 s |
+| HUD | `Mission (Python): g3_reach_target targets 1/1 SUCCESS t 57.1 s`, `Input keyboard`, `Watchdog ok`, speed +0.50 m/s, x 6.06 m (`human-mission-success.png`) |
+| Rendering | windowed, display-synced: 60.0 fps, GPU 14.3-15.1 ms (offscreen runs are uncapped, about 85 fps) |
+| Duration | 140 s wall for the dispatcher call |
+| Mac mini preflight | no lock, no forbidden processes, no owner Unreal, 72% memory free |
