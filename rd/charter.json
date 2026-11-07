@@ -1,24 +1,24 @@
 {
   "_about": "The single source of every limit and setting for the autonomous R&D Director and the night visual factory. Changed only by the owner, as a new version; a night never edits it. See docs/autonomous-rd-director.md.",
   "version": "0.2-stage1-prep",
-  "approved_by_owner": false,
+  "approved_by_owner": true,
   "stage": 1,
   "night": {
-    "max_cycles": 3,
+    "max_cycles": 1,
     "max_minutes": 120,
     "same_failure_limit": 2,
     "max_builds": 4,
     "max_unreal_launches": 8,
     "owner_skips_before_stop": 3,
     "watcher_interval_s": 30,
-    "usd_per_cycle": null,
-    "usd_per_night": null
+    "usd_per_cycle": 5,
+    "usd_per_night": 12
   },
   "mini": {
     "root": "~/RoverloomNight",
     "engine": "/Users/Shared/UE_5.8-night",
     "mcp_port": 8100,
-    "min_free_memory_pct": 20,
+    "min_free_memory_pct": 25,
     "max_swap_growth_gb": 2.0,
     "owner_idle_min_s": 900,
     "game_seconds_min": 10,
@@ -67,14 +67,15 @@
       "Microsoft Update Assistant",
       "SyncReporter"
     ],
-    "_forbidden_night_processes": "The night user runs no Microsoft process: its launchd overrides disable com.microsoft.update.agent, com.microsoft.OneDriveStandaloneUpdater, and com.microsoft.SyncReporter (measured 2026-11-07: they started at its first login; no account, sync folder, or token existed). The dispatcher refuses Unreal steps while one runs as the night user. This lowers the risk; it does not prove separation from the employer's Microsoft 365, which also depends on machine and tenant settings outside this charter."
+    "_forbidden_night_processes": "The night user runs no Microsoft process: its launchd overrides disable com.microsoft.update.agent, com.microsoft.OneDriveStandaloneUpdater, and com.microsoft.SyncReporter (measured 2026-11-07: they started at its first login; no account, sync folder, or token existed). The dispatcher refuses Unreal steps while one runs as the night user. This lowers the risk; it does not prove separation from the employer's Microsoft 365, which also depends on machine and tenant settings outside this charter.",
+    "gui_session": "rdnight's own graphical session, logged in by the owner with fast user switching and kept logged in; no automatic login, no launchd"
   },
   "evaluation": {
     "resolution": [
       1600,
       900
     ],
-    "perf_mode": "exclusive fullscreen, uncapped",
+    "perf_mode": "offscreen 1600x900 (-RenderOffscreen), uncapped",
     "gpu_regression_budget_ms": 0.5,
     "max_variants_per_cycle": 3
   },
@@ -89,11 +90,12 @@
       "architecture change"
     ],
     "night_domains": [
-      "Verification",
       "Visual",
-      "Gameplay"
+      "Gameplay",
+      "Verification"
     ],
-    "physics_scope": "measure drive model P and draft phase G registrations only; no change to P; model K and method D only as proposals"
+    "physics_scope": "measure drive model P and draft phase G registrations only; no change to P; model K and method D only as proposals",
+    "first_night": "one small Visual or Gameplay improvement that shows in a screenshot or a measured number"
   },
   "protected_repo_paths": [
     "python/src/roverloom/scoring.py",
@@ -118,5 +120,6 @@
     "state_dir": "~/.roverloom-rd",
     "night_root": "~/RoverloomNightAir",
     "base_ref": "origin/feature/unreal-project"
-  }
+  },
+  "_approval": "Approved by the owner on 2026-11-07 for the first trial night only: 1 cycle, 120 minutes, estimated caps 5 USD per cycle and 12 USD per night (list-price estimates, not billing), memory stop at 25% free, at most 8 Unreal launches; Visual or Gameplay small improvements first; no large change to physics models or evaluation criteria; no GitHub push or merge; no Microsoft or employer account connection or sync; rdnight keeps its own graphical session; no launchd, no automatic login. Approval of the charter and starting a night are separate owner decisions."
 }
