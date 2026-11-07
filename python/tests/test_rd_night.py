@@ -148,6 +148,8 @@ def test_normal_night_runs_three_cycles_and_commits_report(tmp_path: Path) -> No
     code, report, state = run_night(tmp_path, [cycle(), cycle("discarded"), cycle()])
     assert code == 0
     assert "Stopped by: **cycle cap 3**" in report
+    assert "| Checks | Evidence | Commits | Minutes | Est. USD |" in report
+    assert report.count("| 0 | 0.") >= 3  # commits and minutes recorded for each cycle
     assert not (state / "night.lock").exists()
     log = subprocess.run(
         ["git", "-C", str(tmp_path / "nightroot" / "nights" / "t1"), "log", "--oneline", "-1"],

@@ -133,6 +133,23 @@ class Night:
     def git(self, cwd, *args):
         subprocess.run(["git", "-C", cwd] + list(args), check=True, capture_output=True, text=True)
 
+    def head(self):
+        """The worktree's HEAD, or None outside a repository."""
+        done = subprocess.run(
+            ["git", "-C", self.worktree or ".", "rev-parse", "HEAD"], capture_output=True, text=True
+        )
+        return done.stdout.strip() if done.returncode == 0 else None
+
+    def commits_since(self, base):
+        if not base:
+            return 0
+        done = subprocess.run(
+            ["git", "-C", self.worktree, "rev-list", "--count", base + "..HEAD"],
+            capture_output=True,
+            text=True,
+        )
+        return int(done.stdout.strip() or 0) if done.returncode == 0 else 0
+
     def open_tunnel(self):
         local = load_json(os.path.join(self.state, "local.json"))
         key = os.path.expanduser(local["night_key"])
@@ -299,7 +316,8 @@ class Night:
             envelope = load_json(out_path)
         except (OSError, ValueError):
             envelope = {}
-        self.cost += float(envelope.get("total_cost_usd") or 0.0)
+        cycle_cost = float(envelope.get("total_cost_usd") or 0.0)
+        self.cost += cycle_cost
         record = envelope.get("structured_output")
         if record is None and isinstance(envelope.get("result"), str):
             try:
@@ -322,6 +340,7 @@ class Night:
                 "failure_signature": f"cycle: exit {code}, no valid structured output",
             }
         record["env_has_api_key"] = envelope.get("env_has_api_key")
+        record["cost_usd"] = round(cycle_cost, 4)
         return record
 
     def account(self, record):
@@ -356,8 +375,11 @@ class Night:
                 self.stop_reason = reason
                 break
             self.log(f"cycle {index + 1} starts")
+            started, base = time.time(), self.head()
             code, out_path = self.run_cycle(index)
             record = self.judge(code, out_path)
+            record["minutes"] = round((time.time() - started) / 60, 1)
+            record["commits"] = self.commits_since(base)
             self.log(
                 f"cycle {index + 1}: {record.get('domain')} {record.get('result')} "
                 f"{record.get('failure_signature') or ''}".rstrip()
@@ -379,12 +401,15 @@ class Night:
             f"Cycles: {len(self.cycles)}; builds {self.builds}; Unreal launches {self.launches}; "
             f"estimated spending {self.cost:.2f} USD (list-price estimate, not billing).",
             "",
-            "| Cycle | Domain | Task | Result | Failure |",
-            "| --- | --- | --- | --- | --- |",
+            "| Cycle | Domain | Task | Result | Checks | Evidence | Commits | Minutes | Est. USD "
+            "| Failure |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
         ]
         for i, c in enumerate(self.cycles):
             lines.append(
                 f"| {i + 1} | {c.get('domain')} | {c.get('task')} | {c.get('result')} "
+                f"| {len(c.get('registered_checks') or [])} | {len(c.get('evidence') or [])} "
+                f"| {c.get('commits', 0)} | {c.get('minutes', '')} | {c.get('cost_usd', 0):.2f} "
                 f"| {c.get('failure_signature') or ''} |"
             )
         lines += [
