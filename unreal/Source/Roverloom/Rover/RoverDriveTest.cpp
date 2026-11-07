@@ -97,6 +97,12 @@ bool FRoverSkidSteerTest::RunTest(const FString& Parameters)
 	{
 		TestEqual(FString::Printf(TEXT("wheel %d turning left"), Index), Targets[Index], Index < 3 ? -Rim : Rim, 1e-12);
 	}
+	// The driven rover's effective track scales the turn term only.
+	RoverloomRover::SkidSteerTargets({0.5, 0.4918}, Targets, 1.5);
+	TestEqual(TEXT("scaled turn, left front"), Targets[0], 2.0 - 1.5 * Rim, 1e-12);
+	TestEqual(TEXT("scaled turn, right rear"), Targets[5], 2.0 + 1.5 * Rim, 1e-12);
+	RoverloomRover::SkidSteerTargets({0.5, 0.0}, Targets, 1.5);
+	TestEqual(TEXT("scale leaves straight driving alone"), Targets[2], 2.0, 1e-12);
 	TestEqual(TEXT("front left mount"), RoverloomRover::WheelMountCm(0), FVector(97.6, -103.7, -20.0));
 	TestEqual(TEXT("rear right mount"), RoverloomRover::WheelMountCm(5), FVector(-97.6, 103.7, -20.0));
 	return true;

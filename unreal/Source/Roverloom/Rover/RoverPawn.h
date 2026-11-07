@@ -195,4 +195,9 @@ private:
 	int32 DriveStartResets = 0;
 	int32 DriveClampedFrames = 0;
 	int32 DriveFrames = 0;
+	// Diagnostics: wheel spin against target, and the left-right spin difference against its target.
+	double DriveSpinRatioSum = 0.0;
+	int32 DriveSpinSamples = 0;
+	double DriveDiffRatioSum = 0.0;
+	int32 DriveDiffSamples = 0;
 };
