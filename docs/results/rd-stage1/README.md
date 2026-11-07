@@ -131,11 +131,45 @@ Memory, sampled every 10 s from the Air, 11:51–12:00 (16 GB Mac mini, owner's 
 **lowest 28%** during the game and the MCP editor (the charter's stop line is 20%); swap 2,809 → 2,892 MB (+83 MB);
 Unreal's resident size at most 2.5 GB in the samples. The 10 s sampling can miss short peaks.
 
+## Locked, and in the background
+
+Same dispatcher steps, once per condition, memory sampled every 5 s. A: `rdnight`'s screen locked by the owner, its
+session on the console. B: the owner switched back with fast user switching; `rdnight` stayed logged in behind
+(`IOConsoleUsers`: `csmm_19` on the console, `rdnight` not). This macOS has no `CGSSessionScreenIsLocked` key, so the
+lock in A is the owner's report, not a measurement.
+
+| | A: locked | B: background |
+| --- | --- | --- |
+| Automation tests | 5 of 5 | 5 of 5 |
+| Offscreen game, first 10 s | 82.2 fps, p95 13.79 ms, GPU 11.30 ms | 87.1 fps, p95 12.39 ms, GPU 10.75 ms |
+| Screenshot | Saved | Saved; checked by eye: rover, terrain, shadows, HUD |
+| MCP | `127.0.0.1:8100` after 20 s; `get_current_level` answered; `editor-stop-own` `exited`; port closed | Same |
+| Memory: lowest free, swap change, Unreal peak in samples | 27%, +625 MB, 1.95 GB | 38%, 0 MB, 2.25 GB |
+| Tailscale ping, owner SSH | 12.6 ms, ok | 12.9 ms, ok |
+
+Neither condition slowed rendering; B was the fastest run measured as `rdnight`.
+
+## Microsoft separation, as `rdnight`
+
+Read-only, printing names, counts, and booleans only. At its first login, three machine-wide Microsoft launch agents
+(`com.microsoft.update.agent`, `com.microsoft.OneDriveStandaloneUpdater`, `com.microsoft.SyncReporter`) loaded into
+`rdnight`'s session, and `OneDrive Sync Service /silentConfig` started; it listened on `[::1]` only. No account was
+configured (empty `settings`), no `CloudStorage` sync folder existed, `rdnight`'s keychain held no Microsoft item, and
+the Mac mini has no MDM enrollment or Platform SSO. The updater keeps a telemetry cache, so contact with Microsoft's
+update and telemetry service is possible. `rdnight` now has per-user launchd overrides disabling the three agents, and
+its OneDrive process was ended; machine-wide agents and the owner's OneDrive were not touched. The charter forbids
+Microsoft and employer sign-in and sync, and the dispatcher refuses Unreal steps while `OneDrive`, `Microsoft
+AutoUpdate`, `Microsoft Update Assistant`, or `SyncReporter` runs as the night user; it does not cover other Microsoft
+apps, processes started mid-run, or root daemons. This lowers the risk; it does not prove separation, which also
+depends on machine and tenant settings.
+
 ## Still open for Stage 1
 
 - The trial session: log `rdnight` out and set `IsHidden` back to 1 (owner). How the night gets a graphical session
   unattended is a separate decision: the trial does not provide one after a logout or restart.
-- Step 2: remove the night key from the owner's `authorized_keys`.
+- At `rdnight`'s next login: check that no Microsoft agent or OneDrive process starts again.
+- Step 2 done 2026-11-07: the night key's line removed (backup kept); owner login works, the night key is refused for
+  the owner and accepted for `rdnight`.
 - Step 3: firewall trial for 1985, 8558, 1981, and 1989.
 - Memory headroom: 28% free at the lowest with the owner's apps open; decide whether nights need the owner's apps closed
   or a lower `min_free_memory_pct` margin is acceptable.
