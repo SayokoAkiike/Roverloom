@@ -70,6 +70,36 @@ def worktree(tmp_path: Path) -> Path:
         ("Bash", {"command": "cp notes.md /Users/someone/elsewhere.md"}, False),
         ("Bash", {"command": "sed -i '' s/a/b/ python/src/roverloom/scoring.py"}, False),
         ("Bash", {"command": "kill 1234"}, False),
+        # Ordinary development commands the first nights were refused, now allowed
+        ("Bash", {"command": 'git commit -m "HUD: panel behind <text>"'}, True),
+        ("Bash", {"command": "cd python && uv run pytest -q 2>&1 | tail -5"}, True),
+        ("Bash", {"command": "/usr/bin/python3 -c 'print(1)'"}, True),
+        ("Bash", {"command": "uv run python -c 'import json; print(json.dumps(1))'"}, True),
+        ("Bash", {"command": "sleep 30"}, True),
+        ("Bash", {"command": "ls rd/sessions > notes.txt"}, True),
+        ("Bash", {"command": "grep -c x notes.txt 2>/dev/null"}, True),
+        ("Bash", {"command": "git status; git log --oneline -3"}, True),
+        ("Bash", {"command": "echo '$HOME is literal here'"}, True),
+        # Still refused, including inside chains, pipes, and attached redirections
+        ("Bash", {"command": "git add -A && git push"}, False),
+        ("Bash", {"command": "ls | ssh host id"}, False),
+        ("Bash", {"command": "echo hi>/tmp/x"}, False),
+        ("Bash", {"command": "echo hi 2>>/tmp/x"}, False),
+        ("Bash", {"command": "echo hi &> ../out"}, False),
+        ("Bash", {"command": 'echo "$HOME"'}, False),
+        ("Bash", {"command": "echo `id`"}, False),
+        ("Bash", {"command": "ls &"}, False),
+        ("Bash", {"command": "ls & id"}, False),
+        ("Bash", {"command": "(ls)"}, False),
+        ("Bash", {"command": "cat <<EOF"}, False),
+        ("Bash", {"command": "ls\nid"}, False),
+        ("Bash", {"command": "cd /tmp && touch x"}, False),
+        ("Bash", {"command": "sleep 9999"}, False),
+        ("Bash", {"command": "/tmp/evil/python3 -c 1"}, False),
+        ("Bash", {"command": "ls &&"}, False),
+        ("Bash", {"command": "echo 'unbalanced"}, False),
+        ("Bash", {"command": "ls >"}, False),
+        ("Bash", {"command": "ls >&3"}, False),
         ("mcp__unreal-night__call_tool", {}, True),
         ("mcp__other__call_tool", {}, False),
     ],
@@ -90,6 +120,8 @@ def charter_copy(tmp_path: Path, **night: object) -> Path:
             "usd_per_night": None,
             "owner_busy_stop_s": 0.3,
             "mini_unreachable_stop_s": 0.3,
+            "resume_wait_s": 1.0,
+            "max_resumes": 2,
             **night,
         }
     )
@@ -335,3 +367,30 @@ def test_unreachable_mini_ends_the_cycle(tmp_path: Path) -> None:
 def test_owner_input_that_stops_in_time_does_not_end_the_cycle(tmp_path: Path) -> None:
     code, report, _ = run_night(tmp_path, [cycle(owner_idle_s=99999)])
     assert "owner input" not in report
+
+
+def test_mini_retries_only_when_the_connection_fails(tmp_path: Path) -> None:
+    """127.0.0.1:22 refuses at once on the Air (no sshd): nothing ran remotely, so mini.sh retries."""
+    state = tmp_path / ".roverloom-rd"
+    state.mkdir()
+    (state / "local.json").write_text(
+        json.dumps({"mini_host": "127.0.0.1", "mini_user": "nobody", "night_key": "~/none"})
+    )
+    env = dict(os.environ, HOME=str(tmp_path), RD_MINI_RETRY_DELAYS="0 0")
+    done = subprocess.run(
+        [str(NIGHT / "mini.sh"), "status"], capture_output=True, text=True, env=env, timeout=60
+    )
+    if "Connection refused" not in done.stderr:
+        pytest.skip("something listens on 127.0.0.1:22 here")
+    assert done.returncode != 0
+    assert done.stderr.count("retry") == 2
+
+
+def test_cycle_resumes_in_the_same_session_after_an_outage(tmp_path: Path) -> None:
+    """Status fails for a while, the cycle is stopped, then resumed once the Mac mini answers."""
+    outcome = cycle(sleep=30, unreachable_polls=6, on_resume={"sleep": 0.1})
+    code, report, state = run_night(tmp_path, [outcome])
+    log = (state / "nights" / "t1" / "night.log").read_text()
+    assert "resuming session" in log
+    assert "| kept |" in report
+    assert (state / "nights" / "t1" / "c1-r1.json").exists()

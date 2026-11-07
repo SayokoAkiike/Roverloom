@@ -12,7 +12,6 @@ Environment, set by night.py: RD_WORKTREE (the only tree that may be written) an
 import json
 import os
 import re
-import shlex
 import sys
 
 READ_ONLY_TOOLS = {
@@ -91,7 +90,6 @@ GIT_FORBIDDEN_ARGS = {
     "--upload-pack",
 }
 UV_ALLOWED = {"run"}
-SHELL_META = re.compile(r"[;&|`$<>(){}\\\n]")
 
 
 def deny(reason):
@@ -114,22 +112,152 @@ def check_write(path, root, protected):
             deny(f"{rel} is protected by the charter")
 
 
-def check_bash(command, root, protected):
-    if SHELL_META.search(command):
-        deny("shell operators, substitution, and redirection are refused; run one program per call")
-    try:
-        words = shlex.split(command)
-    except ValueError:
-        deny("unparsable command")
+STANDARD_BIN_DIRS = {"/bin", "/usr/bin", "/usr/local/bin", "/opt/homebrew/bin"}
+SEPARATORS = ("&&", "||", ";", "|")
+MAX_SLEEP_S = 600
+
+
+def tokenize(command):
+    """Split a shell command into simple commands, each a list of ("word", text) and ("op", text).
+
+    Separators are unquoted &&, ||, ;, and |. Unquoted >, >>, <, &>, 2>, 2>>, >&1, and 2>&1 become
+    "op" tokens; the same characters inside quotes stay part of a word. Refuses what could run code
+    or text the hook cannot see: $ and backquotes outside single quotes, background &, subshells,
+    braces, here-documents, and newlines.
+    """
+    segments, tokens, word, in_word, quote, i = [], [], "", False, None, 0
+    n = len(command)
+
+    def end_word():
+        nonlocal word, in_word
+        if in_word:
+            tokens.append(("word", word))
+        word, in_word = "", False
+
+    while i < n:
+        ch = command[i]
+        if quote == "'":
+            if ch == "'":
+                quote = None
+            else:
+                word += ch
+            i += 1
+            continue
+        if quote == '"':
+            if ch in "$`":
+                deny("$ and backquotes are refused, even inside double quotes; use single quotes")
+            if ch == "\\" and i + 1 < n and command[i + 1] in '"\\':
+                word += command[i + 1]
+                i += 2
+                continue
+            if ch == '"':
+                quote = None
+            else:
+                word += ch
+            i += 1
+            continue
+        if ch in "'\"":
+            quote, in_word = ch, True
+            i += 1
+            continue
+        if ch == "\\":
+            if i + 1 >= n or command[i + 1] == "\n":
+                deny("one line only")
+            word += command[i + 1]
+            in_word = True
+            i += 2
+            continue
+        if ch in "$`":
+            deny("$ and backquotes are refused: no expansion or substitution")
+        if ch in "(){}":
+            deny("subshells and braces are refused")
+        if ch in "\n\r":
+            deny("one line only")
+        if ch in " \t":
+            end_word()
+            i += 1
+            continue
+        if command.startswith("<<", i):
+            deny("here-documents are refused; write the file with the Write tool")
+        sep = next((t for t in ("&&", "||", ";", "|") if command.startswith(t, i)), None)
+        if sep:
+            end_word()
+            if not tokens:
+                deny("empty command between operators")
+            segments.append(tokens)
+            tokens = []
+            i += len(sep)
+            continue
+        m = re.match(r"(>>?&[12]|>>?|&>|<)", command[i:])
+        if m:  # unquoted > and < redirect even in the middle of a word, as in the shell
+            op = m.group(0)
+            if in_word and word.isdigit():  # 2>file: the digits name a file descriptor
+                op, word, in_word = word + op, "", False
+            end_word()
+            tokens.append(("op", op))
+            i += len(m.group(0))
+            continue
+        if ch == "&":
+            deny("background & is refused")
+        word += ch
+        in_word = True
+        i += 1
+    if quote:
+        deny("unbalanced quotes")
+    end_word()
+    if not tokens:
+        deny("empty command")
+    segments.append(tokens)
+    return segments
+
+
+def words_after_redirections(tokens, root, protected):
+    """Check and drop redirections; output may go only into the worktree or /dev/null."""
+    words, i = [], 0
+    while i < len(tokens):
+        kind, text = tokens[i]
+        if kind == "word":
+            words.append(text)
+            i += 1
+            continue
+        if text.endswith("&1") or text.endswith("&2"):
+            i += 1
+            continue
+        if i + 1 >= len(tokens) or tokens[i + 1][0] != "word":
+            deny("redirection without a target")
+        target = tokens[i + 1][1]
+        if text != "<" and target != "/dev/null":
+            check_write(target, root, protected)
+        i += 2
+    return words
+
+
+def check_simple(tokens, root, protected):
+    words = words_after_redirections(tokens, root, protected)
     if not words:
         deny("empty command")
     prog = words[0]
+    args = words[1:]
     mini = os.environ.get("RD_MINI")
     if mini and prog == mini:
         return  # the owner's copy; its own argument checks apply
+    if os.path.dirname(prog) in STANDARD_BIN_DIRS:
+        prog = os.path.basename(prog)
+    if prog == "cd":
+        if len(args) != 1:
+            deny("cd takes one directory")
+        inside_ok, real = inside(args[0], root)
+        if not inside_ok:
+            deny(f"cd only within the night worktree, not {real}")
+        return
+    if prog == "sleep":
+        if len(args) != 1 or not re.fullmatch(r"\d+(\.\d+)?", args[0]):
+            deny("sleep <seconds>")
+        if float(args[0]) > MAX_SLEEP_S:
+            deny(f"sleep at most {MAX_SLEEP_S} s")
+        return
     if prog not in ALLOWED_PROGRAMS:
-        deny(f"program '{prog}' is not allowed at night")
-    args = words[1:]
+        deny(f"program '{words[0]}' is not allowed at night")
     if prog == "git":
         if not args or args[0] not in GIT_ALLOWED:
             deny("git subcommand refused: push, merge, reset, rebase, clean, stash, config")
@@ -147,6 +275,11 @@ def check_bash(command, root, protected):
             check_write(t, root, protected)
     # Reads outside the worktree are left to the sandbox, which denies the owner's credentials.
     # Programs such as python3 can write anywhere the sandbox allows; the hook does not stop that.
+
+
+def check_bash(command, root, protected):
+    for tokens in tokenize(command):
+        check_simple(tokens, root, protected)
 
 
 def main():

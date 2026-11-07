@@ -13,9 +13,12 @@
     "watcher_interval_s": 30,
     "usd_per_cycle": 5,
     "usd_per_night": 12,
-    "owner_busy_stop_s": 900,
+    "owner_busy_stop_s": 1800,
     "mini_unreachable_stop_s": 600,
-    "_stops": "owner_busy_stop_s: end the cycle when the Mac mini's owner_idle_s stays under mini.owner_idle_min_s this long (first night: idle read 0 for 50 minutes). mini_unreachable_stop_s: end it when status over the night key fails this long."
+    "_stops": "owner_busy_stop_s: end the cycle when the Mac mini's owner_idle_s stays under mini.owner_idle_gpu_s this long, 30 min (first night: idle read 0 for 50 minutes). mini_unreachable_stop_s: end it when status over the night key fails this long.",
+    "max_resumes": 2,
+    "resume_wait_s": 1800,
+    "_resumes": "A cycle stopped because the Mac mini was unreachable is resumed in the same Claude session (--resume) once status answers again, at most max_resumes times, waiting at most resume_wait_s, within the night's deadline and the cycle's remaining budget."
   },
   "mini": {
     "root": "~/RoverloomNight",
@@ -23,7 +26,6 @@
     "mcp_port": 8100,
     "min_free_memory_pct": 25,
     "max_swap_growth_gb": 2.0,
-    "owner_idle_min_s": 900,
     "game_seconds_min": 10,
     "game_seconds_max": 600,
     "game_timeout_extra_s": 180,
@@ -71,7 +73,9 @@
       "SyncReporter"
     ],
     "_forbidden_night_processes": "The night user runs no Microsoft process: its launchd overrides disable com.microsoft.update.agent, com.microsoft.OneDriveStandaloneUpdater, and com.microsoft.SyncReporter (measured 2026-11-07: they started at its first login; no account, sync folder, or token existed). The dispatcher refuses Unreal steps while one runs as the night user. This lowers the risk; it does not prove separation from the employer's Microsoft 365, which also depends on machine and tenant settings outside this charter.",
-    "gui_session": "rdnight's own graphical session, logged in by the owner with fast user switching and kept logged in; no automatic login, no launchd"
+    "gui_session": "rdnight's own graphical session, logged in by the owner with fast user switching and kept logged in; no automatic login, no launchd",
+    "owner_idle_gpu_s": 300,
+    "_owner_idle_gpu_s": "Builds and tests run while the owner works, at utility priority; games and the editor wait for this many seconds without owner input. An Unreal process the night did not start refuses every step."
   },
   "evaluation": {
     "resolution": [

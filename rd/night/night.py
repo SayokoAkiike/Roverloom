@@ -24,6 +24,7 @@ import subprocess
 import sys
 import threading
 import time
+import uuid
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(os.path.dirname(HERE))
@@ -71,6 +72,8 @@ class Night:
         self.owner_skips = 0
         self.busy_since = None
         self.unreachable_since = None
+        self.interrupt = None  # why the watcher ended the running cycle
+        self.fake_polls = 0
         self.fake = load_json(args.fake) if args.fake else None
         self.worktree = None
         self.tunnel = None
@@ -88,6 +91,10 @@ class Night:
                 problems.append(f"{local} is missing (mini host, user, night key)")
             if shutil.which("claude") is None:
                 problems.append("claude is not on PATH")
+            if not problems and self.mini_status(0, retry_delays="5 10") is None:
+                problems.append(
+                    "the Mac mini does not answer status over the night key (Tailscale?)"
+                )
         if os.path.exists(self.stop_file):
             problems.append(f"STOP file present: {self.stop_file}")
         if os.path.exists(self.lock):
@@ -189,27 +196,38 @@ class Night:
             print(line)
 
     # ------------------------------------------------------------ watcher
-    def mini_status(self, cycle_index):
+    def mini_status(self, cycle_index, retry_delays="0"):
         if self.fake:
             outcome = self.fake[min(cycle_index, len(self.fake) - 1)]
             if outcome.get("mini_unreachable"):
+                return None
+            self.fake_polls += 1
+            if self.fake_polls <= outcome.get("unreachable_polls", 0):
                 return None
             return {
                 "memory": {"free_pct": outcome.get("free_pct", 70)},
                 "foreign_unreal": [],
                 "owner_idle_s": outcome.get("owner_idle_s", 99999),
             }
-        out = subprocess.run(
-            [os.path.join(HERE, "mini.sh"), "status"], capture_output=True, text=True, timeout=60
-        )
-        return json.loads(out.stdout) if out.returncode == 0 else None
+        env = dict(os.environ, RD_MINI_RETRY_DELAYS=retry_delays)
+        try:
+            out = subprocess.run(
+                [os.path.join(HERE, "mini.sh"), "status"],
+                capture_output=True,
+                text=True,
+                timeout=120,
+                env=env,
+            )
+            return json.loads(out.stdout) if out.returncode == 0 else None
+        except (subprocess.TimeoutExpired, ValueError):
+            return None
 
     def watch(self, cycle_index, done):
         interval = self.limits["watcher_interval_s"] if not self.fake else self.args.fake_interval
         while not done.wait(interval):
             reason = self.check_limits(cycle_index)
             if reason:
-                self.stop_reason = self.stop_reason or reason
+                self.interrupt = reason
                 self.kill_child()
                 return
 
@@ -227,7 +245,7 @@ class Night:
             return None
         self.unreachable_since = None
         idle = status.get("owner_idle_s")
-        if idle is not None and idle < self.charter["mini"]["owner_idle_min_s"]:
+        if idle is not None and idle < self.charter["mini"]["owner_idle_gpu_s"]:
             self.busy_since = self.busy_since or now
             if now - self.busy_since >= self.limits["owner_busy_stop_s"]:
                 return f"owner input on the Mac mini for {now - self.busy_since:.0f} s"
@@ -244,9 +262,11 @@ class Night:
                 os.killpg(self.child.pid, signal.SIGTERM)
 
     # ------------------------------------------------------------ cycles
-    def cycle_command(self, index):
+    def cycle_command(self, index, session, resume=False, budget=None):
         if self.fake:
             outcome = self.fake[index]
+            if resume:
+                outcome = dict(outcome, **outcome.get("on_resume", {}))
             env_probe = "ANTHROPIC_API_KEY" in os.environ
             payload = {
                 "structured_output": outcome.get("output"),
@@ -282,6 +302,13 @@ class Night:
             )
             or "- none",
         )
+        if resume:
+            prompt = (
+                "The night wrapper stopped this cycle: the Mac mini could not be reached; it "
+                "answers again now. Continue the same task from where you were: check "
+                f"{os.path.join(HERE, 'mini.sh')} status first, do not repeat steps whose evidence "
+                "exists, and finish with the structured answer."
+            )
         return [
             "/usr/bin/sandbox-exec",
             "-f",
@@ -289,6 +316,7 @@ class Night:
             "claude",
             "-p",
             prompt,
+            *(["--resume", session] if resume else ["--session-id", session]),
             "--output-format",
             "json",
             "--settings",
@@ -301,10 +329,59 @@ class Night:
             "--json-schema",
             open(os.path.join(HERE, "cycle.schema.json")).read(),
             "--max-budget-usd",
-            str(self.limits["usd_per_cycle"]),
+            f"{budget if budget is not None else self.limits['usd_per_cycle']:.2f}",
         ]
 
     def run_cycle(self, index):
+        """One cycle, resumed in the same Claude session after a Mac mini outage (max_resumes)."""
+        session, outputs, code, spent = str(uuid.uuid4()), [], None, 0.0
+        for attempt in range(self.limits.get("max_resumes", 0) + 1):
+            cap = self.limits["usd_per_cycle"]
+            budget = None if cap is None else cap - spent  # None only in fake nights
+            if attempt and budget is not None and budget < 0.5:
+                self.log(f"cycle {index + 1}: no budget left to resume")
+                break
+            out_path = os.path.join(
+                self.dir, f"c{index + 1}" + (f"-r{attempt}" if attempt else "") + ".json"
+            )
+            code = self.run_child(index, session, attempt > 0, budget, out_path)
+            outputs.append(out_path)
+            spent += self.envelope_cost(out_path)
+            reason, self.interrupt = self.interrupt, None
+            if not reason:
+                break
+            if not reason.startswith("Mac mini unreachable") or attempt == self.limits.get(
+                "max_resumes", 0
+            ):
+                self.stop_reason = self.stop_reason or reason
+                break
+            self.log(f"cycle {index + 1}: {reason}; waiting for the Mac mini to resume")
+            if not self.wait_for_mini(index):
+                self.stop_reason = self.stop_reason or reason
+                break
+            self.log(f"cycle {index + 1}: Mac mini answers again; resuming session {session}")
+        return code, outputs
+
+    def wait_for_mini(self, index):
+        wait_until = min(self.deadline, time.time() + self.limits.get("resume_wait_s", 0))
+        interval = self.limits["watcher_interval_s"] if not self.fake else self.args.fake_interval
+        while time.time() < wait_until:
+            if os.path.exists(self.stop_file):
+                self.stop_reason = "STOP file"
+                return False
+            if self.mini_status(index) is not None:
+                self.unreachable_since = None
+                return True
+            time.sleep(interval)
+        return False
+
+    def envelope_cost(self, out_path):
+        try:
+            return float(load_json(out_path).get("total_cost_usd") or 0.0)
+        except (OSError, ValueError, AttributeError):
+            return 0.0
+
+    def run_child(self, index, session, resume, budget, out_path):
         env = {
             k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"
         }  # Never switch billing to an API key
@@ -315,15 +392,11 @@ class Night:
             RD_HOOK=os.path.join(HERE, "hook.py"),
             RD_MINI=os.path.join(HERE, "mini.sh"),
         )
-        out_path = os.path.join(self.dir, f"c{index + 1}.json")
         done = threading.Event()
         watcher = threading.Thread(target=self.watch, args=(index, done), daemon=True)
-        with (
-            open(out_path, "w") as out,
-            open(os.path.join(self.dir, f"c{index + 1}.stderr"), "w") as err,
-        ):
+        with open(out_path, "w") as out, open(out_path[:-5] + ".stderr", "w") as err:
             self.child = subprocess.Popen(
-                self.cycle_command(index),
+                self.cycle_command(index, session, resume, budget),
                 cwd=self.worktree,
                 env=env,
                 stdout=out,
@@ -335,21 +408,21 @@ class Night:
             try:
                 code = self.child.wait(timeout=timeout)
             except subprocess.TimeoutExpired:
-                self.stop_reason = self.stop_reason or f"time cap {self.limits['max_minutes']} min"
+                self.interrupt = self.interrupt or f"time cap {self.limits['max_minutes']} min"
                 self.kill_child()
                 code = self.child.wait()
             done.set()
             watcher.join()
-        return code, out_path
+        return code
 
-    def judge(self, code, out_path):
-        """Return the cycle's record, or raise Refused to end the night."""
+    def judge(self, code, out_paths):
+        """Return the cycle's record from its last output; costs add up over resumes."""
+        cycle_cost = sum(self.envelope_cost(p) for p in out_paths)
+        self.cost += cycle_cost
         try:
-            envelope = load_json(out_path)
+            envelope = load_json(out_paths[-1])
         except (OSError, ValueError):
             envelope = {}
-        cycle_cost = float(envelope.get("total_cost_usd") or 0.0)
-        self.cost += cycle_cost
         record = envelope.get("structured_output")
         if record is None and isinstance(envelope.get("result"), str):
             try:
@@ -408,8 +481,9 @@ class Night:
                 break
             self.log(f"cycle {index + 1} starts")
             started, base = time.time(), self.head()
-            code, out_path = self.run_cycle(index)
-            record = self.judge(code, out_path)
+            code, out_paths = self.run_cycle(index)
+            record = self.judge(code, out_paths)
+            record["resumes"] = len(out_paths) - 1
             record["minutes"] = round((time.time() - started) / 60, 1)
             record["commits"] = self.commits_since(base)
             self.log(

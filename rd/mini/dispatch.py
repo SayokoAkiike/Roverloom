@@ -167,8 +167,13 @@ def ancestors():
     return pids
 
 
-def preflight():
-    """Refuse an Unreal step if the owner might be affected or memory is short."""
+def preflight(gpu=False):
+    """Refuse an Unreal step if the owner might be affected or memory is short.
+
+    Builds and tests (gpu=False) run while the owner works, at utility priority (see niced());
+    games and the editor (gpu=True) wait until the owner has been idle mini.owner_idle_gpu_s.
+    An Unreal process the night did not start always refuses everything.
+    """
     banned = night_user_forbidden_processes()
     if banned:
         raise Refused(f"isolation: forbidden processes run as the night user: {banned}")
@@ -178,8 +183,11 @@ def preflight():
             f"busy: an Unreal process the night did not start is running: {[p for p, _ in foreign]}"
         )
     idle = owner_idle_s()
-    if idle is not None and idle < M["owner_idle_min_s"] and not OWNER_OVERRIDE:
-        raise Refused(f"busy: the owner used the Mac mini {idle:.0f} s ago")
+    if gpu and idle is not None and idle < M["owner_idle_gpu_s"] and not OWNER_OVERRIDE:
+        raise Refused(
+            f"busy: the owner used the Mac mini {idle:.0f} s ago; games and the editor wait "
+            f"for {M['owner_idle_gpu_s']} s idle (builds and tests may run now)"
+        )
     mem = memory()
     if mem["free_pct"] is not None and mem["free_pct"] < M["min_free_memory_pct"]:
         raise Refused(f"memory: free {mem['free_pct']}% is under {M['min_free_memory_pct']}%")
@@ -208,14 +216,40 @@ def sandboxed(args):
     return ["/usr/bin/sandbox-exec", "-f", PROFILE] + args
 
 
-def evidence_dir(run_id, create=True):
+def owner_present():
+    idle = owner_idle_s()
+    return idle is not None and idle < M["owner_idle_gpu_s"]
+
+
+def niced(args):
+    """Utility priority while the owner is at the Mac mini, so a build never slows their work."""
+    if owner_present():
+        return ["/usr/sbin/taskpolicy", "-c", "utility"] + args
+    return args
+
+
+def step_dir(run_id, step):
+    """evidence/<run>/<step>, then <step>-2, <step>-3: one run id serves build, test, and game."""
+    base = os.path.join(evidence_dir(run_id, create=False, make_root=True), step)
+    path, n = base, 1
+    while os.path.exists(path):
+        n += 1
+        path = f"{base}-{n}"
+    os.makedirs(path)
+    return path
+
+
+def evidence_dir(run_id, create=True, make_root=False):
+    """evidence/<run>. Steps add their own folders inside (step_dir); nothing is overwritten."""
     if not RUN_ID.match(run_id):
         raise Refused("bad run id")
     path = os.path.join(EVIDENCE, run_id)
-    if create:
+    if make_root:
+        os.makedirs(path, exist_ok=True)
+    elif create:
         if os.path.exists(path):
             raise Refused("run id exists; evidence is never overwritten")
-        os.makedirs(os.path.join(path, "shots"))
+        os.makedirs(path)
     elif not os.path.isdir(path):
         raise Refused("no such run")
     return path
@@ -235,6 +269,7 @@ def v_status(args):
             "foreign_unreal": [p for p, _ in foreign_unreal()],
             "memory": memory(),
             "owner_idle_s": owner_idle_s(),
+            "gpu_steps_allowed_in_s": max(0, M["owner_idle_gpu_s"] - (owner_idle_s() or 0)),
             "forbidden_processes": night_user_forbidden_processes(),
             "work_head": head,
         }
@@ -282,58 +317,42 @@ def v_build(args):
     if len(args) != 1 or not RUN_ID.match(args[0]):
         raise Refused("build <run-id>")
     preflight()
-    ev = evidence_dir(args[0])
     acquire(f"build:{os.getpid()}")
     try:
-        rc = run_logged(
-            sandboxed(
-                [
-                    BUILD,
-                    "RoverloomEditor",
-                    "Mac",
-                    "Development",
-                    "-project=" + PROJECT,
-                    "-WaitMutex",
-                ]
-            ),
-            os.path.join(ev, "build.log"),
-            M["build_timeout_s"],
-        )
+        ev = step_dir(args[0], "build")
+        cmd = [BUILD, "RoverloomEditor", "Mac", "Development", "-project=" + PROJECT, "-WaitMutex"]
+        log_path = os.path.join(ev, "build.log")
+        rc = run_logged(niced(sandboxed(cmd)), log_path, M["build_timeout_s"])
     finally:
         release()
-    out({"build": rc, "log": os.path.join(ev, "build.log")})
+    out({"build": rc, "evidence": ev, "log": log_path})
 
 
 def v_test(args):
     if len(args) != 1:
         raise Refused("test <run-id>")
     preflight()
-    ev = evidence_dir(args[0])
     acquire(f"test:{os.getpid()}")
     try:
-        rc = run_logged(
-            sandboxed(
-                [
-                    EDITOR,
-                    PROJECT,
-                    "-nullrhi",
-                    NO_UDP_MESSAGING,
-                    "-unattended",
-                    "-nosplash",
-                    "-nosound",
-                    "-culture=en",
-                    "-ExecCmds=Automation RunTests " + M["automation_filter"],
-                    "-TestExit=Automation Test Queue Empty",
-                    "-ReportExportPath=" + ev,
-                    "-abslog=" + os.path.join(ev, "editor.log"),
-                ]
-            ),
-            os.path.join(ev, "stdout.txt"),
-            M["test_timeout_s"],
-        )
+        ev = step_dir(args[0], "test")
+        cmd = [
+            EDITOR,
+            PROJECT,
+            "-nullrhi",
+            NO_UDP_MESSAGING,
+            "-unattended",
+            "-nosplash",
+            "-nosound",
+            "-culture=en",
+            "-ExecCmds=Automation RunTests " + M["automation_filter"],
+            "-TestExit=Automation Test Queue Empty",
+            "-ReportExportPath=" + ev,
+            "-abslog=" + os.path.join(ev, "editor.log"),
+        ]
+        rc = run_logged(niced(sandboxed(cmd)), os.path.join(ev, "stdout.txt"), M["test_timeout_s"])
     finally:
         release()
-    out({"test": rc, "report": os.path.join(ev, "index.json")})
+    out({"test": rc, "evidence": ev, "report": os.path.join(ev, "index.json")})
 
 
 def start_own(name, cmd, logfile):
@@ -350,31 +369,27 @@ def v_game(args):
     seconds = int(args[1])
     if not M["game_seconds_min"] <= seconds <= M["game_seconds_max"]:
         raise Refused("seconds out of range")
-    preflight()
-    ev = evidence_dir(args[0])
+    preflight(gpu=True)
     acquire(f"game:{os.getpid()}")
     try:
-        proc = start_own(
-            "game",
-            sandboxed(
-                [
-                    EDITOR,
-                    PROJECT,
-                    "/Engine/Maps/Entry?game=/Script/Roverloom.RoverPlaygroundGameMode",
-                    "-game",
-                    # No graphical session for the night user: render without a window.
-                    "-RenderOffscreen",
-                    NO_UDP_MESSAGING,
-                    "-ResX=1600",
-                    "-ResY=900",
-                    "-nosplash",
-                    "-abslog=" + os.path.join(ev, "game.log"),
-                    "-RoverShotDir=" + os.path.join(ev, "shots"),
-                    f"-RoverBench={seconds}",
-                ]
-            ),
-            os.path.join(ev, "stdout.txt"),
-        )
+        ev = step_dir(args[0], "game")
+        os.makedirs(os.path.join(ev, "shots"))
+        cmd = [
+            EDITOR,
+            PROJECT,
+            "/Engine/Maps/Entry?game=/Script/Roverloom.RoverPlaygroundGameMode",
+            "-game",
+            # No graphical session for the night user: render without a window.
+            "-RenderOffscreen",
+            NO_UDP_MESSAGING,
+            "-ResX=1600",
+            "-ResY=900",
+            "-nosplash",
+            "-abslog=" + os.path.join(ev, "game.log"),
+            "-RoverShotDir=" + os.path.join(ev, "shots"),
+            f"-RoverBench={seconds}",
+        ]
+        proc = start_own("game", sandboxed(cmd), os.path.join(ev, "stdout.txt"))
         try:
             rc = proc.wait(timeout=seconds + M["game_timeout_extra_s"])
         except subprocess.TimeoutExpired:
@@ -383,34 +398,33 @@ def v_game(args):
         forget("game")
         release()
     shots = sorted(os.listdir(os.path.join(ev, "shots")))
-    out({"game": rc, "shots": shots, "log": os.path.join(ev, "game.log")})
+    out({"game": rc, "evidence": ev, "shots": shots, "log": os.path.join(ev, "game.log")})
 
 
 def v_editor_start(args):
     if len(args) != 1:
         raise Refused("editor-start <run-id>")
-    preflight()
-    ev = evidence_dir(args[0])
+    preflight(gpu=True)
     acquire(f"editor:{os.getpid()}")
-    proc = start_own(
-        "editor",
-        sandboxed(
-            [
-                EDITOR,
-                PROJECT,
-                "-RenderOffscreen",
-                NO_UDP_MESSAGING,
-                "-ModelContextProtocolStartServer",
-                f"-ModelContextProtocolPort={M['mcp_port']}",
-                "-nosplash",
-                "-abslog=" + os.path.join(ev, "editor.log"),
-            ]
-        ),
-        os.path.join(ev, "stdout.txt"),
-    )
+    try:
+        ev = step_dir(args[0], "editor")
+    except Exception:
+        release()
+        raise
+    cmd = [
+        EDITOR,
+        PROJECT,
+        "-RenderOffscreen",
+        NO_UDP_MESSAGING,
+        "-ModelContextProtocolStartServer",
+        f"-ModelContextProtocolPort={M['mcp_port']}",
+        "-nosplash",
+        "-abslog=" + os.path.join(ev, "editor.log"),
+    ]
+    proc = start_own("editor", sandboxed(cmd), os.path.join(ev, "stdout.txt"))
     with open(LOCK, "w") as f:
         f.write(f"editor:{proc.pid}")
-    out({"editor_pid": proc.pid, "mcp": f"127.0.0.1:{M['mcp_port']}"})
+    out({"editor_pid": proc.pid, "evidence": ev, "mcp": f"127.0.0.1:{M['mcp_port']}"})
 
 
 def stop_gracefully(pid, proc=None):

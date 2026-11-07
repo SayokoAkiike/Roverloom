@@ -91,3 +91,36 @@ def test_own_parent_shell_is_not_a_forbidden_process(dispatch) -> None:
         check=True,
     ).stdout.strip()
     assert out == "[]"
+
+
+def test_one_run_id_serves_every_step(dispatch, tmp_path: Path) -> None:
+    dispatch.EVIDENCE = str(tmp_path / "evidence")
+    first = dispatch.step_dir("n1-c1-hud", "build")
+    again = dispatch.step_dir("n1-c1-hud", "build")
+    game = dispatch.step_dir("n1-c1-hud", "game")
+    assert [Path(p).name for p in (first, again, game)] == ["build", "build-2", "game"]
+    assert Path(first).parent == Path(game).parent == tmp_path / "evidence" / "n1-c1-hud"
+    with pytest.raises(dispatch.Refused, match="bad run id"):
+        dispatch.step_dir("../x", "build")
+
+
+def test_owner_at_the_mac_mini_defers_only_gpu_steps(dispatch, monkeypatch) -> None:
+    monkeypatch.setattr(dispatch, "night_user_forbidden_processes", lambda: [])
+    monkeypatch.setattr(dispatch, "foreign_unreal", lambda: [])
+    monkeypatch.setattr(dispatch, "memory", lambda: {"free_pct": 80, "swap_used_mb": 0})
+    monkeypatch.setattr(dispatch, "OWNER_OVERRIDE", False)
+    monkeypatch.setattr(dispatch, "owner_idle_s", lambda: 5.0)
+    dispatch.preflight()  # build and test: allowed
+    assert dispatch.niced(["x"])[:3] == ["/usr/sbin/taskpolicy", "-c", "utility"]
+    with pytest.raises(dispatch.Refused, match="games and the editor wait"):
+        dispatch.preflight(gpu=True)
+    monkeypatch.setattr(dispatch, "owner_idle_s", lambda: 10_000.0)
+    dispatch.preflight(gpu=True)
+    assert dispatch.niced(["x"]) == ["x"]
+
+
+def test_an_owner_unreal_process_refuses_every_step(dispatch, monkeypatch) -> None:
+    monkeypatch.setattr(dispatch, "night_user_forbidden_processes", lambda: [])
+    monkeypatch.setattr(dispatch, "foreign_unreal", lambda: [(123, "UnrealEditor")])
+    with pytest.raises(dispatch.Refused, match="did not start"):
+        dispatch.preflight()

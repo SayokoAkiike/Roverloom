@@ -42,6 +42,6 @@ Delete the night key's line from `authorized_keys` (or restore the backup), then
 `status`, `sync <rd/branch>`, `build <run>`, `test <run>`, `game <run> <seconds>`, `editor-start <run>`,
 `editor-stop-own`, `fetch-evidence <run>`, and Git transport to `repo.git` only. Run ids match
 `^[a-z0-9][a-z0-9-]{0,39}$`. Unreal verbs first check, in order: an Unreal process the night did not start, the owner's
-input within `owner_idle_min_s`, and free memory; the check refuses before anything is created.
+input within `owner_idle_gpu_s` (games and the editor only; builds and tests run at utility priority), and free memory; the check refuses before anything is created.
 `RD_OWNER_PRESENT_OK=1` skips only the owner-input check, and only when the owner runs the dispatcher directly; a forced
 command never carries it, because sshd accepts only `LANG` and `LC_*` from clients.
