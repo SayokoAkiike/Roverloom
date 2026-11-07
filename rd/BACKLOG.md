@@ -3,7 +3,17 @@
 Development mix: Playability 45%, Physical Accuracy 30%, Visual 25%. Each task: at most three completion criteria,
 at most two retries on the same cause; ideas found during a task go here, not into it.
 
-## Done (task branches, not pushed)
+## Integration log (feature/unreal-project, local; not pushed to GitHub)
+
+Gates for each merge: Unreal build, automation tests, one drive or bench run, Python checks, secret scan. Undo a merge
+with `git revert -m 1 <merge commit>`.
+
+| Merged | Merge commits | Branch tip before | Gates |
+| --- | --- | --- | --- |
+| P1, F1 | ae2f0ba, 95f3ee7 | d1a0847 | build ok, 5/5 automation, HUD and drive logs present, pytest 818 passed |
+| F2 + F1b, V1 | ed22597, 024fa94 | 95f3ee7 | build ok, 5/5 automation, turning 98%, Mars sky, pytest 821 passed |
+
+## Done (task branches)
 
 | Id | Branch | Result |
 | --- | --- | --- |
@@ -11,14 +21,16 @@ at most two retries on the same cause; ideas found during a task go here, not in
 | F1 | `rd/task-f1-drive-measure` | Measured: straight 98%, turning 65-66% of commanded yaw rate |
 | F2/P2 | `rd/task-f2-yaw` | Kept: effective track 1.5, turning 66% -> 98% |
 | V1 | `rd/task-v1-mars-light` | Kept: Mars-inspired sky and haze, horizon readable, GPU unchanged |
+| F1b | `rd/task-f1b-terrain` | Measured: 25 cm step climbed; 15° ramp at 88% speed, 2/6 wheels at edges, no resets |
 
 ## Next
 
-- F1b: the f1 drive script on the greybox ramp and a step: speed, tilt, wheels in contact, resets.
 - P2b: chase camera that keeps the rover framed while turning at the new yaw rate.
 - V2: rocks and terrain variation around the start, within the GPU budget.
 
 ## Ideas (not started)
+
+- 15° climb speed 88%; two wheels in contact at slope edges; 10° ramp and downhill runs (from F1b).
 
 - Yaw-rate feedback in the drive controller, if slopes or loose ground show the 1.5 factor is not enough (from F2).
 - Repeat runs for spread in every drive measurement (from F1).
