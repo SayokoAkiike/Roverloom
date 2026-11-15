@@ -1,6 +1,7 @@
 # Site candidates and look references for G3 to G5
 
-**Status: research only, 2026-11-07.** Nothing was downloaded. DTM listings come from the USGS STAC API's
+**Owner's choice, 2026-11-16: Gale, `DTEEC_063319_1745_052242_1745_A01`.** The site and its heightfield are in
+[results](results/terrain-gale/README.md). The research below is from 2026-11-07, when nothing was downloaded. DTM listings come from the USGS STAC API's
 [`mro_hirise_socet_dtms`](https://stac.astrogeology.usgs.gov/api/collections/mro_hirise_socet_dtms) collection,
 CC0-1.0, queried on 2026-11-07 for metadata only. The owner chooses the site after viewing each product's
 thumbnail and hillshade. Gates are in [release-gates.md](release-gates.md#g3-the-site).

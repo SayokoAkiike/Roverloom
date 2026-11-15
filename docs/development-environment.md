@@ -48,9 +48,10 @@ Installed with the owner's approval for the visual steps. All free.
 | Blender | 5.3.0 | `brew install --cask blender` | 953 MB in `/Applications/Blender.app` |
 | ffmpeg | 9.0.2 | `brew install ffmpeg` | 52 MB, plus Homebrew dependencies |
 | vork | 0.5.1 | Its own `install.sh`, read first, with `VORK_NO_MODIFY_PATH=1` so that no shell startup file changed | 288 MB in `~/.local/lib/vork` |
+| GDAL | 3.13.3 | `brew install gdal`, 2026-11-16, after the owner chose the terrain site | 47 MB, plus Homebrew dependencies; Python bindings in Homebrew's `python3` |
 
 **Unreal Engine is not installed on this Mac mini** as of 2026-11-15: `/Users/Shared/Epic Games/UE_5.8/` holds only
-the Launcher's `.egstore` folder. GDAL was not installed, because no terrain site has been chosen.
+the Launcher's `.egstore` folder.
 
 ## Required installation (manual, not yet done)
 

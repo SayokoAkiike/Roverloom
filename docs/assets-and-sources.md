@@ -14,8 +14,10 @@ pull request that adds an asset. See [licensing review](licensing-review.md).
 | `scripts/blender/build_rover.py` and the rover meshes it writes | Original, built from primitives by the script | Not yet selected | No third-party geometry or textures. Not a replica of any real rover |
 | `scripts/vork/rover_concept.py` and the scenes it writes | Original; vork shapes, and sky and dust programs written for this project. No third-party assets | Not yet selected | vork is a local tool under its own preview license, never committed. See [ADR 0015](decisions/0015-vork-for-concept-renders.md) |
 | `docs/images/concept/*.jpg` | Rendered by this project with vork 0.5.1 from the two scripts above | Not yet selected | vork's license claims no rights in media made with it. Labeled "Concept render (vork), not a game screenshot". See [results](results/concept-renders/README.md) |
+| `scripts/terrain/hirise_site.py`, `docs/results/terrain-gale/*` | Original script; metadata and preview images derived from the HiRISE DTM `DTEEC_063319_1745_052242_1745_A01`, downloaded 2026-11-16 | Script not yet selected; source data CC0-1.0 | Credit "NASA/JPL/University of Arizona", DTM distributed by USGS. The DTM and the heightfield stay outside Git. Used for the Gale site; see [results](results/terrain-gale/README.md) |
 
-The repository contains no Epic, Fab, NASA, or USGS assets or data files today.
+The repository contains no Epic, Fab, NASA, or USGS data files today, only small previews derived from the HiRISE DTM
+above.
 
 ## Python dependencies
 
@@ -23,7 +25,7 @@ Runtime: `jsonschema` and its dependencies. Development: `pytest`, `ruff`, `mypy
 `types-jsonschema`. Exact versions are in `python/uv.lock`. **A dependency license audit has not
 been performed yet**, and must be done before public release.
 
-## Planned data (not downloaded)
+## Data sources (downloaded outside Git, or planned)
 
 | Data | Terms as listed | Citation |
 | --- | --- | --- |

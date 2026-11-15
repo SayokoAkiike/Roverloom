@@ -1,0 +1,45 @@
+{
+  "product": "DTEEC_063319_1745_052242_1745_A01",
+  "stac_item": "https://stac.astrogeology.usgs.gov/api/collections/mro_hirise_socet_dtms/items/DTEEC_063319_1745_052242_1745_A01",
+  "source_url": "https://astrogeo-ard.s3-us-west-2.amazonaws.com/mars/mro/hirise/controlled/dtm/ESP_063319_1745_ESP_052242_1745/DTEEC_063319_1745_052242_1745_A01.tif",
+  "source_sha256": "300913c849583dea1e7c3428d47327549a859e571d5af6e468f9f4e4c712bcae",
+  "license": "CC0-1.0",
+  "credit": "NASA/JPL/University of Arizona; DTM distributed by USGS",
+  "projection": "Mars (2015) sphere, equirectangular, clon 0 (IAU_2015:49910)",
+  "center_projected_m": [
+    8139385.0,
+    -327230.0
+  ],
+  "center_lon_lat_deg": [
+    137.31635,
+    -5.52057
+  ],
+  "samples": 1009,
+  "spacing_m": 1.0,
+  "extent_m": 1008.0,
+  "resampling": "cubic, from about 1.0126 m",
+  "nodata_filled_samples": 0,
+  "height_min_m": -3359.678,
+  "height_max_m": -3269.759,
+  "height_reference": "Mars aeroid; heightfield is relative to height_min_m",
+  "r16": "uint16 little-endian, row 0 north, 0 = height_min_m, 65535 = height_max_m",
+  "unreal_z_scale_percent": 17.562,
+  "unreal_xy_scale_percent": 100.0,
+  "slope_1m": {
+    "under_15_deg_fraction": 0.7226,
+    "p95_deg": 26.74,
+    "note": "Dominated by stereo noise; resolving power is coarser than the spacing"
+  },
+  "slope_4m": {
+    "under_15_deg_fraction": 0.9301,
+    "p95_deg": 16.24,
+    "max_deg": 37.35
+  },
+  "import_check": {
+    "pairs": 200,
+    "median_abs_error_m": 0.016,
+    "max_abs_error_m": 0.108,
+    "quantization_step_m": 0.0014
+  },
+  "measured_vs_generated": "Shape at about 1 m is measured; anything finer is generated"
+}
