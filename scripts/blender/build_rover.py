@@ -461,8 +461,9 @@ def main(argv: list[str]) -> int:
         export(obj, args.out / f"{obj.name}.fbx")
     assemble(wheel, strut, axle)
     for obj in (wheel, strut, axle):
-        obj.hide_render = True
-        obj.location = (0.0, 0.0, -50.0)  # the originals stay out of previews
+        # The placed copies share these meshes; the originals at the origin leave the scene.
+        bpy.data.objects.remove(obj)
+    # glTF is +Y up: this frame's (x, y, z) becomes (x, z, -y), so +X stays forward.
     bpy.ops.export_scene.gltf(filepath=str(args.out / "rover_preview.glb"), export_format="GLB")
     report: dict[str, Any] = {
         "blender": bpy.app.version_string,
