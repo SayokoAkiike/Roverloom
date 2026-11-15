@@ -39,6 +39,19 @@ eGPU if the laptop's ports support one, which has not been checked.
 | Unreal Engine, Epic Launcher | Not found |
 | Visual Studio, Rider | Not found |
 
+## Mac mini, 2026-11-15: tools for visual work
+
+Installed with the owner's approval for the visual steps. All free.
+
+| Tool | Version | How | Size |
+| --- | --- | --- | --- |
+| Blender | 5.3.0 | `brew install --cask blender` | 953 MB in `/Applications/Blender.app` |
+| ffmpeg | 9.0.2 | `brew install ffmpeg` | 52 MB, plus Homebrew dependencies |
+| vork | 0.5.1 | Its own `install.sh`, read first, with `VORK_NO_MODIFY_PATH=1` so that no shell startup file changed | 288 MB in `~/.local/lib/vork` |
+
+**Unreal Engine is not installed on this Mac mini** as of 2026-11-15: `/Users/Shared/Epic Games/UE_5.8/` holds only
+the Launcher's `.egstore` folder. GDAL was not installed, because no terrain site has been chosen.
+
 ## Required installation (manual, not yet done)
 
 1. **Epic Games Launcher and UE 5.8**, to run the engine and Unreal MCP. Install

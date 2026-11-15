@@ -118,4 +118,5 @@ wheel, strut, and axle originals are removed before export.
 | `vork check` on `hero`, `side`, `sunset` | `Scene checked successfully`, all three |
 | `vork check --shaders` on `hero`, which also compiles portable shaders, including the dust program, on the CPU | `Scene checked successfully`, in 3 min 52 s |
 
-No image has been rendered: that needs the Mac. See the [guide](../../vork-concept-renders.md).
+Rendered on the Mac mini on 2026-11-15, after the scene script was reworked: see the
+[concept render results](../concept-renders/README.md).

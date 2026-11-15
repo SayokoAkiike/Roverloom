@@ -61,7 +61,9 @@ at that size. The captures were made at 1600 × 900, but those originals are not
 | V6. Screenshots and video | Three fixed shots at 1600 × 900 or larger, PNG or WebP under 500 KB each, with the HUD readable; a short video of keyboard and agent driving, stored outside Git | Movie Render Queue or Graph checked on the Mac first; each image records engine, machine, profile, and commit | 1 week |
 
 **V2 progress, 2026-11-15:** the mesh generator and its checks are done; see [V2 results](results/v2-rover-model/README.md).
-Import into Unreal, the pawn change, and same-condition screenshots wait for the Mac.
+The pawn change is merged but has never been compiled. Import into Unreal and same-condition screenshots wait for
+Unreal Engine, which is not installed on the Mac mini as of 2026-11-15. Concept renders with vork exist; see
+[results](results/concept-renders/README.md). They are not game screenshots.
 
 The existing `-RoverBench` runs already save a 1600 × 900 screenshot. Committing those originals instead of 800 × 450
 copies is the quickest way to make the HUD readable in the README.
