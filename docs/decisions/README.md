@@ -19,3 +19,4 @@ accepted records. Supersede them with a new one.
 | [0012](0012-m4-mac-for-unreal.md) | Apple M4 Mac for Unreal development | Accepted, measured in [0013](0013-ue-5-8-4-on-macos-27.md) |
 | [0013](0013-ue-5-8-4-on-macos-27.md) | UE 5.8.4 with Xcode 27.2 on macOS 27 | Accepted, as the development base only; see its scope |
 | [0014](0014-chaos-rigid-body-rover-spike.md) | Chaos rigid bodies and joints for the rover physics spike | Proposed; R0 failed twice |
+| [0015](0015-vork-for-concept-renders.md) | vork for concept renders, kept apart from game screenshots | Accepted |

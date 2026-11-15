@@ -127,6 +127,7 @@ Run these from `python/`.
 - [Mac Unreal Plan](docs/mac-unreal-plan.md)
 - [Product Quality Vision](docs/product-quality-vision.md) and [Release Gates](docs/release-gates.md), plans only
 - [Visual Roadmap](docs/visual-roadmap.md), plan only
+- [Concept Renders with vork](docs/vork-concept-renders.md), set up but not yet rendered
 
 ## Repository layout
 

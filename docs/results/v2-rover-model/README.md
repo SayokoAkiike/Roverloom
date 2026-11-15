@@ -77,3 +77,16 @@ Outputs go to `unreal/Saved/`, which Git ignores. The script exits with status 1
    a run without the change.
 4. Take same-condition shots against [V1b](../v1b-terrain/README.md), and record GPU time. The limit is +0.5 ms.
 5. Commit the `.uasset` files through LFS, after locking them, and update this page.
+
+## Concept renders with vork
+
+[ADR 0015](../../decisions/0015-vork-for-concept-renders.md) adopts vork for concept renders. The generator
+[`scripts/vork/rover_concept.py`](../../../scripts/vork/rover_concept.py) writes three scenes (`hero`, `side`,
+`sunset`) from this model's `rover_preview.glb`. The GLB now holds only the assembled rover: the unplaced
+wheel, strut, and axle originals are removed before export.
+
+| Check, in a Linux cloud container without a GPU, vork 0.5.1 | Result |
+| --- | --- |
+| `vork check` on `hero`, `side`, `sunset` | `Scene checked successfully`, all three |
+
+No image has been rendered: that needs the Mac. See the [guide](../../vork-concept-renders.md).
