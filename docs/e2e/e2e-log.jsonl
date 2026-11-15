@@ -59,3 +59,64 @@
 {"test": "test_status_bar_reports_the_mission_at_a_glance", "step": "opened", "scenario": "science_sprint", "agent": "mission-planner"}
 {"test": "test_status_bar_reports_the_mission_at_a_glance", "step": "screenshot", "file": "screenshots/mission-control.png"}
 {"test": "test_status_bar_reports_the_mission_at_a_glance", "problems": []}
+{"test": "test_keyboard_drives_and_stops_the_rover", "step": "opened", "scenario": "demo_traverse", "agent": "replanner"}
+{"test": "test_keyboard_drives_and_stops_the_rover", "step": "forward", "x": 1.071, "commands": 8}
+{"test": "test_keyboard_drives_and_stops_the_rover", "step": "screenshot", "file": "screenshots/keyboard-driving.png"}
+{"test": "test_keyboard_drives_and_stops_the_rover", "step": "released", "speed": 0}
+{"test": "test_keyboard_drives_and_stops_the_rover", "step": "turned left is positive yaw", "yaw": 0.275}
+{"test": "test_keyboard_drives_and_stops_the_rover", "problems": []}
+{"test": "test_manual_to_agent_handover_by_key_and_by_button", "step": "opened", "scenario": "science_sprint", "agent": "mission-planner"}
+{"test": "test_manual_to_agent_handover_by_key_and_by_button", "step": "agent drives", "decisions": 1}
+{"test": "test_manual_to_agent_handover_by_key_and_by_button", "step": "screenshot", "file": "screenshots/agent-driving.png"}
+{"test": "test_manual_to_agent_handover_by_key_and_by_button", "problems": []}
+{"test": "test_start_stop_restart_buttons", "step": "opened", "scenario": "science_sprint", "agent": "mission-planner"}
+{"test": "test_start_stop_restart_buttons", "step": "configured", "state": "science_campaign"}
+{"test": "test_start_stop_restart_buttons", "step": "screenshot", "file": "screenshots/mission-ended.png"}
+{"test": "test_start_stop_restart_buttons", "problems": []}
+{"test": "test_keys_after_the_mission_ended_do_not_break_the_log", "step": "opened", "scenario": "demo_traverse", "agent": "replanner"}
+{"test": "test_keys_after_the_mission_ended_do_not_break_the_log", "problems": []}
+{"test": "test_faults_are_shown_when_they_happen", "step": "opened", "scenario": "stress_blackout", "agent": "mission-planner"}
+{"test": "test_faults_are_shown_when_they_happen", "step": "immobilized shown"}
+{"test": "test_faults_are_shown_when_they_happen", "step": "screenshot", "file": "screenshots/fault-immobilized.png"}
+{"test": "test_faults_are_shown_when_they_happen", "step": "screenshot", "file": "screenshots/fault-blackout-and-wheel.png"}
+{"test": "test_faults_are_shown_when_they_happen", "step": "link down shown"}
+{"test": "test_faults_are_shown_when_they_happen", "problems": []}
+{"test": "test_replay_plays_and_changes_speed", "step": "opened", "scenario": "science_sprint", "agent": "mission-planner"}
+{"test": "test_replay_plays_and_changes_speed", "step": "replay", "slow": 1.0, "fast": 33.1, "maximum": 481.7}
+{"test": "test_replay_plays_and_changes_speed", "problems": []}
+{"test": "test_server_loss_is_reported_and_recovers_in_the_page", "step": "opened", "scenario": "demo_traverse", "agent": "replanner"}
+{"test": "test_server_loss_is_reported_and_recovers_in_the_page", "step": "screenshot", "file": "screenshots/server-lost.png"}
+{"test": "test_server_loss_is_reported_and_recovers_in_the_page", "problems": []}
+{"test": "test_a_refused_request_is_shown_not_swallowed", "step": "opened", "scenario": "demo_traverse", "agent": "replanner"}
+{"test": "test_a_refused_request_is_shown_not_swallowed", "problems": []}
+{"test": "test_simulation_failure_is_shown", "step": "opened", "scenario": "demo_traverse", "agent": "replanner"}
+{"test": "test_simulation_failure_is_shown", "problems": []}
+{"test": "test_layout_fits_every_window_size[1920-1080]", "step": "opened", "scenario": "demo_traverse", "agent": "replanner"}
+{"test": "test_layout_fits_every_window_size[1920-1080]", "step": "screenshot", "file": "screenshots/layout-1920x1080.png"}
+{"test": "test_layout_fits_every_window_size[1920-1080]", "problems": []}
+{"test": "test_layout_fits_every_window_size[1400-900]", "step": "opened", "scenario": "demo_traverse", "agent": "replanner"}
+{"test": "test_layout_fits_every_window_size[1400-900]", "step": "screenshot", "file": "screenshots/layout-1400x900.png"}
+{"test": "test_layout_fits_every_window_size[1400-900]", "problems": []}
+{"test": "test_layout_fits_every_window_size[1024-700]", "step": "opened", "scenario": "demo_traverse", "agent": "replanner"}
+{"test": "test_layout_fits_every_window_size[1024-700]", "step": "screenshot", "file": "screenshots/layout-1024x700.png"}
+{"test": "test_layout_fits_every_window_size[1024-700]", "problems": []}
+{"test": "test_layout_fits_every_window_size[768-900]", "step": "opened", "scenario": "demo_traverse", "agent": "replanner"}
+{"test": "test_layout_fits_every_window_size[768-900]", "step": "screenshot", "file": "screenshots/layout-768x900.png"}
+{"test": "test_layout_fits_every_window_size[768-900]", "problems": []}
+{"test": "test_layout_fits_every_window_size[390-800]", "step": "opened", "scenario": "demo_traverse", "agent": "replanner"}
+{"test": "test_layout_fits_every_window_size[390-800]", "step": "screenshot", "file": "screenshots/layout-390x800.png"}
+{"test": "test_layout_fits_every_window_size[390-800]", "problems": []}
+{"test": "test_layout_fits_every_window_size[320-568]", "step": "opened", "scenario": "demo_traverse", "agent": "replanner"}
+{"test": "test_layout_fits_every_window_size[320-568]", "step": "screenshot", "file": "screenshots/layout-320x568.png"}
+{"test": "test_layout_fits_every_window_size[320-568]", "problems": []}
+{"test": "test_resizing_a_running_page_keeps_it_working", "step": "opened", "scenario": "demo_traverse", "agent": "replanner"}
+{"test": "test_resizing_a_running_page_keeps_it_working", "problems": []}
+{"test": "test_focus_rules_for_keys", "step": "opened", "scenario": "demo_traverse", "agent": "replanner"}
+{"test": "test_focus_rules_for_keys", "problems": []}
+{"test": "test_mashing_keys_and_buttons_is_harmless", "step": "opened", "scenario": "science_sprint", "agent": "mission-planner"}
+{"test": "test_mashing_keys_and_buttons_is_harmless", "problems": []}
+{"test": "test_event_history_keeps_the_readers_scroll_position", "step": "opened", "scenario": "stress_blackout", "agent": "mission-planner"}
+{"test": "test_event_history_keeps_the_readers_scroll_position", "problems": []}
+{"test": "test_status_bar_reports_the_mission_at_a_glance", "step": "opened", "scenario": "science_sprint", "agent": "mission-planner"}
+{"test": "test_status_bar_reports_the_mission_at_a_glance", "step": "screenshot", "file": "screenshots/mission-control.png"}
+{"test": "test_status_bar_reports_the_mission_at_a_glance", "problems": []}
