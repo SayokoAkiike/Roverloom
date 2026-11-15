@@ -60,5 +60,8 @@ at that size. The captures were made at 1600 × 900, but those originals are not
 | V5. HUD and agent view | Readable HUD at 1080p; planned path, targets, hazards, the command queue under delay, fault state, and the reason from `decision` records | Needs bridge v1 in C++ so that a Python agent drives Unreal. Before that, show Python logs in a kinematic replay, labeled where the terrain differs | 2–3 weeks |
 | V6. Screenshots and video | Three fixed shots at 1600 × 900 or larger, PNG or WebP under 500 KB each, with the HUD readable; a short video of keyboard and agent driving, stored outside Git | Movie Render Queue or Graph checked on the Mac first; each image records engine, machine, profile, and commit | 1 week |
 
+**V2 progress, 2026-11-15:** the mesh generator and its checks are done; see [V2 results](results/v2-rover-model/README.md).
+Import into Unreal, the pawn change, and same-condition screenshots wait for the Mac.
+
 The existing `-RoverBench` runs already save a 1600 × 900 screenshot. Committing those originals instead of 800 × 450
 copies is the quickest way to make the HUD readable in the README.
