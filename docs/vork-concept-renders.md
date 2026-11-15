@@ -12,9 +12,10 @@ not a game screenshot".**
 | Scenes from `scripts/vork/rover_concept.py` | Same container, vork 0.5.1 | `hero`, `side`, `sunset` written |
 | `vork check` on the three scenes | Same container, no GPU | `Scene checked successfully` for all three |
 | `vork check --shaders` on `hero` | Same container | See the [V2 results](results/v2-rover-model/README.md#concept-renders-with-vork) |
-| **Rendering, and judging the look** | **Not done.** Needs the Mac's GPU | — |
+| Rendering, and judging the look | Mac mini M4, vork 0.5.1, 2026-11-15 | Three images at 1600 × 900. See the [results](results/concept-renders/README.md) |
 
-The sky's colors, the dust, and the exposure have not been seen by anyone. Expect to tune them.
+The first drafts were washed out, because vork's physical sky is Earth's. The script now uses its own sky program,
+thinner dust, generated terrain, and faceted rocks. The look was judged by Claude Code only, not yet by the owner.
 
 ## On the Mac
 
@@ -48,7 +49,8 @@ vork check unreal/Saved/RoverConcept/hero.json
 vork render unreal/Saved/RoverConcept/hero.json --profile std/draft --out unreal/Saved/RoverConcept/hero-draft.png
 ```
 
-The dust haze makes vork use path transport, which is slower. Use `--no-fog` while framing shots. Render final
+The dust haze makes vork use path transport, which is slower. Use `--no-fog` while framing shots, and `--only hero`
+to write one shot. Render final
 images with `--profile std/final`, or `std/path` if indirect light looks too dark.
 
 ## What to tune, by eye
@@ -56,10 +58,12 @@ images with `--profile std/final`, or `std/path` if indirect light looks too dar
 | Look | Where |
 | --- | --- |
 | Too bright or dark | `--exposure` (AgX stops) |
-| Sky too blue or grey | `vork_sky()`: `air_density`, `aerosol_density`. vork's sky is a physical model of Earth's air; these settings only approximate Mars |
-| Haze too thick or thin | `DUST_PROGRAM`: `scattering`, `falloff` |
-| Shots | `SHOTS`: camera, target, lens, sun elevation and rotation |
-| Rocks | `rock_nodes()`: count, size law, seed |
+| Too bright or dark, per shot | `SHOTS`: `exposure` |
+| Sky colors and glow | `SKY_PROGRAM` inputs: `zenith`, `horizon`, `glow`, `aureole`. vork's own `std/sky` models Earth's air and looked wrong |
+| Sun and sky strength | `SHOTS`: `tau`, the dust's optical depth |
+| Haze too thick or thin | `SHOTS`: `haze`; `DUST_PROGRAM`: `scattering`, `falloff` |
+| Shots | `SHOTS`: camera, target, lens, sun elevation and rotation. Sun yaw in the world is rotation minus 90° |
+| Ground and rocks | `terrain_height()`, `regolith_color()`, `rock_shape()`, `rock_nodes()`: count, size law, seed |
 
 Record each choice and who judged it. Match the sky only against approximately true-color references, as
 [site-and-look-references.md](site-and-look-references.md) says.
