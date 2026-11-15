@@ -28,6 +28,7 @@ import random
 import shutil
 import subprocess
 import sys
+from array import array
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -130,6 +131,26 @@ SHOTS: dict[str, dict[str, Any]] = {
         "tau": 0.45,
         "haze": 1.0,
         "exposure": -1.2,
+    },
+}
+
+
+# Shots on the Gale site from scripts/terrain/hirise_site.py. The rover stands on the flattest
+# spot found within the site, 144 m west and 24 m north of its center, facing a ridge that rises
+# about 24 m some 250 m away to the north-northeast. Positions are relative to the rover.
+GALE_SPOT = (360.0, 480.0)  # meters east and south of the heightfield's northwest corner
+GALE_YAW_DEG = 59.0  # the rover's +X turned from east toward north
+GALE_SHOTS: dict[str, dict[str, Any]] = {
+    "gale": {
+        "about": "Gale site from behind the rover's right, late afternoon, the ridge ahead",
+        "camera": [1.7, 0.6, 6.9],
+        "target": [0.4, 0.6, -2.6],
+        "lens_mm": 30,
+        "sun_elevation_deg": 18,
+        "sun_rotation_deg": 200,
+        "tau": 0.5,
+        "haze": 0.8,
+        "exposure": -3.4,
     },
 }
 
@@ -240,6 +261,51 @@ def spaced(limit: float, fine: float, coarse: float, flat: float) -> list[float]
 
 
 TERRAIN_LIMIT = 160.0
+GALE_LIMIT = 480.0
+
+
+def geometric(limit: float, fine: float, flat: float, growth: float) -> list[float]:
+    """Grid lines from -limit to limit: fine near the rover, then spacing growing with distance."""
+    out, x = [0.0], 0.0
+    while x < limit:
+        x += fine if x < flat else max(fine, x * growth)
+        out.append(min(x, limit))
+    return [-v for v in reversed(out[1:])] + out
+
+
+def gale_height(site: Path, seed: int) -> Callable[[float, float], float]:
+    """Measured HiRISE shape at about 1 m, plus generated bumps finer than the DTM resolves.
+
+    x is east and z is south of the rover's spot, which is leveled within 3 m of the wheels.
+    """
+    meta = json.loads(site.with_suffix(".json").read_text(encoding="utf-8"))
+    n, spacing = meta["samples"], meta["spacing_m"]
+    low, span = meta["height_min_m"], meta["height_max_m"] - meta["height_min_m"]
+    raw = array("H")
+    raw.frombytes(site.read_bytes())
+    if sys.byteorder == "big":
+        raw.byteswap()
+
+    def measured(x: float, z: float) -> float:
+        col = min(max((GALE_SPOT[0] + x) / spacing, 0.0), n - 1.001)
+        row = min(max((GALE_SPOT[1] + z) / spacing, 0.0), n - 1.001)
+        c, r = int(col), int(row)
+        fc, fr = col - c, row - r
+        k = r * n + c
+        top = raw[k] * (1 - fc) + raw[k + 1] * fc
+        bottom = raw[k + n] * (1 - fc) + raw[k + n + 1] * fc
+        return low + (top * (1 - fr) + bottom * fr) / 65535.0 * span
+
+    base = measured(0.0, 0.0)
+    noise = value_noise(seed)
+
+    def height(x: float, z: float) -> float:
+        r = math.hypot(x, z)
+        near = min(1.0, max(0.0, (r - 3.0) / 6.0))
+        bumps = 0.12 * (noise(x / 3.1, z / 3.1) - 0.5) + 0.05 * (noise(x / 1.1, z / 1.1) - 0.5)
+        return GROUND_Y + near * (measured(x, z) - base + bumps)
+
+    return height
 
 
 def terrain_height(seed: int) -> Callable[[float, float], float]:
@@ -431,8 +497,26 @@ def scene(
     seed: int,
     resolution: tuple[int, int],
     exposure: float,
+    site: Path | None = None,
 ) -> dict[str, Any]:
     environment = lights[0]
+    if site is None:
+        ground = terrain_height(seed)
+        ground_mesh = terrain(seed)
+        far: list[dict[str, Any]] = mesa_nodes(seed)
+        plain_y = GROUND_Y - 0.02
+        rover: dict[str, Any] = {}
+    else:
+        ground = gale_height(site, seed)
+        lines = geometric(GALE_LIMIT, 0.5, 14.0, 0.06)
+        ground_mesh = heightfield(ground, lines, lines, regolith_color(seed))
+        far = []
+        edge = [
+            ground(GALE_LIMIT * math.cos(a / 8), GALE_LIMIT * math.sin(a / 8)) for a in range(50)
+        ]
+        plain_y = min(edge) - 0.5
+        yaw = math.radians(GALE_YAW_DEG)
+        rover = {"rotation": [0.0, math.sin(yaw / 2), 0.0, math.cos(yaw / 2)]}
     programs: dict[str, Any] = {
         "mars_sky": {"file": "mars_sky.slang"},
     }
@@ -456,13 +540,14 @@ def scene(
             },
         }
     geometry: dict[str, Any] = {
-        "terrain": terrain(seed),
+        "terrain": ground_mesh,
         "plain": {"std": "grid", "size": [4000, 4000], "segments": [1, 1]},
     }
     for i in range(ROCK_SHAPES):
         geometry[f"rock{i}"] = rock_shape(seed * 100 + i)
-    for i in range(3):
-        geometry[f"mesa{i}"] = mesa(seed * 10 + i)
+    if site is None:
+        for i in range(3):
+            geometry[f"mesa{i}"] = mesa(seed * 10 + i)
 
     return {
         "version": 2,
@@ -483,7 +568,7 @@ def scene(
                 "material": {"program": "std/camera", "inputs": {"lens": shot["lens_mm"]}},
             },
             *lights,
-            {"type": "asset", "name": "rover", "file": glb},
+            {"type": "asset", "name": "rover", "file": glb, **rover},
             {
                 "type": "mesh",
                 "name": "terrain",
@@ -494,11 +579,11 @@ def scene(
                 "type": "mesh",
                 "name": "plain",
                 "geometry": "plain",
-                "translation": [0.0, GROUND_Y - 0.02, 0.0],
+                "translation": [0.0, plain_y, 0.0],
                 "materials": ["plain"],
             },
-            *rock_nodes(seed, terrain_height(seed), shot["camera"]),
-            *mesa_nodes(seed),
+            *rock_nodes(seed, ground, shot["camera"]),
+            *far,
         ],
     }
 
@@ -516,7 +601,13 @@ def main(argv: list[str]) -> int:
     parser.add_argument(
         "--exposure", type=float, default=0.0, help="AgX exposure, in stops, added to each shot's"
     )
-    parser.add_argument("--only", choices=sorted(SHOTS), help="write one shot only")
+    parser.add_argument("--only", choices=sorted(SHOTS | GALE_SHOTS), help="write one shot only")
+    parser.add_argument(
+        "--site",
+        type=Path,
+        help="a heightfield .r16 from scripts/terrain/hirise_site.py, with its .json beside it;"
+        " writes the Gale shots instead",
+    )
     args = parser.parse_args(argv)
     if not args.glb.is_file():
         print(f"Missing {args.glb}; run scripts/blender/build_rover.py first.", file=sys.stderr)
@@ -526,7 +617,7 @@ def main(argv: list[str]) -> int:
     (args.out / "mars_sky.slang").write_text(SKY_PROGRAM, encoding="utf-8")
     if not args.no_fog:
         (args.out / "dust.slang").write_text(DUST_PROGRAM, encoding="utf-8")
-    for name, shot in SHOTS.items():
+    for name, shot in (GALE_SHOTS if args.site else SHOTS).items():
         if args.only and name != args.only:
             continue
         lights, sky_material = sky(args.vork, shot)
@@ -539,6 +630,7 @@ def main(argv: list[str]) -> int:
             args.seed,
             args.resolution,
             shot["exposure"] + args.exposure,
+            args.site,
         )
         path = args.out / f"{name}.json"
         path.write_text(json.dumps(data) + "\n", encoding="utf-8")

@@ -71,3 +71,22 @@ Import, regolith materials, and rocks wait for Unreal Engine.
 
 The existing `-RoverBench` runs already save a 1600 × 900 screenshot. Committing those originals instead of 800 × 450
 copies is the quickest way to make the HUD readable in the README.
+
+## Next work, 2026-11-16
+
+Ordered by what can start now. Nothing below is done unless marked.
+
+| # | Work | Needs | State |
+| --- | --- | --- | --- |
+| 1 | Mission Control restyle, same behavior | Nothing | Done, PR #12 |
+| 2 | Concept render of the V2 rover on the Gale heightfield | vork, the [terrain results](results/terrain-gale/README.md) | Done; see [concept results](results/concept-renders/README.md#gale-site) |
+| 3 | Build the merged V2 pawn (PR #9) and import the rover meshes; same-camera screenshots | **UE 5.8.4 reinstalled by the owner** | Waiting |
+| 4 | Rover materials | UE | Waiting |
+| 5 | Gale Landscape from `gale_site.r16`, Z scale 17.562%, checked against `site.json`; CC0 regolith in two scales; rocks with a fixed seed, off the test lanes, no collision | UE; CC0 textures from ambientCG or Poly Haven | Waiting |
+| 6 | Lighting presets from the command line, fixed exposure, `Dev` and `Capture` apart; chase-camera damping | UE | Waiting |
+| 7 | HUD readable at 1080p with the PROVISIONAL label | UE | Waiting |
+| 8 | Three fixed shots, Movie Render Queue checked on the Mac, a 30 s video outside Git; README top image from the game | Steps 3–7 | Waiting |
+| 9 | G2 acceptance: a 10-minute drive and scored run logs from Unreal | UE | Waiting |
+| 10 | Bridge v1 in C++, so that a Python agent drives the Unreal rover | UE; **the owner's go-ahead** | Not started |
+| 11 | The Gale site as a terrain in the lightweight backend, so both backends share a `terrain_id` | **An owner decision and an ADR**: it changes `schemas/terrain.schema.json`, which accepts procedural terrain only | Not started |
+

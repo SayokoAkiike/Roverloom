@@ -31,6 +31,15 @@ The state of the project at the end of Windows verification, 2026-11-02, for who
 - No real sandbox, log signing, or Codabench run. Do not run anyone else's code.
 - `LICENSE` is not selected, and EULA texts are unread. See [licensing review](licensing-review.md).
 
+## Visual work on the Mac mini, 2026-11-15 to 16
+
+- Unreal Engine is not installed on the Mac mini, so no Unreal visual step has run. The merged V2 pawn (PR #9) has
+  never been compiled.
+- Done without Unreal: [concept renders](results/concept-renders/README.md) with vork, labeled as not game
+  screenshots; the [Gale terrain site](results/terrain-gale/README.md), a 1 km heightfield checked against its HiRISE
+  source and not imported; a Mission Control restyle with the same behavior and passing browser tests.
+- The ordered plan is in [visual-roadmap.md](visual-roadmap.md#next-work-2026-11-16).
+
 ## Known problems
 
 - **Port on macOS:** `roverloom play` fails on the measured Mac unless given `--port`, because `sharingd` holds the default 8770.

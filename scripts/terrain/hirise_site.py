@@ -280,6 +280,7 @@ def main() -> None:
         "measured_vs_generated": "Shape at about 1 m is measured; anything finer is generated",
     }
     print(json.dumps(metadata, indent=2))
+    r16.with_suffix(".json").write_text(json.dumps(metadata, indent=2) + "\n")
 
     if args.previews:
         args.previews.mkdir(parents=True, exist_ok=True)
