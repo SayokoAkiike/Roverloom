@@ -169,7 +169,7 @@ Nothing below is needed to resume work, except optionally the archive. **Nothing
 | `runs/p3`, `runs/p3_*.txt` | 1.9 GB | Superseded, from commit `512f6de` with uncommitted changes | Do not move. Kept on Windows only |
 | `runs/demo` | 91 MB | Reproducible | Do not move. `uv run roverloom demo` rewrites it |
 | `python/.venv`, tool caches, `__pycache__` | 188 MB and small | Windows-specific | Do not move. `uv sync` recreates them |
-| Assets outside Git | None | | No Unreal, Fab, or terrain data has been downloaded |
+| Assets outside Git | Mac mini only | `python3 scripts/terrain/hirise_site.py --download` refetches and checks the SHA-256 | HiRISE DTM for the Gale site, 2026-11-16, in `unreal/Saved/Terrain/gale/`. No Unreal or Fab content |
 | Secrets | None found in the repository or archive | `check_repo.py`, and a pattern scan | GitHub and Claude logins stay in each machine's own store. Log in again on the Mac |
 | Claude Code transcripts, `~/.claude` | 18 MB for the last session | May hold anything shown in a session | Do not move. See below |
 

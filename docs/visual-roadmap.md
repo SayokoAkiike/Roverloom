@@ -65,5 +65,9 @@ The pawn change is merged but has never been compiled. Import into Unreal and sa
 Unreal Engine, which is not installed on the Mac mini as of 2026-11-15. Concept renders with vork exist; see
 [results](results/concept-renders/README.md). They are not game screenshots.
 
+**V3 progress, 2026-11-16:** the owner chose Gale. A 1 km heightfield from HiRISE DTM
+`DTEEC_063319_1745_052242_1745_A01` is made and checked against its source; see [terrain results](results/terrain-gale/README.md).
+Import, regolith materials, and rocks wait for Unreal Engine.
+
 The existing `-RoverBench` runs already save a 1600 × 900 screenshot. Committing those originals instead of 800 × 450
 copies is the quickest way to make the HUD readable in the README.

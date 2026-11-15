@@ -28,7 +28,7 @@ rock scatter, tiling visible from the rover's mast.
 
 ## Terrain data pipeline
 
-Nothing has been downloaded. Tools such as GDAL are not installed, and these commands have not been run.
+Steps 1 to 7 and 9 were done for Gale on 2026-11-16 by `scripts/terrain/hirise_site.py`; see [results](results/terrain-gale/README.md). Step 8, the import, waits for Unreal Engine on the Mac mini.
 
 | Step | Action | Output |
 | --- | --- | --- |
