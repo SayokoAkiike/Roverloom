@@ -1,0 +1,98 @@
+{
+  "blender": "5.0.1",
+  "frame": "metres; origin at the rig body's center; +X forward, +Y left, +Z up",
+  "meshes": {
+    "SM_RoverBody": {
+      "min_m": [
+        -1.75,
+        -1.2766,
+        -0.23
+      ],
+      "max_m": [
+        1.135,
+        1.2766,
+        1.41
+      ],
+      "triangles": 4068,
+      "materials": [
+        "M_RoverBody",
+        "M_RoverFoil",
+        "M_RoverAluminum",
+        "M_RoverDark",
+        "M_RoverSolar",
+        "M_RoverGlass"
+      ]
+    },
+    "SM_RoverWheel": {
+      "min_m": [
+        -0.25,
+        -0.1,
+        -0.25
+      ],
+      "max_m": [
+        0.25,
+        0.1,
+        0.25
+      ],
+      "triangles": 2152,
+      "materials": [
+        "M_RoverAluminum",
+        "M_RoverDark"
+      ]
+    },
+    "SM_RoverStrut": {
+      "min_m": [
+        -0.025,
+        -0.025,
+        -0.5
+      ],
+      "max_m": [
+        0.025,
+        0.025,
+        0.5
+      ],
+      "triangles": 12,
+      "materials": [
+        "M_RoverAluminum"
+      ]
+    },
+    "SM_RoverAxle": {
+      "min_m": [
+        -0.035,
+        -0.18,
+        -0.035
+      ],
+      "max_m": [
+        0.035,
+        0.0,
+        0.035
+      ],
+      "triangles": 72,
+      "materials": [
+        "M_RoverDark"
+      ]
+    }
+  },
+  "checks": {
+    "wheel_outer_radius_m": 0.25,
+    "wheel_radius_matches": true,
+    "wheel_half_width_m": 0.1,
+    "wheel_hub_within": true,
+    "wheel_bottom_on_ground": true,
+    "body_ground_clearance_m": 0.47,
+    "body_clear_of_ground": true,
+    "mast_top_above_ground_m": 2.11,
+    "panel_area_m2": 6.0,
+    "body_vertices_inside_wheels": 0,
+    "wheels_unobstructed": true,
+    "axle_reaches_strut": true,
+    "struts_clear_of_wheels_m": 0.035,
+    "struts_clear_of_wheels": true
+  },
+  "previews": [
+    "preview_front_three_quarter.jpg",
+    "preview_side.jpg",
+    "preview_rear_high.jpg",
+    "preview_chase.jpg"
+  ]
+}
