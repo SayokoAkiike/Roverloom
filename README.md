@@ -22,6 +22,31 @@ A person drove to the target by keyboard; the Python Mission Core judged success
 Unreal only shows the verdict. Engine basic shapes on flat test ground, no terrain data, and a
 provisional drive model that is not validated.*
 
+## How a comparison works
+
+```mermaid
+flowchart LR
+    inputs["Same for every agent<br/>scenario: mission, terrain, seed<br/>delay, loss, noise, faults"]
+    agents["Agents<br/>built-in planners, your Python agent,<br/>code-as-policy mock, a person"]
+    core["Python Mission Core<br/>2.5D, works today"]
+    logs["Run logs<br/>JSONL, hashed"]
+    score["One Python scorer<br/>reads logs only"]
+    board["Comparisons,<br/>leagues, replay"]
+    person["Person at<br/>the keyboard"]
+    unreal["Unreal client<br/>greybox, early"]
+
+    inputs --> core
+    agents -- "Action" --> core
+    core -- "Observation" --> agents
+    core --> logs --> score --> board
+    person -.-> unreal
+    unreal -. "position, for the verdict" .-> core
+```
+
+Solid lines work today. Dotted lines are the Unreal link as it stands: a person drives the Unreal
+rover, and the Mission Core judges one reach-target mission from its position. Python agents
+cannot drive the Unreal rover yet, and Unreal runs are not scored.
+
 ## What is held equal between agents
 
 | Same for every agent | How |
