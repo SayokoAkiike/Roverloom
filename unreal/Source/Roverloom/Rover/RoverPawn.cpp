@@ -56,6 +56,12 @@ namespace
 	const double DivergedSpeedCmps = 1000.0;
 	const double FreeCameraSpeedCmps = 800.0;
 	const double FreeCameraLiftCmps = 400.0;
+	// V2 visual model: struts run inboard of the wheels, at scripts/blender/build_rover.py's ARM_Y (0.877 m).
+	const double ModelArmYCm = 87.7;
+	const TCHAR* const ModelBodyPath = TEXT("/Game/Rover/SM_RoverBody.SM_RoverBody");
+	const TCHAR* const ModelWheelPath = TEXT("/Game/Rover/SM_RoverWheel.SM_RoverWheel");
+	const TCHAR* const ModelStrutPath = TEXT("/Game/Rover/SM_RoverStrut.SM_RoverStrut");
+	const TCHAR* const ModelAxlePath = TEXT("/Game/Rover/SM_RoverAxle.SM_RoverAxle");
 	const double LookDegPerUnit = 0.15;
 
 	void Tint(UStaticMeshComponent* Mesh, const FLinearColor& Color, float Roughness = 0.5f)
@@ -121,6 +127,16 @@ ARoverPawn::ARoverPawn()
 		FVector(0.08, 0.08, (MastTopZ - MastBase.Z) / 100.0)));
 	Parts.Add(MakePart(TEXT("MastHead"), Cube, FVector(MastBase.X, 0.0, MastTopZ + 4.0), FRotator::ZeroRotator, FVector(0.16, 0.36, 0.12)));
 	Parts.Add(MakePart(TEXT("Panel"), Cube, FVector(-45.0, 0.0, BodySizeCm.Z / 2.0 + 12.0), FRotator::ZeroRotator, FVector(2.2, 1.8, 0.03)));
+	// V2 slots stay empty and hidden unless ApplyModelV2 finds the meshes at BeginPlay.
+	ModelBody = MakePart(TEXT("ModelBody"), nullptr, FVector::ZeroVector, FRotator::ZeroRotator, FVector::OneVector);
+	ModelBody->SetVisibility(false);
+	for (int32 Index = 0; Index < NumWheels; ++Index)
+	{
+		UStaticMeshComponent* Axle = MakePart(*FString::Printf(TEXT("ModelAxle%d"), Index), nullptr, WheelMountCm(Index),
+			FRotator::ZeroRotator, FVector::OneVector);
+		Axle->SetVisibility(false);
+		ModelAxles.Add(Axle);
+	}
 
 	ChaseArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("ChaseArm"));
 	ChaseArm->SetupAttachment(Root);
@@ -258,7 +274,72 @@ void ARoverPawn::BeginPlay()
 	{
 		Tint(Part, Part->GetName() == TEXT("Panel") ? FLinearColor(0.03f, 0.05f, 0.12f) : FLinearColor(0.6f, 0.6f, 0.62f));
 	}
+	// -RoverModel=greybox keeps the basic shapes, for before-and-after shots under the same conditions.
+	FString Model;
+	FParse::Value(FCommandLine::Get(), TEXT("RoverModel="), Model);
+	if (Model != TEXT("greybox"))
+	{
+		ApplyModelV2();
+	}
 	SpawnRig();
+}
+
+bool ARoverPawn::ApplyModelV2()
+{
+	// Visual meshes only: every component here has collision disabled, so physics never sees them.
+	auto Load = [](const TCHAR* Path) { return LoadObject<UStaticMesh>(nullptr, Path, nullptr, LOAD_NoWarn | LOAD_Quiet); };
+	UStaticMesh* BodyMesh = Load(ModelBodyPath);
+	UStaticMesh* WheelMesh = Load(ModelWheelPath);
+	UStaticMesh* StrutMesh = Load(ModelStrutPath);
+	UStaticMesh* AxleMesh = Load(ModelAxlePath);
+	if (!BodyMesh || !WheelMesh || !StrutMesh || !AxleMesh)
+	{
+		UE_LOG(LogRoverloom, Display, TEXT("Rover model: greybox (V2 meshes not found under /Game/Rover)"));
+		return false;
+	}
+	// Import checks, logged for the record: the body's front (sample arm) reaches +113.5 cm and its rear (solar deck)
+	// -175 cm; the wheel's radius is 25 cm. A mirrored or rotated import shows here.
+	const FBox BodyBox = BodyMesh->GetBoundingBox();
+	const FBox WheelBox = WheelMesh->GetBoundingBox();
+	const FBox AxleBox = AxleMesh->GetBoundingBox();
+	UE_LOG(LogRoverloom, Display, TEXT("Rover model: V2. Body X %.1f..%.1f cm (expect -175.0..113.5), Z %.1f..%.1f; wheel X %.1f..%.1f, Z %.1f..%.1f (expect +-25.0)"),
+		BodyBox.Min.X, BodyBox.Max.X, BodyBox.Min.Z, BodyBox.Max.Z, WheelBox.Min.X, WheelBox.Max.X, WheelBox.Min.Z, WheelBox.Max.Z);
+	if (FMath::Abs(BodyBox.Max.X - 113.5) > 2.0 || FMath::Abs(BodyBox.Min.X + 175.0) > 2.0 || FMath::Abs(WheelBox.Max.Z - WheelRadiusCm) > 1.0)
+	{
+		UE_LOG(LogRoverloom, Warning, TEXT("Rover model: V2 bounds differ from the generator's; check the import's axes and units"));
+	}
+	bModelV2 = true;
+	for (UStaticMeshComponent* Part : Parts)
+	{
+		Part->SetVisibility(false);
+	}
+	for (UStaticMeshComponent* Mark : WheelMarks)
+	{
+		Mark->SetVisibility(false);
+	}
+	ModelBody->SetStaticMesh(BodyMesh);
+	ModelBody->SetVisibility(true);
+	for (UStaticMeshComponent* Wheel : Wheels)
+	{
+		Wheel->SetStaticMesh(WheelMesh);
+		Wheel->SetRelativeScale3D(FVector::OneVector);
+		Wheel->SetMaterial(0, nullptr);
+	}
+	for (UStaticMeshComponent* Leg : Legs)
+	{
+		Leg->SetStaticMesh(StrutMesh);
+		Leg->SetMaterial(0, nullptr);
+	}
+	// The axle runs from the wheel's center toward the body. Read which way the imported mesh points, and mirror it per side.
+	const bool bAxlePointsPlusY = AxleBox.Max.Y > -AxleBox.Min.Y;
+	for (int32 Index = 0; Index < ModelAxles.Num(); ++Index)
+	{
+		const bool bNeedsPlusY = WheelMountCm(Index).Y < 0.0;
+		ModelAxles[Index]->SetStaticMesh(AxleMesh);
+		ModelAxles[Index]->SetRelativeScale3D(FVector(1.0, bNeedsPlusY == bAxlePointsPlusY ? 1.0 : -1.0, 1.0));
+		ModelAxles[Index]->SetVisibility(true);
+	}
+	return true;
 }
 
 void ARoverPawn::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -298,6 +379,11 @@ void ARoverPawn::SpawnRig()
 	// Phase C's six-wheel rig: free rotation, sphere sweeps, 853.5 kg, friction 0.6. Solver options stay at defaults.
 	Rig->Build(BodySizeCm, MassKg, Setups, false, false, true, Friction, RigMaterial);
 	Tint(Rig->GetBody(), FLinearColor(0.75f, 0.72f, 0.66f));
+	if (bModelV2)
+	{
+		// The V2 body mesh replaces the rig's box on screen. Hiding it changes rendering only, not collision or physics.
+		Rig->GetBody()->SetVisibility(false);
+	}
 	bRigReady = false;
 	WheelAnglesRad.Init(0.0, NumWheels);
 }
@@ -805,6 +891,15 @@ void ARoverPawn::UpdateWheels(double DeltaSeconds)
 		WheelAnglesRad[Index] = FMath::Fmod(WheelAnglesRad[Index] + Record.SpinRadps * DeltaSeconds, 2.0 * UE_DOUBLE_PI);
 		// Rolling forward turns the wheel's front down, which is a negative pitch about the axle.
 		const FQuat Spin(FRotator(-FMath::RadiansToDegrees(WheelAnglesRad[Index]), 0.0, 0.0));
+		if (bModelV2)
+		{
+			// The V2 wheel's axle is already along Y. Struts run inboard of the wheels; axles join them to the hubs.
+			Wheels[Index]->SetRelativeLocationAndRotation(Center, Spin);
+			Legs[Index]->SetRelativeLocation(FVector(Mount.X, FMath::Sign(Mount.Y) * ModelArmYCm, Mount.Z - Drop / 2.0));
+			Legs[Index]->SetRelativeScale3D(FVector(1.0, 1.0, FMath::Max(Drop, 1.0) / 100.0));
+			ModelAxles[Index]->SetRelativeLocation(Center);
+			continue;
+		}
 		Wheels[Index]->SetRelativeLocationAndRotation(Center, Spin * FQuat(FRotator(0.0, 0.0, 90.0)));
 		WheelMarks[Index]->SetRelativeLocationAndRotation(Center, Spin);
 		Legs[Index]->SetRelativeLocation(Mount - FVector(0.0, 0.0, Drop / 2.0));

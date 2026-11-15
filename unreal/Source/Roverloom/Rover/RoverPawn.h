@@ -126,6 +126,13 @@ private:
 	TArray<TObjectPtr<UStaticMeshComponent>> Legs;
 	UPROPERTY()
 	TArray<TObjectPtr<UStaticMeshComponent>> Parts; // Rockers, mast, mast head, panel
+	// V2 visual model (scripts/blender/build_rover.py), used when its meshes exist under /Game/Rover. Visual only.
+	UPROPERTY()
+	TObjectPtr<UStaticMeshComponent> ModelBody;
+	UPROPERTY()
+	TArray<TObjectPtr<UStaticMeshComponent>> ModelAxles;
+	bool bModelV2 = false;
+	bool ApplyModelV2();
 
 	UPROPERTY()
 	TObjectPtr<AWheelRig> Rig;
