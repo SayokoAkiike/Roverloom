@@ -45,6 +45,29 @@ The first drafts, made with the script as committed in PR #7, were judged by Cla
 All colors, haze, and sky are chosen by eye. They are `mars_inspired`, not measured, and were not compared with
 reference photographs side by side.
 
+## Gale site
+
+Added 2026-11-16. **Concept render (vork), not a game screenshot.**
+
+![Concept render (vork), not a game screenshot: the V2 rover on terrain shaped by a HiRISE DTM of Gale crater](../../images/concept/gale.jpg)
+
+| Item | Value |
+| --- | --- |
+| Terrain | The [Gale heightfield](../terrain-gale/README.md), from HiRISE DTM `DTEEC_063319_1745_052242_1745_A01`: measured shape at 1 m out to 480 m from the rover, with generated bumps below 1 m and leveled within 3 m of the wheels |
+| Rover spot | One of two places in the site flat to under 4° over 20 m: 144 m west and 24 m north of the site center, facing a ridge about 24 m higher and 250 m away |
+| Rocks, sky, dust, color | Generated, as in the other shots; no mesas |
+| Render | `std/final`, 1600 × 900, 2.7 s on the Mac mini; JPEG 93 KB |
+| Credit | NASA/JPL/University of Arizona; DTM distributed by USGS; CC0 |
+
+```shell
+python3 scripts/terrain/hirise_site.py --download
+python3 scripts/vork/rover_concept.py --out unreal/Saved/RoverConcept --site unreal/Saved/Terrain/gale/gale_site.r16
+vork render unreal/Saved/RoverConcept/gale.json --profile std/final --out unreal/Saved/RoverConcept/gale.png
+```
+
+Three drafts went before it: the first two framed the rover from straight behind or cut it off, and the third put a
+large rock in the foreground. The scene JSON of the other three shots is byte-identical to before the change.
+
 ## Known shortcomings
 
 - **No blue glow around the setting Sun.** The sky program draws one, but the dust in front of it hides it. The

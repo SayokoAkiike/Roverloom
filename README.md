@@ -151,6 +151,11 @@ top of this page. [How they were made](docs/results/concept-renders/README.md).
 | --- | --- |
 | ![Concept render (vork), not a game screenshot: the V2 rover from the side, midday](docs/images/concept/side.jpg) | ![Concept render (vork), not a game screenshot: the V2 rover toward a low Sun](docs/images/concept/sunset.jpg) |
 
+![Concept render (vork), not a game screenshot: the V2 rover on terrain shaped by a HiRISE DTM of Gale crater](docs/images/concept/gale.jpg)
+
+*Concept render (vork), not a game screenshot. Terrain shape from HiRISE DTM `DTEEC_063319_1745_052242_1745_A01`
+(NASA/JPL/University of Arizona, USGS, CC0); rocks and detail below 1 m are generated.*
+
 ## Add your own
 
 - [Custom Rover Tutorial](docs/tutorials/custom-rover.md)
