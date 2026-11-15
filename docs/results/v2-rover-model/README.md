@@ -66,17 +66,45 @@ python -I scripts/blender/build_rover.py --out unreal/Saved/RoverModel --render
 
 Outputs go to `unreal/Saved/`, which Git ignores. The script exits with status 1 if any check fails.
 
+## Unreal integration: written, not yet built
+
+Written in a cloud session without Unreal. **Not compiled, imported, or run.** The Mac run decides whether it works.
+
+- [`scripts/unreal/import_rover_meshes.py`](../../../scripts/unreal/import_rover_meshes.py): Editor Python. It
+  imports the four FBX files into `/Game/Rover/` without collision, and logs each mesh's bounds.
+- `ARoverPawn::ApplyModelV2` (`unreal/Source/Roverloom/Rover/RoverPawn.cpp`): at `BeginPlay`, it loads the four meshes
+  if they exist. Otherwise it logs `Rover model: greybox` and changes nothing.
+  - With the meshes, it hides the greybox parts and the rig's body box. Hiding them changes rendering only, not
+    collision or physics.
+  - It shows the body mesh, gives each wheel the new mesh, which spins about its own Y axis, moves the struts inboard
+    to y = ±87.7 cm, and adds an axle per wheel.
+  - It reads which way the imported axle points, and mirrors it per side. It logs the body and wheel bounds, and warns
+    if they differ from the generator's (body X −175.0 to +113.5 cm, wheel radius 25 cm).
+- `-RoverModel=greybox` keeps the old look, for before-and-after shots under the same conditions.
+- No physics, command, mission-link, or HUD code changed.
+
 ## Next, on the Mac
 
-1. Generate the meshes, and import the four FBX files into `/Game/Rover/` with Unreal's FBX importer. Confirm that
-   the camera head's lenses face the pawn's forward axis. If they do not, fix the import rotation and record it here.
-2. In `ARoverPawn`, load the four meshes if present, and fall back to the basic shapes otherwise, so that a clone
-   without the assets still runs. Place each strut at y = ±87.7 cm. Spin only the wheel. Mirror the axle in Y for
-   one side.
-3. Run the build, the automation tests, and the drive scripts on the step and ramp. Confirm that physics logs match
-   a run without the change.
-4. Take same-condition shots against [V1b](../v1b-terrain/README.md), and record GPU time. The limit is +0.5 ms.
-5. Commit the `.uasset` files through LFS, after locking them, and update this page.
+1. Build the meshes, then import them:
+
+   ```shell
+   blender -b -P scripts/blender/build_rover.py -- --out unreal/Saved/RoverModel
+   ```
+
+   ```shell
+   "$UE_ROOT/Engine/Binaries/Mac/UnrealEditor.app/Contents/MacOS/UnrealEditor" "$PWD/unreal/Roverloom.uproject" -run=pythonscript -script="$PWD/scripts/unreal/import_rover_meshes.py $PWD/unreal/Saved/RoverModel"
+   ```
+
+   If UE 5.8 imports FBX through Interchange and ignores these options, import the files by hand with collision off,
+   and record what was done.
+2. Build the C++ project, and run the automation tests, as in [unreal/README.md](../../../unreal/README.md).
+3. Run the game. Check the `Rover model: V2` log line, and look at all four cameras. The lenses should face forward,
+   the wheels should spin the right way, and the struts and axles should meet.
+4. Run the drive scripts `f1-flat`, `f1-step`, and `f1-ramp15` with and without `-RoverModel=greybox`. The phase logs
+   must match within run-to-run spread, because only rendering changed.
+5. Take same-condition shots against [V1b](../v1b-terrain/README.md), and record GPU time. The limit is +0.5 ms.
+6. Make materials in Unreal from original or CC0 sources. The FBX import brings only flat colors.
+7. Lock and commit the `.uasset` files through LFS, then update this page and the README's screenshot.
 
 ## Concept renders with vork
 
