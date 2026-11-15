@@ -6,59 +6,107 @@
 <title>Roverloom Mission Control</title>
 <link rel="icon" href="data:,">
 <style>
-:root { color-scheme: dark; --bg:#17120f; --panel:#231b16; --line:#3d3027; --text:#efe6dc; --muted:#b5a596; --accent:#f0a35e; --good:#7fce8f; --bad:#ff7b6b; --warn:#f2c94c; }
+:root {
+  color-scheme: dark;
+  --bg:#0e0b0a; --bg2:#151110; --panel:#1b1613; --panel2:#231c18; --line:#2e2520; --line2:#40332a;
+  --text:#f3ebe3; --muted:#a3968a; --faint:#6f645b;
+  --accent:#ff9a4a; --accent2:#ffb877; --good:#6fd39a; --bad:#ff6b5b; --warn:#ffc857; --info:#6cc7ff;
+  --radius:10px; --shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 8px 24px rgba(0,0,0,.35);
+}
 * { box-sizing: border-box; }
 [hidden] { display:none !important; }
-body { margin:0; background:var(--bg); color:var(--text); font:14px/1.45 system-ui,"Segoe UI",sans-serif; }
-header { padding:10px 16px; border-bottom:1px solid var(--line); display:flex; flex-wrap:wrap; gap:6px 16px; align-items:baseline; }
-h1 { font-size:17px; margin:0; }
-.notice { color:var(--warn); font-size:12.5px; }
-main { display:grid; grid-template-columns:minmax(0,1fr) 340px; gap:12px; padding:12px 16px; align-items:start; }
-@media (max-width:900px) { main { grid-template-columns:minmax(0,1fr); } }
-canvas#map { width:100%; max-height:calc(100vh - 250px); min-height:220px; object-fit:contain; display:block; border:1px solid var(--line); border-radius:6px; background:#000; }
-#statusBar { display:grid; grid-template-columns:repeat(auto-fit,minmax(112px,1fr)); gap:1px; background:var(--line); border-bottom:1px solid var(--line); }
-#statusBar > div { background:var(--panel); padding:6px 12px; min-width:0; }
-#statusBar small { display:block; color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.05em; }
-#statusBar b { font-size:15px; font-weight:600; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+html { background:var(--bg); }
+body { margin:0; min-height:100vh; color:var(--text); font:14px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  background:radial-gradient(1200px 500px at 70% -200px, rgba(255,140,60,.10), transparent 70%), linear-gradient(var(--bg2), var(--bg) 420px); }
+header { padding:14px 20px 12px; display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center; }
+.brand { display:flex; align-items:center; gap:10px; }
+.brand svg { flex:none; }
+h1 { font-size:18px; margin:0; font-weight:650; letter-spacing:.01em; }
+h1 span { color:var(--muted); font-weight:500; }
+.notice { display:flex; align-items:center; gap:8px; color:var(--muted); font-size:12.5px; }
+.badge { font-size:10.5px; font-weight:700; letter-spacing:.09em; padding:2px 7px; border-radius:4px; color:#1a1208; background:var(--warn); }
+#statusBar { display:grid; grid-template-columns:repeat(auto-fit,minmax(118px,1fr)); gap:8px; padding:0 20px 12px; }
+#statusBar > div { position:relative; background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:8px 12px 9px; min-width:0; box-shadow:var(--shadow); overflow:hidden; }
+#statusBar > div::before { content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--line2); }
+#statusBar > div:has(b.good)::before { background:var(--good); }
+#statusBar > div:has(b.bad)::before { background:var(--bad); }
+#statusBar > div:has(b.warn)::before { background:var(--warn); }
+#statusBar small { display:block; color:var(--muted); font-size:10.5px; font-weight:600; text-transform:uppercase; letter-spacing:.08em; }
+#statusBar b { display:block; margin-top:1px; font-size:17px; font-weight:650; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
 #statusBar .good { color:var(--good); } #statusBar .bad { color:var(--bad); } #statusBar .warn { color:var(--warn); }
-.banner { padding:7px 16px; font-weight:600; font-size:13.5px; }
-#faultBanner { background:#4a1a14; color:#ffd7d0; border-bottom:1px solid var(--bad); }
-#errorBanner { background:#4a3a10; color:#ffe9a8; border-bottom:1px solid var(--warn); }
+.banner { margin:0 20px 12px; padding:9px 14px; border-radius:var(--radius); font-weight:600; font-size:13.5px; display:flex; align-items:center; gap:10px; }
+.banner::before { content:"!"; flex:none; width:18px; height:18px; border-radius:50%; display:grid; place-items:center; font-size:12px; font-weight:800; }
+#faultBanner { background:rgba(255,107,91,.12); color:#ffd2cb; border:1px solid rgba(255,107,91,.45); }
+#faultBanner::before { background:var(--bad); color:#2a0d09; }
+#errorBanner { background:rgba(255,200,87,.10); color:#ffe9b0; border:1px solid rgba(255,200,87,.45); }
+#errorBanner::before { background:var(--warn); color:#2a1f05; }
+main { display:grid; grid-template-columns:minmax(0,1fr) 360px; gap:16px; padding:0 20px 16px; align-items:start; }
+@media (max-width:960px) { main { grid-template-columns:minmax(0,1fr); } }
+.map-frame { position:relative; border-radius:12px; padding:1px; background:linear-gradient(160deg, rgba(255,170,110,.35), rgba(255,255,255,.04) 40%, rgba(0,0,0,.2)); box-shadow:0 12px 40px rgba(0,0,0,.5); }
+canvas#map { width:100%; max-height:calc(100vh - 260px); min-height:220px; object-fit:contain; display:block; border-radius:11px; background:#120d0b; }
 .group { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
 .group + .group { padding-left:10px; border-left:1px solid var(--line); }
-button:disabled { opacity:.45; cursor:not-allowed; border-color:#5a4739; }
-button.primary { background:#7a4a1f; border-color:var(--accent); }
-.panel { background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:10px 12px; margin-bottom:12px; }
-.panel h2 { font-size:12px; margin:0 0 6px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
-.stats { display:grid; grid-template-columns:1fr auto; gap:1px 12px; font-variant-numeric:tabular-nums; }
-.stats dt { color:var(--muted); } .stats dd { margin:0; text-align:right; }
-#events { max-height:220px; overflow:auto; font-size:12.5px; }
-#events div { padding:2px 0 2px 7px; border-left:3px solid var(--line); margin-bottom:2px; font-variant-numeric:tabular-nums; }
-#events .fault { border-color:var(--bad); } #events .good { border-color:var(--good); } #events .future { opacity:.35; }
-.controls { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:8px; }
-button, select { background:#33271f; color:var(--text); border:1px solid #5a4739; border-radius:5px; padding:5px 10px; font:inherit; cursor:pointer; }
-button:hover { border-color:var(--accent); } button:focus-visible, select:focus-visible, input:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
+.panel { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:12px 14px; margin-bottom:12px; box-shadow:var(--shadow); }
+.panel h2 { display:flex; align-items:center; gap:8px; font-size:11px; font-weight:700; margin:0 0 10px; color:var(--muted); text-transform:uppercase; letter-spacing:.09em; }
+.panel h2::before { content:""; width:6px; height:6px; border-radius:2px; background:var(--accent); }
+.stats { display:grid; grid-template-columns:1fr auto; gap:0 12px; margin:0; font-variant-numeric:tabular-nums; }
+.stats dt, .stats dd { padding:4px 0; border-bottom:1px solid rgba(255,255,255,.04); }
+.stats dt { color:var(--muted); } .stats dd { margin:0; text-align:right; font-weight:550; }
+.stats dt:nth-last-of-type(1), .stats dd:last-child { border-bottom:0; }
+#events { max-height:240px; overflow:auto; font-size:12.5px; padding-left:6px; border-left:1px solid var(--line2); margin-left:4px; }
+#events div { position:relative; padding:3px 0 3px 12px; font-variant-numeric:tabular-nums; white-space:pre-wrap; color:#d9cec4; }
+#events div::before { content:""; position:absolute; left:-10px; top:9px; width:7px; height:7px; border-radius:50%; background:var(--line2); box-shadow:0 0 0 2px var(--panel); }
+#events .fault { color:#ffc6be; } #events .fault::before { background:var(--bad); }
+#events .good { color:#c9f2d9; } #events .good::before { background:var(--good); }
+#events .future { opacity:.3; }
+.controls { display:flex; flex-wrap:wrap; gap:8px 10px; align-items:center; margin-top:10px; padding:9px 12px; background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); }
+button, select { background:var(--panel2); color:var(--text); border:1px solid var(--line2); border-radius:7px; padding:6px 12px; font:inherit; font-weight:550; cursor:pointer; transition:border-color .12s, background .12s, transform .06s; }
+select { padding-right:8px; }
+button:hover:not(:disabled), select:hover { border-color:var(--accent); background:#2b221d; }
+button:active:not(:disabled) { transform:translateY(1px); }
+button:focus-visible, select:focus-visible, input:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+button:disabled { opacity:.4; cursor:not-allowed; }
+button.primary, #startButton, #play { background:linear-gradient(180deg, #ffa95e, #f07f2c); color:#2a1405; border-color:#ffb877; font-weight:700; }
+button.primary:hover:not(:disabled), #startButton:hover:not(:disabled), #play:hover:not(:disabled) { background:linear-gradient(180deg, #ffb877, #ff8f3d); }
+#stopButton, #declineButton { color:#ffc6be; } #approveButton { color:#c9f2d9; border-color:rgba(111,211,154,.5); }
 input[type=range] { flex:1 1 200px; accent-color:var(--accent); }
-kbd { background:#33271f; border:1px solid #5a4739; border-radius:3px; padding:0 4px; font-size:12px; }
-.table-wrap { overflow:auto; margin:12px 16px 0; }
+kbd { display:inline-block; min-width:20px; text-align:center; background:var(--panel2); border:1px solid var(--line2); border-bottom-width:2px; border-radius:4px; padding:0 5px; margin:0 1px; font:600 11.5px ui-monospace,monospace; color:var(--text); }
+#keyHelp { color:var(--muted); font-size:12.5px; background:none; border:0; box-shadow:none; padding:4px 2px 0; }
+.controls + .controls { margin-top:8px; }
+.table-wrap { overflow:auto; margin:0 20px 14px; background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); }
 table { border-collapse:collapse; width:100%; font-variant-numeric:tabular-nums; font-size:13px; }
-th,td { padding:4px 9px; border-bottom:1px solid var(--line); text-align:right; white-space:nowrap; }
-th:nth-child(-n+2),td:nth-child(-n+2) { text-align:left; } th { color:var(--muted); font-weight:600; }
-.outcome-success { color:var(--good); } .outcome-fail { color:var(--bad); }
-.status-row { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
-.pill { font-size:12px; padding:2px 8px; border-radius:999px; border:1px solid var(--line); background:#2c221c; }
-.pill.ok { border-color:var(--good); color:var(--good); } .pill.bad { border-color:var(--bad); color:var(--bad); } .pill.warn { border-color:var(--warn); color:var(--warn); }
-.meter { height:8px; background:#120d0a; border-radius:4px; overflow:hidden; margin:2px 0 6px; } .meter div { height:100%; background:var(--good); }
-#decisions { max-height:150px; overflow:auto; font-size:12px; color:var(--muted); } #decisions div { padding:1px 0; border-bottom:1px solid #2e241d; }
-#objectives { font-size:13px; } #objectives div { padding:1px 0; } #objectives .done { color:var(--good); }
-label { color:var(--muted); font-size:12.5px; }
-footer { padding:0 16px 16px; color:var(--muted); font-size:12.5px; }
+th,td { padding:8px 12px; border-bottom:1px solid var(--line); text-align:right; white-space:nowrap; }
+tbody tr:last-child td { border-bottom:0; } tbody tr:hover td { background:rgba(255,255,255,.025); }
+th:nth-child(-n+2),td:nth-child(-n+2) { text-align:left; }
+th { color:var(--muted); font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:.07em; background:rgba(255,255,255,.02); }
+.outcome-success { color:var(--good); font-weight:650; } .outcome-fail { color:var(--bad); font-weight:650; }
+.status-row { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+.pill { font-size:11.5px; font-weight:600; padding:2px 9px; border-radius:999px; border:1px solid var(--line2); background:var(--panel2); color:#d9cec4; }
+.pill.ok { border-color:rgba(111,211,154,.5); color:var(--good); background:rgba(111,211,154,.08); }
+.pill.bad { border-color:rgba(255,107,91,.55); color:var(--bad); background:rgba(255,107,91,.08); }
+.pill.warn { border-color:rgba(255,200,87,.5); color:var(--warn); background:rgba(255,200,87,.07); }
+.meter { height:8px; background:#0d0a09; border:1px solid var(--line); border-radius:999px; overflow:hidden; margin:2px 0 8px; }
+.meter div { height:100%; border-radius:999px; background:linear-gradient(90deg, #3fae74, var(--good)); transition:width .2s; }
+#decisions { max-height:160px; overflow:auto; font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--muted); }
+#decisions div { padding:2px 0; border-bottom:1px solid rgba(255,255,255,.04); }
+#objectives { font-size:13px; }
+#objectives div { display:flex; gap:9px; align-items:flex-start; padding:3px 0; color:#e3d8ce; }
+#objectives div::before { content:""; flex:none; margin-top:3px; width:13px; height:13px; border-radius:4px; border:1.5px solid var(--line2); }
+#objectives .done { color:var(--good); }
+#objectives .done::before { border-color:var(--good); background:var(--good) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2l2.3 2.3 4.7-5' fill='none' stroke='%23102016' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/11px no-repeat; }
+label { color:var(--muted); font-size:12.5px; display:inline-flex; align-items:center; gap:6px; }
+#timeLabel { font-variant-numeric:tabular-nums; color:var(--muted); min-width:96px; text-align:right; }
+footer { padding:0 20px 20px; color:var(--faint); font-size:12px; }
+::-webkit-scrollbar { width:8px; height:8px; } ::-webkit-scrollbar-thumb { background:var(--line2); border-radius:8px; } ::-webkit-scrollbar-track { background:transparent; }
 </style>
 </head>
 <body>
 <header>
-  <h1>Roverloom Mission Control</h1>
-  <span class="notice">Lightweight 2D preview, not the Unreal renderer. The model is an unvalidated approximation.</span>
+  <div class="brand">
+    <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><circle cx="14" cy="14" r="12" fill="#c8602a"/><path d="M4 17c5-3 9 2 20-2" stroke="#ffb877" stroke-width="1.6" fill="none" opacity=".8"/><circle cx="10" cy="10" r="2" fill="#8a3a15"/><circle cx="18" cy="20" r="1.4" fill="#8a3a15"/><circle cx="14" cy="14" r="12" fill="none" stroke="#ffb877" stroke-opacity=".5"/></svg>
+    <h1>Roverloom <span>Mission Control</span></h1>
+  </div>
+  <span class="notice"><span class="badge">PROVISIONAL</span>Lightweight 2D preview, not the Unreal renderer. The model is an unvalidated approximation.</span>
 </header>
 <div id="statusBar" aria-label="Mission status">
   <div><small>Mission</small><b id="stMission">-</b></div>
@@ -74,7 +122,7 @@ footer { padding:0 16px 16px; color:var(--muted); font-size:12.5px; }
 <div class="table-wrap" id="tableWrap" hidden><table id="table"></table></div>
 <main>
   <section>
-    <canvas id="map" width="1100" height="660" aria-label="Map of terrain, rocks, targets, and the rover"></canvas>
+    <div class="map-frame"><canvas id="map" width="1100" height="660" aria-label="Map of terrain, rocks, targets, and the rover"></canvas></div>
     <div class="controls" id="replayControls" hidden>
       <label for="runSelect">Run</label>
       <select id="runSelect"></select>
@@ -127,7 +175,7 @@ let world = null, terrainImage = null, scienceState = {};
 
 function setObjectives(reached, science) {
   const box = $("objectives"); box.innerHTML = "";
-  const add = (text, done) => { const row = document.createElement("div"); row.textContent = `${done ? "[x]" : "[ ]"} ${text}`; if (done) row.className = "done"; box.append(row); };
+  const add = (text, done) => { const row = document.createElement("div"); row.textContent = text; if (done) row.className = "done"; box.append(row); };
   world.targets.forEach((_, i) => add(`Reach waypoint ${i + 1}`, i < reached));
   if (world.science) {
     const inspected = science.inspected || {}, collected = science.collected || [];
@@ -164,23 +212,59 @@ function setWorld(next) {
   $("footer").textContent = `Scenario ${world.scenario_id}, terrain ${world.terrain_id}: ${flat}`;
 }
 
+// Terrain is drawn once per world: heights upsampled bilinearly, a Mars-like ramp by height,
+// light from the northwest, and contour lines. It is a picture of the model's heightfield only.
 function renderTerrain() {
   const grid = world.grid, rows = grid.length, cols = grid[0].length;
-  const image = new ImageData(cols, rows);
+  const width = canvas.width, height = canvas.height;
   let low = Infinity, high = -Infinity;
   for (const row of grid) for (const v of row) { low = Math.min(low, v); high = Math.max(high, v); }
-  const range = Math.max(high - low, 1), cell = world.grid_spacing;
-  for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
-    const dx = (grid[j][Math.min(i + 1, cols - 1)] - grid[j][Math.max(i - 1, 0)]) / (2 * cell);
+  const range = Math.max(high - low, 0.5);
+  // Light from the northwest, computed on the grid and interpolated, so cells do not show as blocks.
+  const cell = world.grid_spacing, light = grid.map((row, j) => row.map((_, i) => {
+    const dx = (row[Math.min(i + 1, cols - 1)] - row[Math.max(i - 1, 0)]) / (2 * cell);
     const dy = (grid[Math.min(j + 1, rows - 1)][i] - grid[Math.max(j - 1, 0)][i]) / (2 * cell);
-    const shade = Math.max(0.35, Math.min(1.35, 0.92 + (-dx + dy) * 1.5));
-    const h = (grid[j][i] - low) / range;
-    const r = (150 + 46 * h) * shade, g = (84 + 30 * h) * shade, b = (52 + 18 * h) * shade;
-    const k = ((rows - 1 - j) * cols + i) * 4;
-    image.data[k] = r; image.data[k + 1] = g; image.data[k + 2] = b; image.data[k + 3] = 255;
+    const nz = 1 / Math.hypot(dx * 3, dy * 3, 1);
+    return Math.max(0, (dx - dy) * 1.5 * nz * 0.9 + nz * 0.75);  // normal (-dx, -dy, 1) toward (-1, 1, 1)
+  }));
+  const sample = (field, fx, fy) => {
+    const i = Math.max(0, Math.min(cols - 1.001, fx)), j = Math.max(0, Math.min(rows - 1.001, fy));
+    const i0 = Math.floor(i), j0 = Math.floor(j), u = i - i0, v = j - j0;
+    const r0 = field[j0], r1 = field[j0 + 1] || r0;
+    return (r0[i0] * (1 - u) + (r0[i0 + 1] ?? r0[i0]) * u) * (1 - v) + (r1[i0] * (1 - u) + (r1[i0 + 1] ?? r1[i0]) * u) * v;
+  };
+  const ramp = [[0, [92, 40, 24]], [0.35, [150, 70, 38]], [0.7, [196, 110, 62]], [1, [226, 160, 108]]];
+  const color = (h) => {
+    for (let k = 1; k < ramp.length; k++) if (h <= ramp[k][0]) {
+      const [a, ca] = ramp[k - 1], [b, cb] = ramp[k], f = (h - a) / (b - a);
+      return [ca[0] + (cb[0] - ca[0]) * f, ca[1] + (cb[1] - ca[1]) * f, ca[2] + (cb[2] - ca[2]) * f];
+    }
+    return ramp[ramp.length - 1][1];
+  };
+  // About eight contour lines, at 1, 2, or 5 times a power of ten meters.
+  const magnitude = Math.pow(10, Math.floor(Math.log10(range / 8)));
+  const step = magnitude * [1, 2, 5, 10].find((m) => range / (magnitude * m) <= 10);
+  const heights = new Float32Array(width * height), shades = new Float32Array(width * height);
+  for (let py = 0; py < height; py++) for (let px = 0; px < width; px++) {
+    const fx = px / (width - 1) * (cols - 1), fy = (height - 1 - py) / (height - 1) * (rows - 1);
+    heights[py * width + px] = sample(grid, fx, fy);
+    shades[py * width + px] = sample(light, fx, fy);
+  }
+  const image = new ImageData(width, height), d = image.data;
+  for (let py = 0; py < height; py++) for (let px = 0; px < width; px++) {
+    const k = py * width + px, hz = heights[k];
+    const right = heights[k + (px < width - 1 ? 1 : 0)], down = heights[k + (py < height - 1 ? width : 0)];
+    let [r, g, b] = color((hz - low) / range);
+    const shade = 0.55 + 0.6 * shades[k];
+    r *= shade; g *= shade; b *= shade;
+    const band = Math.floor((hz - low) / step);
+    if (band !== Math.floor((right - low) / step) || band !== Math.floor((down - low) / step)) { r *= 0.82; g *= 0.8; b *= 0.78; }
+    const nx = px / width - 0.5, ny = py / height - 0.5, vignette = 1 - 0.45 * (nx * nx + ny * ny);
+    const o = k * 4;
+    d[o] = r * vignette; d[o + 1] = g * vignette; d[o + 2] = b * vignette; d[o + 3] = 255;
   }
   const offscreen = document.createElement("canvas");
-  offscreen.width = cols; offscreen.height = rows;
+  offscreen.width = width; offscreen.height = height;
   offscreen.getContext("2d").putImageData(image, 0, 0);
   return offscreen;
 }
@@ -191,66 +275,109 @@ function toScreen(x, y) {
 }
 const scale = () => canvas.width / (world.extent[2] - world.extent[0]);
 
+function label(text, a, b, color) {
+  ctx.font = "600 12px ui-sans-serif, system-ui, sans-serif";
+  const w = ctx.measureText(text).width + 12;
+  ctx.fillStyle = "rgba(14,11,10,.78)";
+  ctx.beginPath(); ctx.roundRect(a - w / 2, b - 20, w, 18, 9); ctx.fill();
+  ctx.fillStyle = color; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText(text, a, b - 11);
+}
+
+function drawScale() {
+  const s = scale(), target = canvas.width * 0.14 / s;
+  const nice = [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000].reduce((best, v) => Math.abs(v - target) < Math.abs(best - target) ? v : best);
+  const length = nice * s, x = 18, y = canvas.height - 20;
+  ctx.fillStyle = "rgba(14,11,10,.72)"; ctx.beginPath(); ctx.roundRect(x - 8, y - 24, length + 16, 34, 8); ctx.fill();
+  ctx.strokeStyle = "#f3ebe3"; ctx.lineWidth = 2; ctx.beginPath();
+  ctx.moveTo(x, y - 4); ctx.lineTo(x, y); ctx.lineTo(x + length, y); ctx.lineTo(x + length, y - 4); ctx.stroke();
+  ctx.fillStyle = "#f3ebe3"; ctx.font = "600 11px ui-sans-serif, system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+  ctx.fillText(`${nice} m`, x + length / 2, y - 8);
+  const nx = canvas.width - 26, ny = 30;
+  ctx.fillStyle = "rgba(14,11,10,.72)"; ctx.beginPath(); ctx.arc(nx, ny, 16, 0, 7); ctx.fill();
+  ctx.fillStyle = "#ff9a4a"; ctx.beginPath(); ctx.moveTo(nx, ny - 11); ctx.lineTo(nx + 5, ny + 3); ctx.lineTo(nx - 5, ny + 3); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#f3ebe3"; ctx.font = "700 9px ui-sans-serif, system-ui, sans-serif"; ctx.textBaseline = "middle"; ctx.fillText("N", nx, ny + 8);
+}
+
 function drawWorld(reached) {
   ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
   ctx.drawImage(terrainImage, 0, 0, canvas.width, canvas.height);
   const s = scale();
   for (const [x, y, r, slip] of world.soil) {
-    const [a, b] = toScreen(x, y);
-    ctx.fillStyle = `rgba(240,205,140,${0.14 + slip * 0.3})`;
-    ctx.beginPath(); ctx.arc(a, b, r * s, 0, 7); ctx.fill();
+    const [a, b] = toScreen(x, y), radius = r * s;
+    const glow = ctx.createRadialGradient(a, b, radius * 0.2, a, b, radius);
+    glow.addColorStop(0, `rgba(255,214,150,${0.18 + slip * 0.3})`); glow.addColorStop(1, "rgba(255,214,150,0)");
+    ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(a, b, radius, 0, 7); ctx.fill();
+    ctx.setLineDash([4, 5]); ctx.strokeStyle = `rgba(255,224,170,${0.25 + slip * 0.3})`; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(a, b, radius, 0, 7); ctx.stroke(); ctx.setLineDash([]);
   }
   for (const [x, y, r] of world.rocks) {
-    const [a, b] = toScreen(x, y);
-    ctx.fillStyle = "#35261f"; ctx.beginPath(); ctx.arc(a, b, Math.max(r * s, 1.5), 0, 7); ctx.fill();
-    ctx.fillStyle = "rgba(205,170,140,.4)"; ctx.beginPath(); ctx.arc(a - r * s * .25, b - r * s * .25, Math.max(r * s * .45, .6), 0, 7); ctx.fill();
+    const [a, b] = toScreen(x, y), radius = Math.max(r * s, 1.8);
+    ctx.fillStyle = "rgba(20,8,4,.38)"; ctx.beginPath(); ctx.ellipse(a + radius * .45, b + radius * .4, radius * 1.05, radius * .8, 0.6, 0, 7); ctx.fill();
+    const body = ctx.createRadialGradient(a - radius * .35, b - radius * .4, radius * .1, a, b, radius);
+    body.addColorStop(0, "#8a6a58"); body.addColorStop(0.55, "#4a3329"); body.addColorStop(1, "#241812");
+    ctx.fillStyle = body; ctx.beginPath(); ctx.arc(a, b, radius, 0, 7); ctx.fill();
   }
   if (world.science) {
     const base = world.science.base;
     if (base) {
       const [a, b] = toScreen(base.position_m[0], base.position_m[1]);
-      ctx.strokeStyle = "#9fd0ff"; ctx.lineWidth = 2; ctx.strokeRect(a - 9, b - 9, 18, 18);
-      ctx.fillStyle = "#9fd0ff"; ctx.font = "bold 12px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("B", a, b);
+      ctx.fillStyle = "rgba(108,199,255,.16)"; ctx.strokeStyle = "#6cc7ff"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.roundRect(a - 11, b - 11, 22, 22, 5); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#cfeeff"; ctx.font = "800 12px ui-sans-serif, system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("B", a, b + .5);
+      label("base", a, b - 12, "#9fdcff");
     }
     for (const site of world.science.targets) {
       const [a, b] = toScreen(site.x, site.y);
       const sampled = (scienceState.collected || []).includes(site.id), seen = site.id in (scienceState.inspected || {});
-      ctx.strokeStyle = sampled ? "#7fce8f" : seen ? "#67d4ff" : "#ffe08a"; ctx.fillStyle = ctx.strokeStyle; ctx.lineWidth = 2.5;
-      ctx.beginPath(); ctx.moveTo(a, b - 10); ctx.lineTo(a + 10, b); ctx.lineTo(a, b + 10); ctx.lineTo(a - 10, b); ctx.closePath(); ctx.stroke();
-      ctx.font = "bold 12px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "bottom";
-      ctx.fillText(`${site.id} ~${site.prior}`, a, b - 12);
+      const color = sampled ? "#6fd39a" : seen ? "#6cc7ff" : "#ffd27a";
+      ctx.save(); ctx.shadowColor = color; ctx.shadowBlur = 12;
+      ctx.fillStyle = color + "33"; ctx.strokeStyle = color; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.moveTo(a, b - 11); ctx.lineTo(a + 11, b); ctx.lineTo(a, b + 11); ctx.lineTo(a - 11, b); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.restore();
+      ctx.fillStyle = color; ctx.beginPath(); ctx.arc(a, b, 2.5, 0, 7); ctx.fill();
+      label(`${site.id} ~${site.prior}`, a, b - 13, color);
     }
   }
   world.targets.forEach(([x, y, r], index) => {
-    const [a, b] = toScreen(x, y), done = index < reached;
-    ctx.strokeStyle = done ? "#7fce8f" : "#ffe08a"; ctx.lineWidth = 2.5;
-    ctx.beginPath(); ctx.arc(a, b, Math.max(r * s, 7), 0, 7); ctx.stroke();
-    ctx.fillStyle = ctx.strokeStyle; ctx.font = "bold 14px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillText(String(index + 1), a, b);
+    const [a, b] = toScreen(x, y), done = index < reached, radius = Math.max(r * s, 9);
+    const color = done ? "#6fd39a" : "#ffd27a";
+    ctx.save(); ctx.shadowColor = color; ctx.shadowBlur = 14;
+    ctx.fillStyle = color + "26"; ctx.strokeStyle = color; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(a, b, radius, 0, 7); ctx.fill(); ctx.stroke(); ctx.restore();
+    ctx.fillStyle = color; ctx.beginPath(); ctx.arc(a, b, 9, 0, 7); ctx.fill();
+    ctx.fillStyle = "#1a1208"; ctx.font = "800 11px ui-sans-serif, system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(String(index + 1), a, b + .5);
   });
+  drawScale();
 }
 
 function drawTrail(points, color) {
   if (points.length < 2) return;
-  ctx.strokeStyle = "rgba(0,0,0,.55)"; ctx.lineWidth = 4.5; ctx.lineJoin = "round";
-  for (const pass of [0, 1]) {
-    ctx.beginPath();
-    points.forEach(([x, y], i) => { const [a, b] = toScreen(x, y); i ? ctx.lineTo(a, b) : ctx.moveTo(a, b); });
-    ctx.stroke();
-    ctx.strokeStyle = color; ctx.lineWidth = 2.2;
-  }
+  const path = () => { ctx.beginPath(); points.forEach(([x, y], i) => { const [a, b] = toScreen(x, y); i ? ctx.lineTo(a, b) : ctx.moveTo(a, b); }); };
+  ctx.lineJoin = "round"; ctx.lineCap = "round";
+  ctx.strokeStyle = "rgba(10,6,4,.55)"; ctx.lineWidth = 5; path(); ctx.stroke();
+  ctx.save(); ctx.shadowColor = color; ctx.shadowBlur = 10; ctx.strokeStyle = color; ctx.lineWidth = 2.4; path(); ctx.stroke(); ctx.restore();
 }
 
 const WHEELS = [["front_left", .8, .75], ["front_right", .8, -.75], ["middle_left", 0, .85], ["middle_right", 0, -.85], ["rear_left", -.8, .75], ["rear_right", -.8, -.75]];
 function drawRover(x, y, yaw, failed) {
-  const [a, b] = toScreen(x, y), size = Math.max(world.rover_radius * scale(), 9);
-  ctx.save(); ctx.translate(a, b); ctx.rotate(-yaw);
+  const [a, b] = toScreen(x, y), size = Math.max(world.rover_radius * scale(), 10);
+  ctx.save(); ctx.translate(a, b);
+  const halo = ctx.createRadialGradient(0, 0, size * .5, 0, 0, size * 2.4);
+  halo.addColorStop(0, "rgba(255,255,255,.22)"); halo.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(0, 0, size * 2.4, 0, 7); ctx.fill();
+  ctx.rotate(-yaw);
+  ctx.fillStyle = "rgba(0,0,0,.35)"; ctx.beginPath(); ctx.ellipse(size * .12, size * .14, size * 1.15, size * .95, 0, 0, 7); ctx.fill();
   for (const [name, fx, fy] of world.wheels || WHEELS) {
-    ctx.fillStyle = failed.includes(name) ? "#ff4d3d" : "#111";
-    ctx.fillRect(fx * size - size * .24, -fy * size - size * .15, size * .48, size * .3);
+    ctx.fillStyle = failed.includes(name) ? "#ff4d3d" : "#15100d";
+    ctx.beginPath(); ctx.roundRect(fx * size - size * .25, -fy * size - size * .16, size * .5, size * .32, size * .08); ctx.fill();
   }
-  ctx.fillStyle = "#f2f2ee"; ctx.strokeStyle = "#111"; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.moveTo(size * 1.05, 0); ctx.lineTo(-size * .8, size * .52); ctx.lineTo(-size * .8, -size * .52); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#f4f1ec"; ctx.strokeStyle = "#15100d"; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.roundRect(-size * .8, -size * .5, size * 1.5, size, size * .18); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#ff9a4a";
+  ctx.beginPath(); ctx.moveTo(size * 1.15, 0); ctx.lineTo(size * .55, size * .32); ctx.lineTo(size * .55, -size * .32); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#2a3644"; ctx.fillRect(-size * .55, -size * .32, size * .7, size * .64);
   ctx.restore();
 }
 
