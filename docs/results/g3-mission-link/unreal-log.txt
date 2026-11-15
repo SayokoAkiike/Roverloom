@@ -1,0 +1,9 @@
+2026.11.07-12.41.29:347 Rover mission link listening on 127.0.0.1:8100
+2026.11.07-12.41.30:350 Rover mission link: Mission Core connected
+2026.11.07-12.41.30:428 Rover mission state from the Mission Core: Mission (Python): g3_reach_target   targets 0/1   RUNNING   t 0.0 s
+2026.11.07-12.41.36:341 Rover drive phase settle: 6.00 s, cmd v 0.000 m/s yaw 0.0000 rad/s; mean v 0.000 m/s (0%), mean yaw 0.0000 rad/s (0%), net along 0.000 m across 0.000 m, heading 0.0 deg, max tilt 0.00 deg, min wheels 6/6, clamped 0/522 frames, resets 0, wheel spin/target 0%, left-right spin difference/target 0%, height 0.700 m
+2026.11.07-12.41.48:556 Rover mission state from the Mission Core: Mission (Python): g3_reach_target   targets 1/1   SUCCESS   t 18.1 s
+2026.11.07-12.41.53:572 Rover mission link: client dropped (connection error)
+2026.11.07-12.41.56:343 Rover drive phase drive-to-target: 20.00 s, cmd v 0.500 m/s yaw 0.0000 rad/s; mean v 0.496 m/s (99%), mean yaw 0.0000 rad/s (0%), net along 9.929 m across 0.000 m, heading 0.0 deg, max tilt 1.18 deg, min wheels 6/6, clamped 0/1681 frames, resets 0, wheel spin/target 99%, left-right spin difference/target 0%, height 0.700 m
+2026.11.07-12.42.06:353 Rover drive phase stop: 10.01 s, cmd v 0.000 m/s yaw 0.0000 rad/s; mean v 0.004 m/s (0%), mean yaw -0.0000 rad/s (0%), net along 0.036 m across 0.000 m, heading -0.0 deg, max tilt 1.45 deg, min wheels 6/6, clamped 0/838 frames, resets 0, wheel spin/target 0%, left-right spin difference/target 0%, height 0.700 m
+2026.11.07-12.42.18:262 Rover mission link: client dropped (stop)

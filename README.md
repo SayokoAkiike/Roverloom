@@ -1,18 +1,44 @@
 # Roverloom
 
-An open planetary robotics simulation and autonomy competition platform.
+Roverloom is a simulation and benchmarking platform for autonomous rover agents.
 
-> **Status: pre-alpha.** A Python mission core, rover builder, agent SDK, offline leagues, and a
-> lightweight 2D Mission Control work today. The high-fidelity Unreal Engine version and online
-> competition **do not exist yet**.
+It runs different agents on the same missions, terrain, communication delay and loss, injected
+faults, and scoring rules, and compares them from their logs alone.
+
+> **Status: pre-alpha.** The Python Mission Core, rover builder, agent SDK, offline leagues,
+> scoring, replay, and a 2D Mission Control work today. An Unreal Engine client is in early
+> development: a greybox rover that a person drives by keyboard, while the Python Mission Core
+> judges the mission. **Python agents do not yet drive the Unreal rover.** No language model is
+> connected; the code-as-policy interface runs only with a rule-based mock. The online
+> competition does not exist yet.
 >
 > The rover, soil, power, sensor, and event models are simple approximations for games and early
 > research. They have not been validated against real rovers or terramechanics.
 
-![Replay of a science campaign in the lightweight preview](docs/images/replay-science-campaign.png)
+![A person drives the greybox rover in Unreal Engine, and the Python Mission Core reports SUCCESS on the HUD](docs/results/g4a-manual/human-mission-success.png)
 
-*The lightweight preview. This is not the planned Unreal Engine renderer, and the terrain is
-generated rather than real.*
+*Unreal Engine 5.8.4 on a Mac mini, 2026-11-08 ([run record](docs/results/g4a-manual/README.md)).
+A person drove to the target by keyboard; the Python Mission Core judged success at 57.1 s, and
+Unreal only shows the verdict. Engine basic shapes on flat test ground, no terrain data, and a
+provisional drive model that is not validated.*
+
+## What is held equal between agents
+
+| Same for every agent | How |
+| --- | --- |
+| Missions and terrain | Scenario files in `scenarios/`; benchmark inputs are hash-pinned |
+| Communication delay, loss, and noise | Seeded, defined per scenario |
+| Faults and environment events | Seeded, labeled `mars_inspired` or `stress_test` |
+| What an agent sees | Only `MissionBrief` and `Observation`, never the scenario or the true rover state |
+| Scoring | One Python scorer, which reads log files only |
+
+Results compare agents on these scenarios and this game model. They say nothing about real
+rovers, and results from different backends are never compared.
+
+![Replay of a science campaign in the 2D Mission Control](docs/images/replay-science-campaign.png)
+
+*The 2D Mission Control, where the full mission loop with agents, faults, and scoring runs today.
+The terrain is generated rather than real.*
 
 ## Quick start
 
@@ -76,8 +102,11 @@ Run these from `python/`.
 | Mission Control | Works locally | [Guide](docs/mission-control.md), tested in a real browser. No frontend framework |
 | Agent-to-simulator bridge | Works on the lightweight backend | Loopback JSON Lines, protocol version 1 |
 | Unreal contract | Specified and tested without Unreal | [Frames, units, time, safety](docs/unreal-contract.md) |
-| Unreal Engine project | **Not started** | [Production plan](docs/unreal-production-plan.md) |
-| Unreal MCP | **Not verified** | Engine is not installed |
+| Unreal rover, cameras, HUD | Greybox, on one Mac | Keyboard driving on a provisional, unvalidated drive model; four cameras; watchdog. See [game readiness](docs/results/game-readiness/README.md) |
+| Unreal mission link | One scenario | The Mission Core judges one reach-target mission from Unreal's position. See [G3](docs/results/g3-mission-link/README.md), [G4a](docs/results/g4a-manual/README.md) |
+| Python agents driving Unreal | **Not started** | Bridge protocol v1 is not implemented in C++ |
+| Unreal terrain, faults, battery, run logs | **Not started** | Flat test ground only. Unreal runs are not scored |
+| Unreal MCP | Verified in a disposable project on one Mac | [Measured results](docs/unreal-mcp.md#measured-results) |
 | Online competition | **Not started** | [Input and output draft](docs/competition-io.md) |
 
 ## Add your own
@@ -96,6 +125,8 @@ Run these from `python/`.
 - [Evaluator Safety](docs/evaluator-safety.md)
 - [macOS Setup and Checklist](docs/macos-checklist.md)
 - [Mac Unreal Plan](docs/mac-unreal-plan.md)
+- [Product Quality Vision](docs/product-quality-vision.md) and [Release Gates](docs/release-gates.md), plans only
+- [Visual Roadmap](docs/visual-roadmap.md), plan only
 
 ## Repository layout
 
@@ -106,7 +137,7 @@ scenarios/   Practice and benchmark missions, terrain definitions
 rovers/      Rover parameters and designs
 benchmarks/  Pinned benchmark definitions
 competition/ Draft Codabench bundle files and public reference data
-unreal/      Placeholder for the future Unreal Engine project
+unreal/      Unreal Engine C++ project: greybox rover, test ground, HUD
 docs/        Design, decisions, plans, and guides
 scripts/     Repository checks and preview capture
 .github/     CI and templates

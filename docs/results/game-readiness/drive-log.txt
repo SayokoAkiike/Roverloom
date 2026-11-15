@@ -1,0 +1,49 @@
+Rover drive script 'f1-flat': 7 phases
+Rover drive phase settle: 3.00 s, cmd v 0.000 m/s yaw 0.0000 rad/s; mean v 0.000 m/s (0%), mean yaw 0.0000 rad/s (0%), net along 0.000 m across 0.000 m, heading 0.0 deg, max tilt 0.00 deg, min wheels 6/6, clamped 0/260 frames, resets 0, wheel spin/target 0%, left-right spin difference/target 0%, height 0.700 m
+Rover settled: site (0.000, -0.000, 0.700) m, tilt 0.00 deg, speed 0.000 m/s, wheels on ground 6/6, resets 0
+Rover frames: 859 in 10.0 s, 85.8 fps, frame ms mean 11.65 p95 12.57 max 15.34, game 3.19, render 12.82, GPU 11.42, focus 0%, camera Chase
+Rover drive phase straight: 8.01 s, cmd v 0.500 m/s yaw 0.0000 rad/s; mean v 0.491 m/s (98%), mean yaw 0.0000 rad/s (0%), net along 3.932 m across 0.000 m, heading 0.0 deg, max tilt 1.18 deg, min wheels 6/6, clamped 0/684 frames, resets 0, wheel spin/target 99%, left-right spin difference/target 0%, height 0.700 m
+Rover drive phase stop-after-straight: 4.01 s, cmd v 0.000 m/s yaw 0.0000 rad/s; mean v 0.010 m/s (0%), mean yaw -0.0000 rad/s (0%), net along 0.036 m across 0.000 m, heading -0.0 deg, max tilt 1.45 deg, min wheels 6/6, clamped 0/345 frames, resets 0, wheel spin/target 0%, left-right spin difference/target 0%, height 0.700 m
+Rover frames: 856 in 10.0 s, 85.5 fps, frame ms mean 11.70 p95 12.34 max 12.92, game 3.06, render 11.69, GPU 11.34, focus 0%, camera Chase
+Rover drive phase spin-left: 8.01 s, cmd v 0.000 m/s yaw 0.4918 rad/s; mean v 0.000 m/s (0%), mean yaw 0.4831 rad/s (98%), net along 0.000 m across 0.000 m, heading 221.7 deg, max tilt 0.00 deg, min wheels 6/6, clamped 0/681 frames, resets 0, wheel spin/target 87%, left-right spin difference/target 87%, height 0.700 m
+Rover drive phase stop-after-spin: 4.01 s, cmd v 0.000 m/s yaw 0.0000 rad/s; mean v 0.000 m/s (0%), mean yaw 0.0062 rad/s (0%), net along 0.000 m across 0.000 m, heading 1.4 deg, max tilt 0.00 deg, min wheels 6/6, clamped 0/349 frames, resets 0, wheel spin/target 0%, left-right spin difference/target 0%, height 0.700 m
+Rover frames: 857 in 10.0 s, 85.6 fps, frame ms mean 11.68 p95 12.23 max 16.93, game 3.06, render 11.68, GPU 11.06, focus 0%, camera Chase
+Rover drive phase arc-left: 8.00 s, cmd v 0.250 m/s yaw 0.2459 rad/s; mean v 0.236 m/s (94%), mean yaw 0.2406 rad/s (98%), net along 0.889 m across 1.361 m, heading 110.3 deg, max tilt 0.31 deg, min wheels 6/6, clamped 0/670 frames, resets 0, wheel spin/target 80%, left-right spin difference/target 87%, height 0.700 m
+Rover drive phase stop-after-arc: 4.00 s, cmd v 0.000 m/s yaw 0.0000 rad/s; mean v 0.003 m/s (0%), mean yaw 0.0029 rad/s (0%), net along 0.010 m across 0.000 m, heading 0.7 deg, max tilt 0.80 deg, min wheels 6/6, clamped 0/334 frames, resets 0, wheel spin/target 0%, left-right spin difference/target 0%, height 0.700 m
+Rover drive phase stop-after-arc: 4.01 s, cmd v 0.000 m/s yaw 0.0000 rad/s; mean v 0.003 m/s (0%), mean yaw 0.0029 rad/s (0%), net along 0.010 m across 0.000 m, heading 0.7 deg, max tilt 0.80 deg, min wheels 6/6, clamped 0/335 frames, resets 0, wheel spin/target 0%, left-right spin difference/target 0%, height 0.700 m
+Rover drive script done
+Rover frames: 836 in 10.0 s, 83.5 fps, frame ms mean 11.98 p95 12.77 max 16.76, game 3.15, render 11.97, GPU 11.62, focus 0%, camera Chase
+Rover bench finished after 47.0 s
+Rover drive script 'f1-step': 4 phases
+Rover drive phase settle: 2.99 s, cmd v 0.000 m/s yaw 0.0000 rad/s; mean v 0.000 m/s (0%), mean yaw 0.0000 rad/s (0%), net along 0.000 m across 0.000 m, heading 0.0 deg, max tilt 0.00 deg, min wheels 6/6, clamped 0/260 frames, resets 0, wheel spin/target 0%, left-right spin difference/target 0%, height 0.700 m
+Rover settled: site (0.000, -0.000, 0.700) m, tilt 0.00 deg, speed 0.000 m/s, wheels on ground 6/6, resets 0
+Rover frames: 860 in 10.0 s, 85.9 fps, frame ms mean 11.64 p95 12.52 max 18.95, game 3.15, render 12.93, GPU 11.42, focus 0%, camera Chase
+Rover frames: 855 in 10.0 s, 85.5 fps, frame ms mean 11.70 p95 12.58 max 15.14, game 2.45, render 11.69, GPU 11.36, focus 0%, camera Chase
+Rover drive phase approach: 18.01 s, cmd v 0.500 m/s yaw 0.0000 rad/s; mean v 0.496 m/s (99%), mean yaw 0.0000 rad/s (0%), net along 8.933 m across 0.000 m, heading 0.0 deg, max tilt 1.18 deg, min wheels 6/6, clamped 0/1539 frames, resets 0, wheel spin/target 99%, left-right spin difference/target 0%, height 0.700 m
+Rover frames: 847 in 10.0 s, 84.6 fps, frame ms mean 11.82 p95 12.65 max 22.96, game 2.65, render 11.81, GPU 11.50, focus 0%, camera Chase
+Rover drive phase step: 16.00 s, cmd v 0.500 m/s yaw 0.0000 rad/s; mean v 0.501 m/s (100%), mean yaw -0.0000 rad/s (0%), net along 8.005 m across 0.000 m, heading -0.0 deg, max tilt 7.92 deg, min wheels 4/6, clamped 0/1350 frames, resets 0, wheel spin/target 100%, left-right spin difference/target 0%, height 0.950 m
+Rover frames: 842 in 10.0 s, 84.2 fps, frame ms mean 11.88 p95 12.77 max 19.75, game 2.54, render 11.87, GPU 11.57, focus 0%, camera Chase
+Rover drive phase stop: 4.01 s, cmd v 0.000 m/s yaw 0.0000 rad/s; mean v 0.010 m/s (0%), mean yaw 0.0000 rad/s (0%), net along 0.036 m across 0.000 m, heading 0.0 deg, max tilt 1.45 deg, min wheels 6/6, clamped 0/339 frames, resets 0, wheel spin/target 0%, left-right spin difference/target 0%, height 0.950 m
+Rover drive script done
+Rover frames: 846 in 11.2 s, 75.5 fps, frame ms mean 12.27 p95 12.54 max 400.00, game 2.50, render 8.35, GPU 11.32, focus 0%, camera Chase
+Rover bench finished after 52.0 s
+Rover drive script 'f1-ramp15': 7 phases
+Rover drive phase settle: 2.99 s, cmd v 0.000 m/s yaw 0.0000 rad/s; mean v 0.000 m/s (0%), mean yaw 0.0000 rad/s (0%), net along 0.000 m across 0.000 m, heading 0.0 deg, max tilt 0.00 deg, min wheels 6/6, clamped 0/260 frames, resets 0, wheel spin/target 0%, left-right spin difference/target 0%, height 0.700 m
+Rover settled: site (0.000, -0.000, 0.700) m, tilt 0.00 deg, speed 0.000 m/s, wheels on ground 6/6, resets 0
+Rover drive phase turn-left: 3.26 s, cmd v 0.000 m/s yaw 0.4918 rad/s; mean v 0.000 m/s (0%), mean yaw 0.4617 rad/s (94%), net along 0.000 m across 0.000 m, heading 86.3 deg, max tilt 0.00 deg, min wheels 6/6, clamped 0/277 frames, resets 0, wheel spin/target 84%, left-right spin difference/target 84%, height 0.700 m
+Rover frames: 859 in 10.0 s, 85.8 fps, frame ms mean 11.65 p95 12.50 max 18.04, game 3.41, render 12.90, GPU 11.41, focus 0%, camera Chase
+Rover frames: 860 in 10.0 s, 86.0 fps, frame ms mean 11.63 p95 12.48 max 13.62, game 2.39, render 11.62, GPU 11.29, focus 0%, camera Chase
+Rover frames: 859 in 10.0 s, 85.8 fps, frame ms mean 11.65 p95 12.53 max 14.82, game 2.40, render 11.64, GPU 11.31, focus 0%, camera Chase
+Rover drive phase cross: 30.00 s, cmd v 0.500 m/s yaw 0.0000 rad/s; mean v 0.497 m/s (99%), mean yaw 0.0016 rad/s (0%), net along 14.901 m across 0.641 m, heading 2.8 deg, max tilt 1.17 deg, min wheels 6/6, clamped 0/2572 frames, resets 0, wheel spin/target 100%, left-right spin difference/target 0%, height 0.700 m
+Rover drive phase turn-right: 3.26 s, cmd v 0.000 m/s yaw -0.4918 rad/s; mean v 0.146 m/s (0%), mean yaw -0.4282 rad/s (87%), net along 0.454 m across 0.081 m, heading -80.0 deg, max tilt 0.33 deg, min wheels 6/6, clamped 0/274 frames, resets 0, wheel spin/target 79%, left-right spin difference/target 79%, height 0.700 m
+Rover frames: 847 in 10.0 s, 84.7 fps, frame ms mean 11.81 p95 12.58 max 22.93, game 2.84, render 11.80, GPU 11.45, focus 0%, camera Chase
+Rover drive phase approach: 10.01 s, cmd v 0.500 m/s yaw 0.0000 rad/s; mean v 0.490 m/s (98%), mean yaw -0.0049 rad/s (0%), net along 4.900 m across 0.205 m, heading -2.8 deg, max tilt 1.26 deg, min wheels 6/6, clamped 0/839 frames, resets 0, wheel spin/target 99%, left-right spin difference/target 0%, height 0.713 m
+Rover frames: 839 in 10.0 s, 83.8 fps, frame ms mean 11.93 p95 12.78 max 17.68, game 2.66, render 11.92, GPU 11.62, focus 0%, camera Chase
+Rover frames: 833 in 10.0 s, 83.2 fps, frame ms mean 12.02 p95 12.87 max 22.46, game 2.75, render 12.01, GPU 11.71, focus 0%, camera Chase
+Rover frames: 832 in 10.0 s, 83.2 fps, frame ms mean 12.02 p95 12.88 max 23.53, game 2.76, render 12.00, GPU 11.71, focus 0%, camera Chase
+Rover drive phase climb: 26.01 s, cmd v 0.500 m/s yaw 0.0000 rad/s; mean v 0.478 m/s (96%), mean yaw -0.0015 rad/s (0%), net along 12.107 m across 0.300 m, heading -2.3 deg, max tilt 22.95 deg, min wheels 1/6, clamped 0/2162 frames, resets 0, wheel spin/target 99%, left-right spin difference/target 0%, height 3.373 m
+Rover frames: 831 in 10.0 s, 83.1 fps, frame ms mean 12.04 p95 12.86 max 14.52, game 2.82, render 12.03, GPU 11.74, focus 0%, camera Chase
+Rover drive phase stop-on-slope: 6.01 s, cmd v 0.000 m/s yaw 0.0000 rad/s; mean v -0.003 m/s (0%), mean yaw -0.0013 rad/s (0%), net along -0.024 m across 0.071 m, heading -0.4 deg, max tilt 23.58 deg, min wheels 2/6, clamped 0/501 frames, resets 0, wheel spin/target 0%, left-right spin difference/target 0%, height 3.350 m
+Rover drive script done
+Rover frames: 834 in 10.0 s, 83.3 fps, frame ms mean 12.00 p95 12.91 max 14.11, game 2.78, render 11.99, GPU 11.70, focus 0%, camera Chase
+Rover bench finished after 97.0 s

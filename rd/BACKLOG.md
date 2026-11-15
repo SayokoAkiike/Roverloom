@@ -1,0 +1,61 @@
+# Roverloom backlog
+
+Development mix: Playability 45%, Physical Accuracy 30%, Visual 25%. Each task: at most three completion criteria,
+at most two retries on the same cause; ideas found during a task go here, not into it.
+
+## Integration log (feature/unreal-project, local; not pushed to GitHub)
+
+Gates for each merge: Unreal build, automation tests, one drive or bench run, Python checks, secret scan. Undo a merge
+with `git revert -m 1 <merge commit>`.
+
+| Merged | Merge commits | Branch tip before | Gates |
+| --- | --- | --- | --- |
+| P1, F1 | ae2f0ba, 95f3ee7 | d1a0847 | build ok, 5/5 automation, HUD and drive logs present, pytest 818 passed |
+| F2 + F1b, V1 | ed22597, 024fa94 | 95f3ee7 | build ok, 5/5 automation, turning 98%, Mars sky, pytest 821 passed |
+| V1b | 6547fe7 | 9a058a4 | build ok, 5/5 automation, bench render, GPU +0.33 ms, check_repo ok |
+
+## Done (task branches)
+
+| Id | Branch | Result |
+| --- | --- | --- |
+| P1 | `rd/task-p1-hud` | Kept: HUD panel, text contrast 1.99 -> 3.93 |
+| F1 | `rd/task-f1-drive-measure` | Measured: straight 98%, turning 65-66% of commanded yaw rate |
+| F2/P2 | `rd/task-f2-yaw` | Kept: effective track 1.5, turning 66% -> 98% |
+| V1 | `rd/task-v1-mars-light` | Kept: Mars-inspired sky and haze, horizon readable, GPU unchanged |
+| F1b | `rd/task-f1b-terrain` | Measured: 25 cm step climbed; 15° ramp at 88% speed, 2/6 wheels at edges, no resets |
+
+## High priority, safety
+
+- S1: the night hook's protected-path check may miss a path written in another case on macOS's case-insensitive
+  APFS (`PYTHON/src/...`). Windows is handled by normcase (6cfa9f9). Fix without weakening any existing refusal.
+
+## Next (prioritized in docs/results/game-readiness/README.md, 2026-11-07)
+
+1. Run-log writer in Unreal and `check_run_contract` on it.
+2. One Unreal mission: science targets reached and observed.
+3. Success and failure conditions.
+4. Results screen with the Mission Core's score.
+5. Ramp edge safety and the 15° ramp's run-to-run variation.
+6. Battery and a simple fault in Unreal.
+7. Target markers and terrain variety.
+8. Camera bounce (P2 attempt not adopted, branch `rd/task-p2-camera`).
+
+Earlier next items:
+
+- P2b: chase camera that keeps the rover framed while turning at the new yaw rate.
+
+## Ideas (not started)
+
+
+- G3 link: move Unreal's socket calls to a thread as the contract asks; add `telemetry` and `mission_state` to
+  the contract and schemas; keyboard-driven mission run; Unreal run logs and scores (from G3).
+
+- Microsoft Update Assistant started again as rdnight at 20:55 through its on-demand XPC service, though its agents
+  are disabled; the dispatcher refused Unreal steps until rdnight's own process was ended (from V1b).
+
+- 15° climb speed 88%; two wheels in contact at slope edges; 10° ramp and downhill runs (from F1b).
+
+- Yaw-rate feedback in the drive controller, if slopes or loose ground show the 1.5 factor is not enough (from F2).
+- Repeat runs for spread in every drive measurement (from F1).
+- Sun angle and time-of-day variants for the Mars sky (from V1).
+- HUD panel height changes as lines appear; a fixed height may read calmer (from P1).

@@ -4,7 +4,10 @@ Start here if you have no memory of this project. It is written so that a new Cl
 Mac, needs nothing from earlier conversations. **The documents on GitHub `main` are the source of truth.**
 
 State at handoff, 2026-11-02: Windows development ended. Measured code is `2be6d9c`. Later commits contain only
-results and documents. **No Unreal code exists.** The Python project now runs on macOS. See the [checklist results](macos-checklist.md#results-on-this-mac).
+results and documents. **`unreal/` holds a C++ skeleton and a physics spike that failed R0 twice, and a wheel model experiment that passed its one- and two-wheel tests on a second attempt; its six-wheel version failed 7 of 9 registered tests after a friction fix** ([results](results/unreal-physics-spike/README.md)). The Python project now runs on macOS. See the [checklist results](macos-checklist.md#results-on-this-mac).
+
+Update, 2026-11-07: development continues on a MacBook Air as well as the M4 Mac. See
+[project-status.md](project-status.md) for what was checked there.
 
 | Next | Document |
 | --- | --- |
@@ -111,7 +114,8 @@ Run from `python/`. **"Verified" below means on Windows and Ubuntu only.**
 ## Tests and CI
 
 - Local Windows run at handoff: 706 passed. The count grew from 702 because new Markdown files add tests. Last measured CI, run `41395488270`: Windows 702 passed, Ubuntu 701 passed with 1 skipped. See the last CI run on `main` for later commits.
-- CI runs Windows and Ubuntu, and not macOS, whose minutes on private repositories cost ten times as much.
+- CI runs Windows and Ubuntu, and not macOS. That choice was made while the repository was private, where macOS minutes
+  cost ten times as much. It has not been revisited since the repository became public.
 - Use `--workers 2` on `study` and `design-study`. Their default of one worker per logical CPU less one coincided with a run being stopped for low memory.
 
 ## Competition safety and reproducibility
@@ -211,7 +215,8 @@ The decisions, plans, and constraints from those conversations are recorded here
 
 [CLAUDE.md](../CLAUDE.md) has the technical rules. These also apply until the owner changes them:
 
-- Keep the repository **private**. Do not change visibility or delete it.
+- The repository is **public**, by the owner's decision on 2026-11-06. Do not change visibility or delete it.
+  Push only what is safe to publish: no secrets, personal data, experiment CSVs, `unreal/Saved/` data, or build output.
 - No paid services or subscriptions, without explicit approval. This includes Git LFS data packs, the paid Apple Developer Program, and cloud GPUs.
 - No large installs, without approval in the current conversation. Never force-push without explicit approval.
 - Do not access or change any other organization or repository. Request no extra GitHub permissions.

@@ -1,0 +1,132 @@
+{
+  "_about": "The single source of every limit and setting for the autonomous R&D Director and the night visual factory. Changed only by the owner, as a new version; a night never edits it. See docs/autonomous-rd-director.md.",
+  "version": "0.2-stage1-prep",
+  "approved_by_owner": true,
+  "stage": 1,
+  "night": {
+    "max_cycles": 1,
+    "max_minutes": 120,
+    "same_failure_limit": 2,
+    "max_builds": 4,
+    "max_unreal_launches": 8,
+    "owner_skips_before_stop": 3,
+    "watcher_interval_s": 30,
+    "usd_per_cycle": 5,
+    "usd_per_night": 12,
+    "owner_busy_stop_s": 1800,
+    "mini_unreachable_stop_s": 600,
+    "_stops": "owner_busy_stop_s: end the cycle when the Mac mini's owner_idle_s stays under mini.owner_idle_gpu_s this long, 30 min (first night: idle read 0 for 50 minutes). mini_unreachable_stop_s: end it when status over the night key fails this long.",
+    "max_resumes": 2,
+    "resume_wait_s": 1800,
+    "_resumes": "A cycle stopped because the Mac mini was unreachable is resumed in the same Claude session (--resume) once status answers again, at most max_resumes times, waiting at most resume_wait_s, within the night's deadline and the cycle's remaining budget."
+  },
+  "mini": {
+    "root": "~/RoverloomNight",
+    "engine": "/Users/Shared/UE_5.8-night",
+    "mcp_port": 8100,
+    "min_free_memory_pct": 25,
+    "max_swap_growth_gb": 2.0,
+    "game_seconds_min": 10,
+    "game_seconds_max": 600,
+    "game_timeout_extra_s": 180,
+    "build_timeout_s": 1800,
+    "test_timeout_s": 900,
+    "graceful_stop_wait_s": 30,
+    "automation_filter": "Roverloom.Rover+Roverloom.Bridge+Roverloom.Module",
+    "write_protected": [
+      "~/RoverloomNight/bin",
+      "~/RoverloomNight/repo.git",
+      "~/RoverloomNight/work/.git",
+      "~/RoverloomNight/logs",
+      "~/RoverloomNight/run",
+      "~/.ssh",
+      "~/Library/LaunchAgents",
+      "~/.config/git",
+      "/Users/Shared/UE_5.8-night",
+      "/Users/Shared/rdnight-setup"
+    ],
+    "user": "rdnight",
+    "read_protected": [
+      "~/.ssh",
+      "/Users/Shared/rdnight-setup"
+    ],
+    "network_outbound": "loopback only",
+    "write_protected_files": [
+      "~/RoverloomNight",
+      "~/RoverloomNight/work",
+      "~/.zshenv",
+      "~/.zshrc",
+      "~/.zprofile",
+      "~/.zlogin",
+      "~/.zlogout",
+      "~/.profile",
+      "~/.bashrc",
+      "~/.bash_profile",
+      "~/.bash_login",
+      "~/.gitconfig"
+    ],
+    "_write_protected_files": "Literal paths: sshd runs the dispatcher through the user's shell, which reads these files; the dispatcher runs git in work/ outside the sandbox. A sandboxed process must not be able to write them, or rename work/ or the night root.",
+    "forbidden_night_processes": [
+      "OneDrive",
+      "Microsoft AutoUpdate",
+      "Microsoft Update Assistant",
+      "SyncReporter"
+    ],
+    "_forbidden_night_processes": "The night user runs no Microsoft process: its launchd overrides disable com.microsoft.update.agent, com.microsoft.OneDriveStandaloneUpdater, and com.microsoft.SyncReporter (measured 2026-11-07: they started at its first login; no account, sync folder, or token existed). The dispatcher refuses Unreal steps while one runs as the night user. This lowers the risk; it does not prove separation from the employer's Microsoft 365, which also depends on machine and tenant settings outside this charter.",
+    "gui_session": "rdnight's own graphical session, logged in by the owner with fast user switching and kept logged in; no automatic login, no launchd",
+    "owner_idle_gpu_s": 300,
+    "_owner_idle_gpu_s": "Builds and tests run while the owner works, at utility priority; games and the editor wait for this many seconds without owner input. An Unreal process the night did not start refuses every step."
+  },
+  "evaluation": {
+    "resolution": [
+      1600,
+      900
+    ],
+    "perf_mode": "offscreen 1600x900 (-RenderOffscreen), uncapped",
+    "gpu_regression_budget_ms": 0.5,
+    "max_variants_per_cycle": 3
+  },
+  "priorities": {
+    "deadline_first": "G2 formally done: run logs scored by the Python Mission Core",
+    "starvation_nights": 5,
+    "propose_only": [
+      "model K",
+      "method D",
+      "hold or resume of a theme",
+      "change of project direction",
+      "architecture change"
+    ],
+    "night_domains": [
+      "Visual",
+      "Gameplay",
+      "Verification"
+    ],
+    "physics_scope": "measure drive model P and draft phase G registrations only; no change to P; model K and method D only as proposals",
+    "first_night": "no new task: verify only the HUD panel change, as committed in e2794c1 on rd/night-20261107-1810. Take its files with git restore --source=e2794c1 -- unreal/Source/Roverloom/Rover/RoverHud.h unreal/Source/Roverloom/Rover/RoverHud.cpp rd/night/shot_metrics.py rd/night/fetch_evidence.py. Reuse the baseline already measured: Mac mini run 20261107-1810-c1-base-g (Chase.png 1600x900, GPU mean 10.81 ms), fetched with fetch-evidence; do not rebuild the baseline. Copy the registered checks C1-C8 unchanged from git show rd/night-20261107-1810:rd/sessions/20261107-1810-c1.md. Then: variant build, variant game 20, screenshot comparison with shot_metrics, automation tests, and a pass or fail for every check. Build, game, and test each need their own run id. Python tests: compare with the baseline's 23 known sandbox failures; any other failure fails C8. Keep the change only if every registered check passes"
+  },
+  "protected_repo_paths": [
+    "python/src/roverloom/scoring.py",
+    "docs/release-gates.md",
+    "docs/results/unreal-wheel-model/",
+    "docs/results/unreal-physics-spike/",
+    "schemas/",
+    "rd/charter.json"
+  ],
+  "forbidden": [
+    "push or merge to any GitHub branch",
+    "paid API calls",
+    "uploads to external services",
+    "assets of unconfirmed license",
+    "stopping or signaling a process the night did not start",
+    "edits to scoring, gates, registered criteria, phase C records, or raw research data",
+    "sign-in, authentication, device registration, or sync with any Microsoft, OneDrive, Microsoft 365, or employer account",
+    "copying Roverloom, QUODVIS, Claude Code, or personal research files into OneDrive or any other sync folder"
+  ],
+  "_billing": "The Air uses a claude.ai subscription login, not an API key. usd_* caps are compared with Claude Code's list-price estimate (--max-budget-usd, total_cost_usd), not with billing. The wrapper removes ANTHROPIC_API_KEY from each cycle's environment. Caps stay null until the owner sets them; a real night refuses to start while they are null.",
+  "air": {
+    "state_dir": "~/.roverloom-rd",
+    "night_root": "~/RoverloomNightAir",
+    "base_ref": "origin/feature/unreal-project"
+  },
+  "_approval": "Approved by the owner on 2026-11-07 for the first trial night only: 1 cycle, 120 minutes, estimated caps 5 USD per cycle and 12 USD per night (list-price estimates, not billing), memory stop at 25% free, at most 8 Unreal launches; Visual or Gameplay small improvements first; no large change to physics models or evaluation criteria; no GitHub push or merge; no Microsoft or employer account connection or sync; rdnight keeps its own graphical session; no launchd, no automatic login. Approval of the charter and starting a night are separate owner decisions. Second trial (2026-11-07, owner): one cycle, same limits, only to verify the first night's HUD change. Third trial (2026-11-07, owner): one cycle, same limits, only to verify e2794c1 against the reused baseline."
+}

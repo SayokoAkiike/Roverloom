@@ -1,6 +1,6 @@
 # Unreal Engine 5.8 production plan
 
-**Plan only.** Unreal Engine is not installed, so nothing here has been built or measured, including
+**Plan only.** `unreal/` is only a skeleton, so nothing here has been built or measured, including
 all budgets. Reviewed 2026-11-02. See also [vertical slice plan](vertical-slice-plan.md),
 [graphics strategy](graphics-strategy.md), and [integration](unreal-integration.md).
 
@@ -32,7 +32,7 @@ Nothing has been downloaded. Tools such as GDAL are not installed, and these com
 
 | Step | Action | Output |
 | --- | --- | --- |
-| 1 | Search the [USGS STAC collection](https://stac.astrogeology.usgs.gov/api/collections/mro_hirise_controlled_socet_dtms) for tiles with varied slopes and few artifacts | Candidate list |
+| 1 | Search the [USGS STAC collection](https://stac.astrogeology.usgs.gov/api/collections/mro_hirise_socet_dtms) (renamed; the earlier `mro_hirise_controlled_socet_dtms` returned 404 on 2026-11-07) for tiles with varied slopes and few artifacts | Candidate list |
 | 2 | Inspect the figure of merit image and orthoimage. Reject artifacts crossing the site | Selected product ID |
 | 3 | Download from `s3://astrogeo-ard/mars/mro/hirise/controlled/dtm` (no sign-in) | Local files, outside Git |
 | 4 | Crop about 1 km around the site, in the product's metric coordinates | Cropped DTM |

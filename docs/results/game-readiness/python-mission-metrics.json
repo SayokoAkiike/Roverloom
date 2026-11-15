@@ -1,0 +1,11 @@
+{
+ "score": 79.618,
+ "achievement": 89.5,
+ "science_value": 17.9,
+ "science_fraction": 0.895,
+ "returned_to_base": true,
+ "faults": 3,
+ "faults_recovered": 3,
+ "min_battery_fraction": 0.663129,
+ "watchdog_stops": 0
+}

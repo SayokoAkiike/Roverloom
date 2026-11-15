@@ -1,0 +1,23 @@
+;; Sandbox for the night's Claude Code process and everything it starts, on the MacBook Air (sandbox-exec -f).
+;; @HOME@ and @NIGHT@ are replaced by night.py. Writes are refused to the owner's clone, shell and Git configuration,
+;; launch agents, and SSH; reads are refused to SSH keys other than the night key, and to the GitHub CLI's tokens, so a
+;; night has no credentials to push with. The Keychain stays readable: Claude Code's own login lives there (measured
+;; 2026-11-07: denying it logs Claude Code out). Network stays open: the model, web research, and the Mac mini need it.
+(version 1)
+(allow default)
+(deny file-write*
+  (subpath "@HOME@/Roverloom")
+  (subpath "@HOME@/.ssh")
+  (subpath "@HOME@/Library/LaunchAgents")
+  (literal "@HOME@/.gitconfig")
+  (literal "@HOME@/.zshrc")
+  (literal "@HOME@/.zprofile")
+  (literal "@HOME@/.bash_profile")
+  (subpath "@HOME@/.config/gh")
+  (subpath "@NIGHT@/repo/.git/hooks"))
+(deny file-read*
+  (subpath "@HOME@/.ssh")
+  (subpath "@HOME@/.config/gh"))
+(allow file-read*
+  (literal "@HOME@/.ssh/id_ed25519_rdnight")
+  (literal "@HOME@/.ssh/known_hosts"))

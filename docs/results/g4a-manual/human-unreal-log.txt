@@ -1,0 +1,20 @@
+2026.11.07-17.24.17:397 Rover mission link listening on 127.0.0.1:8100
+2026.11.07-17.24.18:418 Rover mission link: Mission Core connected
+2026.11.07-17.24.18:461 Rover mission state from the Mission Core: Mission (Python): g3_reach_target   targets 0/1   RUNNING   t 0.0 s
+2026.11.07-17.24.28:427 Rover frames: 601 in 10.0 s, 60.0 fps, frame ms mean 16.66 p95 17.56 max 68.19, game 3.59, render 19.20, GPU 14.55, focus 0%, camera Chase
+2026.11.07-17.24.38:427 Rover frames: 600 in 10.0 s, 60.0 fps, frame ms mean 16.67 p95 17.62 max 19.43, game 2.52, render 16.66, GPU 14.86, focus 0%, camera Chase
+2026.11.07-17.24.48:428 Rover frames: 600 in 10.0 s, 60.0 fps, frame ms mean 16.67 p95 17.63 max 22.74, game 2.51, render 16.66, GPU 14.65, focus 0%, camera Chase
+2026.11.07-17.24.58:444 Rover frames: 601 in 10.0 s, 60.0 fps, frame ms mean 16.67 p95 17.52 max 19.18, game 2.51, render 16.66, GPU 14.84, focus 0%, camera Chase
+2026.11.07-17.25.08:461 Rover frames: 601 in 10.0 s, 60.0 fps, frame ms mean 16.67 p95 17.53 max 20.48, game 2.43, render 16.66, GPU 14.64, focus 70%, camera Chase
+2026.11.07-17.25.15:578 Rover mission state from the Mission Core: Mission (Python): g3_reach_target   targets 1/1   SUCCESS   t 57.1 s
+2026.11.07-17.25.15:578 Rover mission verdict captured: Mission.png
+2026.11.07-17.25.18:461 Rover frames: 507 in 10.0 s, 50.7 fps, frame ms mean 17.33 p95 17.59 max 400.00, game 2.61, render 16.54, GPU 14.63, focus 100%, camera Chase
+2026.11.07-17.25.20:661 Rover mission link: client dropped (connection error)
+2026.11.07-17.25.28:462 Rover frames: 600 in 10.0 s, 60.0 fps, frame ms mean 16.67 p95 17.50 max 36.27, game 2.51, render 16.63, GPU 14.51, focus 100%, camera Chase
+2026.11.07-17.25.38:479 Rover frames: 601 in 10.0 s, 60.0 fps, frame ms mean 16.67 p95 17.44 max 19.56, game 2.50, render 16.66, GPU 14.87, focus 100%, camera Chase
+2026.11.07-17.25.48:495 Rover frames: 601 in 10.0 s, 60.0 fps, frame ms mean 16.66 p95 17.71 max 19.82, game 3.17, render 16.66, GPU 14.74, focus 100%, camera Chase
+2026.11.07-17.25.58:511 Rover frames: 601 in 10.0 s, 60.0 fps, frame ms mean 16.67 p95 17.45 max 18.78, game 2.87, render 16.66, GPU 15.13, focus 100%, camera Chase
+2026.11.07-17.26.08:511 Rover frames: 600 in 10.0 s, 60.0 fps, frame ms mean 16.67 p95 17.65 max 19.24, game 2.52, render 16.66, GPU 14.75, focus 100%, camera Chase
+2026.11.07-17.26.18:513 Rover frames: 600 in 10.0 s, 60.0 fps, frame ms mean 16.67 p95 17.69 max 63.66, game 2.38, render 13.66, GPU 14.27, focus 100%, camera Chase
+2026.11.07-17.26.21:647 Rover bench finished after 122.0 s
+2026.11.07-17.26.21:697 Rover mission link: client dropped (stop)

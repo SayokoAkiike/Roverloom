@@ -2,7 +2,7 @@
 
 **Goal:** an Unreal Engine 3D demo in which a six-wheeled rover drives across realistic Martian terrain, operated by a person and by a Python agent.
 
-**Plan only. Nothing here has been built or measured.** Design detail is in [unreal-production-plan.md](unreal-production-plan.md), the contract in
+**Plan. Steps 1 to 3 are measured; the rest has not been built.** See [the results](macos-checklist.md#unreal-results-on-this-mac). Design detail is in [unreal-production-plan.md](unreal-production-plan.md), the contract in
 [unreal-contract.md](unreal-contract.md), and compatibility in [macos-checklist.md](macos-checklist.md). This page sets order and gates. If it conflicts with
 [vertical-slice-plan.md](vertical-slice-plan.md), this page and the contract win. That plan's machine column predates the Mac.
 
@@ -64,6 +64,9 @@ Follow the production plan for look, data, and honesty rules.
 **Gate:** `Capture` shots at noon, late afternoon, and sunset beside credited rover references, and the numbers for each profile. Photorealism is a judgment, so state who judged it.
 
 ### 5. Place and drive the six-wheeled rover
+
+**Order changed by the owner on 2026-11-03:** the physics spike, Step 5a, runs before Step 4, on flat test geometry. The rest of
+Step 5 still follows Step 4. Spike results are in [results/unreal-physics-spike](results/unreal-physics-spike/README.md).
 
 Build from `rovers/designs/pathfinder_6w` parameters and geometry. It is an original design, not a NASA replica.
 

@@ -7,7 +7,7 @@ accepted records. Supersede them with a new one.
 | --- | --- | --- |
 | [0001](0001-monorepo.md) | Single repository | Accepted |
 | [0002](0002-backend-neutral-contract.md) | Backend-neutral contract and file-based evaluation | Accepted |
-| [0003](0003-unreal-engine-5-8.md) | Unreal Engine 5.8 and official MCP first | Proposed, pending verification |
+| [0003](0003-unreal-engine-5-8.md) | Unreal Engine 5.8 and official MCP first | Proposed; engine choice accepted for the M4 Mac in [0013](0013-ue-5-8-4-on-macos-27.md) |
 | [0004](0004-git-lfs.md) | Git LFS for binary assets | Accepted |
 | [0005](0005-runtime-bridge.md) | Loopback TCP bridge for Python control | Implemented on the lightweight backend; Unreal pending |
 | [0006](0006-mission-core-layout.md) | Mission core layout and contract extensions | Accepted |
@@ -16,4 +16,6 @@ accepted records. Supersede them with a new one.
 | [0009](0009-pinned-benchmarks-and-leagues.md) | Pinned benchmarks and separate leagues | Accepted |
 | [0010](0010-design-budgets-instead-of-cost-points.md) | Design classes, not cost points | Accepted |
 | [0011](0011-tripwire-guard-for-local-evaluation.md) | A tripwire for local evaluation, not a sandbox | Accepted |
-| [0012](0012-m4-mac-for-unreal.md) | Apple M4 Mac for Unreal development | Accepted, not yet tried |
+| [0012](0012-m4-mac-for-unreal.md) | Apple M4 Mac for Unreal development | Accepted, measured in [0013](0013-ue-5-8-4-on-macos-27.md) |
+| [0013](0013-ue-5-8-4-on-macos-27.md) | UE 5.8.4 with Xcode 27.2 on macOS 27 | Accepted, as the development base only; see its scope |
+| [0014](0014-chaos-rigid-body-rover-spike.md) | Chaos rigid bodies and joints for the rover physics spike | Proposed; R0 failed twice |

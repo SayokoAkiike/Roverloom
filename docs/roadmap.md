@@ -1,13 +1,17 @@
 # Roadmap
 
-Checked items exist and are tested on the lightweight backend. Everything else is a plan.
+Checked items exist and are tested on the lightweight backend, or, where marked, recorded by hand on the Mac. Everything else is a plan.
+
+The target for the Unreal work is a playable alpha: one site, one six-wheel rover, one 15–25 minute mission. Its quality
+targets are in [product-quality-vision.md](product-quality-vision.md), and its gates, G0 to G7, in
+[release-gates.md](release-gates.md). Phases 1 and 2 below are its first parts.
 
 ## Phase 0: Foundation (in progress)
 
-- [x] Private repository, documentation, Git LFS, and CI configuration
+- [x] Repository (public since 2026-11-06), documentation, Git LFS, and CI configuration
 - [x] Draft data contracts and contract tests
-- [ ] Unreal Engine 5.8 and C++ toolchain installed
-- [ ] Unreal MCP verified with a read-only call
+- [x] Unreal Engine 5.8 and C++ toolchain installed, on the M4 Mac (recorded by hand)
+- [x] Unreal MCP verified with a read-only call, on the M4 Mac (recorded by hand)
 
 ## Lightweight vertical slice (done)
 
@@ -50,9 +54,9 @@ Goal: a real Martian site you can drive a six-wheeled rover across. Details are 
 [vertical-slice-plan.md](vertical-slice-plan.md) and
 [unreal-production-plan.md](unreal-production-plan.md).
 
-- [ ] Create the UE 5.8 C++ project in `unreal/`, confirm a clean clone opens
+- [x] Create the UE 5.8 C++ project in `unreal/`, confirm a clean clone opens (recorded by hand)
 - [ ] Measure baseline frame rate on the target machines
-- [ ] Rover: physics spike, six wheels, rocker-bogie, plausibility tests
+- [ ] Rover: physics spike, six wheels, rocker-bogie, plausibility tests. R0 [failed twice](results/unreal-physics-spike/README.md)
 - [ ] Keyboard and Python driving through one input path; camera switching
 - [ ] Telemetry logs and kinematic replay
 - [ ] Terrain from a public Mars elevation tile, Landscape by default

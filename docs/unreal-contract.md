@@ -1,7 +1,7 @@
 # Unreal contract
 
 What an Unreal backend must do so that agents, the evaluator, and Mission Control work unchanged.
-**No Unreal code exists.** Everything here is tested only against the lightweight backend, and a Python
+**`unreal/` is only a skeleton, and implements nothing here.** Everything here is tested only against the lightweight backend, and a Python
 stand-in that works internally in Unreal's units. A real engine may expose gaps.
 
 ## Responsibilities
