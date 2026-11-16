@@ -112,9 +112,28 @@ def dust() -> None:
     link(opacity, fade, "Opacity")
     colour = const3(0.66, 0.44, 0.31)
     mel.connect_material_property(colour, "", unreal.MaterialProperty.MP_BASE_COLOR)
+    # Sun-lit edges: a puff between the camera and the sun glows at its rim, from the dust scattering the light forward. The glow is the rim
+    # (fresnel) times how directly the camera looks toward the sun, in the sun's own colour. RimSign flips which way the engine's light
+    # direction points, if it points the other way.
+    to_sun = node(unreal.MaterialExpressionSkyAtmosphereLightDirection)
+    rim_sign = node(unreal.MaterialExpressionScalarParameter)
+    rim_sign.set_editor_property("parameter_name", "RimSign")
+    rim_sign.set_editor_property("default_value", 1.0)
+    camera_vector = node(unreal.MaterialExpressionCameraVectorWS)
+    facing = node(unreal.MaterialExpressionDotProduct)
+    link(camera_vector, facing, "A")
+    link(mul(to_sun, rim_sign), facing, "B")
+    toward_sun = saturate(
+        mul(facing, const(-1.0))
+    )  # The camera vector points back at the camera, so looking toward the sun is negative
+    toward_sun = mul(
+        toward_sun, mul(toward_sun, toward_sun)
+    )  # Cubed: only close to the sun's direction
+    sun_colour = node(unreal.MaterialExpressionSkyAtmosphereLightIlluminanceOnGround)
+    rim = mul(mul(fresnel, toward_sun), mul(sun_colour, const(0.9)))
     mel.connect_material_property(
-        mul(colour, const(0.12)), "", unreal.MaterialProperty.MP_EMISSIVE_COLOR
-    )  # Not black in shade
+        add(mul(colour, const(0.12)), rim), "", unreal.MaterialProperty.MP_EMISSIVE_COLOR
+    )  # Not black in shade, and a lit rim
     mel.connect_material_property(const(1.0), "", unreal.MaterialProperty.MP_ROUGHNESS)
     mel.connect_material_property(fade, "", unreal.MaterialProperty.MP_OPACITY)
     mel.recompile_material(material)

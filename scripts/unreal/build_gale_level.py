@@ -110,6 +110,30 @@ def main() -> int:
     if horizon_landscape is not None:
         horizon_landscape.set_actor_label("GaleHorizon")
         horizon_landscape.set_actor_enable_collision(False)
+    # The far field: 200 km square at about 198 m a sample, from the public MOLA DEM (scripts/terrain/mola_far.py), with Aeolis Mons
+    # (Mount Sharp) 33 km away. It follows the horizon field 12 m beneath it inside it, so the two never share a surface. No collision.
+    far_path = os.path.join(terrain, "gale_far.r16")
+    far_report = repo / "docs/results/terrain-gale/far.json"
+    if os.path.exists(far_path) and far_report.exists():
+        far = json.loads(far_report.read_text())
+        far_origin = height_at_origin_m(far_path, far, far["spacing_m"])
+        far_landscape = unreal.RoverloomLandscapeLibrary.import_r16_landscape(
+            world,
+            far_path,
+            SAMPLES,
+            far["unreal_xy_scale_percent"],
+            far["unreal_z_scale_percent"],
+            ORIGIN_EAST_M,
+            ORIGIN_NORTH_M,
+            (far_origin - site_origin) * 100.0,
+            material,
+        )
+        if far_landscape is not None:
+            far_landscape.set_actor_label("GaleFar")
+            far_landscape.set_actor_enable_collision(False)
+        unreal.log(
+            f"LEVEL_FAR far_origin={far_origin:.3f} m, offset={(far_origin - site_origin) * 100.0:.1f} cm, imported={far_landscape is not None}"
+        )
     unreal.log(
         f"LEVEL_BUILT site_origin={site_origin:.3f} m, horizon_origin={horizon_origin:.3f} m, horizon offset={offset_cm:.1f} cm"
     )

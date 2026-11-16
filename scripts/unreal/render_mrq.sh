@@ -8,7 +8,7 @@
 # Needs the assets of build_mrq.py, the Gale level, and the engine at $UE_ROOT (default ~/UnrealEngineInstall/UE_5.8). Frames go to
 # unreal/Saved/MovieRenders/<Still|Video>/, which Git ignores. The editor is closed by asking it to quit, never by a signal.
 set -u
-kind=${1:?still, close, top, or video}
+kind=${1:?still, close, top, sky, mount, probe, compa, compb, compc, dust, or video}
 preset=${2:?noon, afternoon, or sunset}
 shift 2
 UE_ROOT=${UE_ROOT:-$HOME/UnrealEngineInstall/UE_5.8}
@@ -18,8 +18,15 @@ case $kind in
   still) seq=/Game/Licensed/Gale/MRQ/Seq_GaleStill cfg=/Game/Licensed/Gale/MRQ/Cfg_Still out=Still extra=() ;;
   close) seq=/Game/Licensed/Gale/MRQ/Seq_RoverClose cfg=/Game/Licensed/Gale/MRQ/Cfg_Still out=Still extra=() ;;
   top) seq=/Game/Licensed/Gale/MRQ/Seq_RoverTop cfg=/Game/Licensed/Gale/MRQ/Cfg_Still out=Still extra=() ;;
+  sky) seq=/Game/Licensed/Gale/MRQ/Seq_Sky cfg=/Game/Licensed/Gale/MRQ/Cfg_Still out=Still extra=() ;;
+  mount) seq=/Game/Licensed/Gale/MRQ/Seq_Mountain cfg=/Game/Licensed/Gale/MRQ/Cfg_Still out=Still extra=() ;;
+  probe) seq=/Game/Licensed/Gale/MRQ/Seq_Probe cfg=/Game/Licensed/Gale/MRQ/Cfg_Still out=Still extra=(-RoverDrive=f1-flat) ;;
+  compa) seq=/Game/Licensed/Gale/MRQ/Seq_CompA cfg=/Game/Licensed/Gale/MRQ/Cfg_Still out=Still extra=() ;;
+  compb) seq=/Game/Licensed/Gale/MRQ/Seq_CompB cfg=/Game/Licensed/Gale/MRQ/Cfg_Still out=Still extra=() ;;
+  compc) seq=/Game/Licensed/Gale/MRQ/Seq_CompC cfg=/Game/Licensed/Gale/MRQ/Cfg_Still out=Still extra=(-RoverDrive=f1-flat) ;;
+  dust) seq=/Game/Licensed/Gale/MRQ/Seq_DustTest cfg=/Game/Licensed/Gale/MRQ/Cfg_Still out=Still extra=(-RoverDrive=f1-flat) ;;
   video) seq=/Game/Licensed/Gale/MRQ/Seq_GaleVideo cfg=/Game/Licensed/Gale/MRQ/Cfg_Video out=Video extra=(-RoverDrive=f1-flat) ;;
-  *) echo "still, close, top, or video"; exit 2 ;;
+  *) echo "still, close, top, sky, mount, probe, compa, compb, compc, dust, or video"; exit 2 ;;
 esac
 log=${MRQ_LOG:-${TMPDIR:-/tmp}/mrq_${kind}_${preset}.log}
 "$UE_ROOT/Engine/Binaries/Mac/UnrealEditor.app/Contents/MacOS/UnrealEditor" "$project" \
