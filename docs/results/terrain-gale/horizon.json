@@ -1,0 +1,17 @@
+{
+  "samples": 1009,
+  "spacing_m": 5.55,
+  "extent_m": 5594.4,
+  "resampling": "average, from about 1.0126 m",
+  "measured_samples": 832365,
+  "measured_fraction": 0.8176,
+  "filled_samples": 185716,
+  "filled_fraction": 0.1824,
+  "height_min_m": -3411.892,
+  "height_max_m": -2586.163,
+  "site_height_min_m": -3359.678,
+  "unreal_xy_scale_percent": 555.0,
+  "unreal_z_scale_percent": 161.275,
+  "unreal_z_offset_m_above_site_datum": -52.214,
+  "note": "Filled samples are interpolated, not measured. The 1 km site lies inside, at the center."
+}
