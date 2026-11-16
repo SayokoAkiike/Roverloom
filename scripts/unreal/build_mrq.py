@@ -117,6 +117,10 @@ def main() -> int:
     # Looking from (450, -380, 110) to (0, 0, 80): the yaw points from the camera toward the rover.
     still = [(0, (450, -380, 110), (0, -3, 140))]
     make_sequence("Seq_GaleStill", 1.0, still)
+    # A close three-quarter view of the rover, for judging its materials: 2.9 m from it, a little above the wheels
+    make_sequence("Seq_RoverClose", 1.0, [(0, (230, -170, 75), (0, -2, 143.5))])
+    # From above and behind, to see the solar deck and the dust that settles on up-facing faces
+    make_sequence("Seq_RoverTop", 1.0, [(0, (-330, -170, 330), (0, -38, 27))])
     # The video: the camera drifts from the left of the rover to behind and to the left of it, as the rover drives away (+X)
     video = [
         (0, (450, -380, 110), (0, -3, 140)),
