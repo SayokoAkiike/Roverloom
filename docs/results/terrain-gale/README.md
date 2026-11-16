@@ -60,3 +60,28 @@ The check covers the crop, resampling, and 16-bit scaling. It does not cover the
 - This site is not wired to any `terrain_id`. The lightweight backend's terrains are unchanged, and runs on the two
   backends remain incomparable.
 - Six percent of the area is steeper than 15° over 4 m. The test lanes stay on the flat test ground.
+
+## Mount Sharp in the distance (MOLA), 2026-11-16
+
+Outside the HiRISE horizon field (5.6 km) the level has a third heightfield, "GaleFar", from the public MOLA global DEM. It is for the look of the
+skyline only: no collision, and the drive is untouched.
+
+| | |
+| --- | --- |
+| Source | MGS MOLA DEM mosaic, global, 463 m a pixel (MEGDR, 2003-03-21), [USGS Astrogeology](https://astrogeology.usgs.gov/search/map/mars_mgs_mola_dem_463m) |
+| Licence | The product page lists "CC0 (public domain)", read 2026-11-16. Credit: NASA/GSFC/MOLA Science Team, USGS. Not legal advice |
+| Window | 200 km square, same centre and projection as the HiRISE site, 1009 x 1009 samples, 198 m a sample |
+| Measured or not | The 463 m grid is MOLA's map, itself interpolated between laser tracks. The resampling to 198 m is a second interpolation (cubic): **no new detail**. Every sample is interpolated at least once |
+| Generated | Inside 12 km the far field is bent to follow the HiRISE horizon field (12 m beneath it); MOLA is higher by 66 m on average there (5th to 95th percentile: -6 to 203 m). The correction fades out from 4 km to 12 km. That blend is generated, and `far.json` records it |
+| Aeolis Mons | Peak 770 m above the site datum, 33.2 km away, 7.1 degrees above the horizon from the site |
+| Haze | Exponential height fog, bluer than the ground (see `RoverPlaygroundGameMode.cpp`), so that the far land reads as distant. The numbers are by eye |
+
+Before and after, same camera, same light (`-RoverFar=0` hides GaleFar; Capture, Movie Render Queue, 1920 x 1080):
+
+| Light | Without the far field | With it |
+| --- | --- | --- |
+| noon | [sharp_compb_noon_far0.jpg](sharp_compb_noon_far0.jpg) | [sharp_compb_noon_far1.jpg](sharp_compb_noon_far1.jpg) |
+| afternoon | [sharp_compb_afternoon_far0.jpg](sharp_compb_afternoon_far0.jpg) | [sharp_compb_afternoon_far1.jpg](sharp_compb_afternoon_far1.jpg) |
+
+Limits: the mountain is a smooth 198 m surface, so it has no terraces or canyons. It is faint on purpose (haze). A wide lens makes it small; the
+composition (b) uses a 50 degree lens. Rebuild with `python3 scripts/terrain/mola_far.py --report docs/results/terrain-gale`, then `build_gale_level.py`.

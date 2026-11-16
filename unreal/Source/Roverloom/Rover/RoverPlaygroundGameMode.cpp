@@ -350,8 +350,15 @@ void ARoverPlaygroundGameMode::BindLandscape()
 		return;
 	}
 	bLandscapeChecked = true;
+	int32 FarOn = 1; // -RoverFar=0 hides the far Landscape (Mount Sharp and the crater rim), for before-and-after shots
+	FParse::Value(FCommandLine::Get(), TEXT("RoverFar="), FarOn);
 	for (TActorIterator<ALandscapeProxy> It(GetWorld()); It; ++It)
 	{
+		if (FarOn == 0 && It->GetActorLabel() == TEXT("GaleFar"))
+		{
+			It->SetActorHiddenInGame(true);
+			continue;
+		}
 		if (!GroundMaterial)
 		{
 			GroundMaterial = NewObject<UPhysicalMaterial>(this);
@@ -517,10 +524,11 @@ void ARoverPlaygroundGameMode::SpawnLights()
 	FString Preset = TEXT("default");
 	FParse::Value(FCommandLine::Get(), TEXT("RoverLight="), Preset);
 	bool bFixedExposure = true;
+	bool bBlueSky = false;
 	if (Preset == TEXT("noon"))
 	{
 		// High sun, white-yellow light, a bright butterscotch sky, and a cool grey-blue haze
-		Look = {58.0, 45.0, 4.3f, FLinearColor(1.0f, 0.97f, 0.90f), 10.8f, 0.02f, FLinearColor(0.95f, 0.60f, 0.32f), 0.5f, 0.0005f, 1.0f, FLinearColor(0.42f, 0.50f, 0.64f), 0.004f, FLinearColor::Black, 8.0f};
+		Look = {58.0, 45.0, 4.3f, FLinearColor(1.0f, 0.97f, 0.90f), 10.8f, 0.02f, FLinearColor(0.95f, 0.60f, 0.32f), 0.5f, 0.0005f, 1.0f, FLinearColor(0.30f, 0.40f, 0.62f), 0.007f, FLinearColor::Black, 8.0f};
 	}
 	else if (Preset == TEXT("afternoon"))
 	{
@@ -533,10 +541,61 @@ void ARoverPlaygroundGameMode::SpawnLights()
 		// the sky around the sun glows blue, as in the photographs of Martian sunsets, and the haze turns blue-violet
 		Look = {5.5, 195.0, 2.4f, FLinearColor(1.0f, 0.42f, 0.20f), 11.4f, 0.14f, FLinearColor(0.22f, 0.42f, 1.0f), 0.93f, 0.001f, 0.5f, FLinearColor(0.48f, 0.22f, 0.14f), 0.007f, FLinearColor::Black, 5.0f}; // The sun-side fog glow (0.30, 0.52, 1.6) had no visible effect on the sky, even at 12 times (tested 2026-11-16)
 	}
+	else if (Preset == TEXT("sunset_blue"))
+	{
+		// The same low sun, but a pale sun light and a layer that absorbs red and green along the long path: the sky around the sun turns
+		// blue-white, fading to violet and pink at the horizon, as in the blue sunsets photographed on Mars. The ground is lit by that
+		// sky, so it is dim and its exposure is raised. Found by trial: docs/results/sky-sunset/README.md
+		Look = {5.5, 195.0, 2.4f, FLinearColor(1.0f, 0.9f, 0.8f), 12.2f, 0.14f, FLinearColor(0.22f, 0.42f, 1.0f), 0.93f, 0.001f, 0.5f, FLinearColor(0.36f, 0.34f, 0.60f), 0.007f, FLinearColor::Black, 5.0f};
+		bBlueSky = true;
+	}
 	else
 	{
 		bFixedExposure = false; // The original look, with the engine's own exposure
 	}
+	// Sky tuning overrides, for finding a look from the command line without a rebuild: the sun, and the atmosphere's own scattering
+	// (Rayleigh and Mie colour, scale, absorption). Colours are r,g,b.
+	auto Number = [](const TCHAR* Key, double& Value) { FParse::Value(FCommandLine::Get(), Key, Value); };
+	auto ColorOf = [](const TCHAR* Key, FLinearColor& Color)
+	{
+		FString Text;
+		if (FParse::Value(FCommandLine::Get(), Key, Text, false))
+		{
+			TArray<FString> Parts;
+			Text.ParseIntoArray(Parts, TEXT(","));
+			if (Parts.Num() >= 3)
+			{
+				Color = FLinearColor(FCString::Atof(*Parts[0]), FCString::Atof(*Parts[1]), FCString::Atof(*Parts[2]));
+			}
+		}
+	};
+	Number(TEXT("RoverSunElevation="), Look.SunElevationDeg);
+	Number(TEXT("RoverSunYaw="), Look.SunYawDeg);
+	double MieScaleD = Look.MieScale, MieAnisoD = Look.MieAnisotropy, RayleighScaleD = Look.RayleighScale;
+	double MieAbsorptionScale = 0.006, RayleighPowerD = 1.0;
+	FLinearColor RayleighColor(0.005802f, 0.013558f, 0.0331f);
+	FLinearColor MieAbsorption(0.35f, 0.55f, 0.75f);
+	FLinearColor OtherAbsorption(0.000650f, 0.001881f, 0.000085f); // The engine default, an ozone-like layer
+	double OtherAbsorptionScale = 1.0;
+	if (bBlueSky)
+	{
+		OtherAbsorption = FLinearColor(1.0f, 0.55f, 0.05f); // Absorbs red and green, leaves blue
+		OtherAbsorptionScale = 0.07;
+	}
+	Number(TEXT("RoverMieScale="), MieScaleD);
+	Number(TEXT("RoverMieAniso="), MieAnisoD);
+	Number(TEXT("RoverRayleighScale="), RayleighScaleD);
+	Number(TEXT("RoverMieAbsScale="), MieAbsorptionScale);
+	ColorOf(TEXT("RoverSunColor="), Look.SunColor);
+	ColorOf(TEXT("RoverOtherAbsColor="), OtherAbsorption);
+	Number(TEXT("RoverOtherAbsScale="), OtherAbsorptionScale);
+	ColorOf(TEXT("RoverMieColor="), Look.MieColor);
+	ColorOf(TEXT("RoverRayleighColor="), RayleighColor);
+	ColorOf(TEXT("RoverMieAbsColor="), MieAbsorption);
+	Look.MieScale = static_cast<float>(MieScaleD);
+	Look.MieAnisotropy = static_cast<float>(MieAnisoD);
+	Look.RayleighScale = static_cast<float>(RayleighScaleD);
+	(void)RayleighPowerD;
 	double GlowScale = 1.0; // -RoverGlowScale=F scales the sun-side fog glow, for tuning
 	FParse::Value(FCommandLine::Get(), TEXT("RoverGlowScale="), GlowScale);
 	Look.SunGlow = Look.SunGlow * static_cast<float>(GlowScale);
@@ -604,12 +663,15 @@ void ARoverPlaygroundGameMode::SpawnLights()
 		Air->SetBottomRadius(3389.5f);   // km
 		Air->SetAtmosphereHeight(80.0f); // km
 		Air->SetGroundAlbedo(FColor(170, 110, 70));
+		Air->SetRayleighScattering(RayleighColor);
 		Air->SetRayleighScatteringScale(Look.RayleighScale);
 		Air->SetRayleighExponentialDistribution(11.0f); // km, Mars's scale height
 		Air->SetMieScatteringScale(Look.MieScale);
 		Air->SetMieScattering(Look.MieColor);
-		Air->SetMieAbsorptionScale(0.006f);
-		Air->SetMieAbsorption(FLinearColor(0.35f, 0.55f, 0.75f));
+		Air->SetMieAbsorptionScale(static_cast<float>(MieAbsorptionScale));
+		Air->SetMieAbsorption(MieAbsorption);
+		Air->SetOtherAbsorption(OtherAbsorption);
+		Air->SetOtherAbsorptionScale(static_cast<float>(OtherAbsorptionScale));
 		Air->SetMieAnisotropy(Look.MieAnisotropy);
 		Air->SetMieExponentialDistribution(11.0f);
 	}
@@ -632,9 +694,25 @@ void ARoverPlaygroundGameMode::SpawnLights()
 			// Distance haze for the Gale level: nothing within 400 m, then a color that thickens with distance, so the ridges of the
 			// horizon Landscape recede. Its color follows the preset. The owner asked for a bluish haze by day; Mars's own daytime
 			// dust haze is butterscotch, and its blue is a glow near the sun at sunset, so these are chosen looks, not measurements.
-			FogComponent->SetFogInscatteringColor(Look.FogColor);
-			FogComponent->SetFogDensity(Look.FogDensity);
-			FogComponent->SetFogHeightFalloff(0.25f);
+			// -RoverFogColor=r,g,b, -RoverFogDensity=F, and -RoverFogFalloff=F tune the haze from the command line
+			FLinearColor HazeColor = Look.FogColor;
+			double HazeDensity = Look.FogDensity;
+			double HazeFalloff = 0.12; // The haze thins slowly with height, so a mountain 5 km high is fogged top to bottom
+			FString HazeText;
+			if (FParse::Value(FCommandLine::Get(), TEXT("RoverFogColor="), HazeText, false))
+			{
+				TArray<FString> Parts;
+				HazeText.ParseIntoArray(Parts, TEXT(","));
+				if (Parts.Num() >= 3)
+				{
+					HazeColor = FLinearColor(FCString::Atof(*Parts[0]), FCString::Atof(*Parts[1]), FCString::Atof(*Parts[2]));
+				}
+			}
+			FParse::Value(FCommandLine::Get(), TEXT("RoverFogDensity="), HazeDensity);
+			FParse::Value(FCommandLine::Get(), TEXT("RoverFogFalloff="), HazeFalloff);
+			FogComponent->SetFogInscatteringColor(HazeColor);
+			FogComponent->SetFogDensity(static_cast<float>(HazeDensity));
+			FogComponent->SetFogHeightFalloff(static_cast<float>(HazeFalloff));
 			FogComponent->SetStartDistance(40000.0f);
 			float FogMax = Preset == TEXT("sunset") ? 0.55f : 0.92f; // Fog covers the sky too, at its maximum opacity; -RoverFogMax=F tunes it
 			FParse::Value(FCommandLine::Get(), TEXT("RoverFogMax="), FogMax);

@@ -1,0 +1,44 @@
+{
+  "source": "MGS MOLA DEM mosaic, global, 463 m (MEGDR, 2003-03-21), USGS Astrogeology",
+  "source_url": "https://astrogeology.usgs.gov/search/map/mars_mgs_mola_dem_463m",
+  "license": "CC0 (public domain) per the product page, read 2026-11-16",
+  "credit": "NASA/GSFC/MOLA Science Team; USGS Astrogeology",
+  "reference": "Smith et al. 2001, J. Geophys. Res. 106(E10), 23689-23722",
+  "source_pixel_m": 463.09,
+  "samples": 1009,
+  "spacing_m": 198.22,
+  "extent_m": 199802.0,
+  "resampling": "cubic, from 463 m to about 198 m: interpolated, not new detail",
+  "measured_note": "MOLA's gridded map is interpolated between laser tracks; every sample here is interpolated at least once",
+  "height_min_m": -4613.6,
+  "height_max_m": 1360.2,
+  "aeolis_mons_peak_height_m": 769.8,
+  "aeolis_mons_peak_elevation_angle_deg": 7.09,
+  "highest_point_in_window_m": 1360.2,
+  "highest_point_east_north_km": [
+    22.2,
+    -69.4
+  ],
+  "aeolis_mons_peak_east_km": 32.1,
+  "aeolis_mons_peak_north_km": 8.5,
+  "aeolis_mons_peak_lon_lat_deg": [
+    137.858,
+    -5.377
+  ],
+  "aeolis_mons_peak_distance_km": 33.2,
+  "site_origin_height_m": -3359.678,
+  "mola_minus_hirise_over_horizon_field": {
+    "mean_m": 66.1,
+    "p5_m": -5.9,
+    "p95_m": 203.0,
+    "std_m": 65.9
+  },
+  "blend": "far field follows the HiRISE horizon field 12 m beneath it inside it; the correction fades from 4 km to 12 km (generated)",
+  "blend_drop_below_horizon_m": 12.0,
+  "blend_full_to_km": 4,
+  "blend_ends_km": 12,
+  "correction_at_edge_of_horizon_field_m_mean": 7.9,
+  "unreal_xy_scale_percent": 19821.61,
+  "unreal_z_scale_percent": 1166.75,
+  "unreal_z_offset_m_above_site_datum": -1253.9
+}

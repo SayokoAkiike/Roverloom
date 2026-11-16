@@ -165,13 +165,15 @@ void ARoverEffects::EmitWheelDust(const FVector& Ground, const FVector& Travel, 
 		P.Kind = EKind::Wheel;
 		P.bAlive = true;
 		P.Age = 0.0;
-		P.Life = Random.FRandRange(1.5, 4.8);
+		// Skewed draws: most puffs are small and short-lived, a few are large and linger
+		const double Skew = FMath::Pow(Random.FRand(), 2.2);
+		P.Life = 0.8 + 6.0 * Skew + Random.FRandRange(0.0, 0.8);
 		P.Position = Ground + FVector(Random.FRandRange(-7.0, 7.0), Random.FRandRange(-7.0, 7.0), Random.FRandRange(2.0, 8.0));
 		const FVector Back = -Travel * Random.FRandRange(8.0, 38.0) * SpeedFraction;
 		P.Velocity = Back + FVector(Random.FRandRange(-14.0, 14.0), Random.FRandRange(-14.0, 14.0), Random.FRandRange(45.0, 170.0));
-		P.Size0 = Random.FRandRange(5.0, 14.0);
-		P.Size1 = Random.FRandRange(24.0, 64.0);
-		P.Alpha = Random.FRandRange(0.45, 0.9);
+		P.Size0 = Random.FRandRange(3.0, 12.0) * (1.0 + 1.6 * Skew);
+		P.Size1 = Random.FRandRange(14.0, 40.0) * (1.0 + 2.4 * Skew);
+		P.Alpha = Random.FRandRange(0.35, 0.95);
 		P.Spread = Ground.Z; // The ground height at birth, as the floor for the puff
 		return;
 	}
@@ -357,7 +359,7 @@ void ARoverEffects::Tick(float DeltaSeconds)
 		{
 			for (int32 W = 0; W < RoverloomRover::NumWheels; ++W)
 			{
-				Carry[W] += 34.0 * Fraction * Dt; // Puffs per second per wheel at full speed
+				Carry[W] += (10.0 * Fraction + 38.0 * Fraction * Fraction) * Dt; // Puffs per second per wheel: few when slow, many when fast
 				const FVector Wheel = Body.TransformPosition(RoverloomRover::WheelMountCm(W));
 				FVector Ground;
 				const bool bGround = GroundAt(Wheel.X, Wheel.Y, Ground);

@@ -39,6 +39,13 @@ URL, processing, and which assets use it.
 Mention of these sources does not imply endorsement. Using real terrain data **does not validate
 the simulator's physics**.
 
+## MOLA global DEM, read 2026-11-16, outside Git
+
+The far skyline (Mount Sharp) comes from the MGS MOLA DEM mosaic, 463 m a pixel, read as a window over HTTP, never downloaded whole.
+[Product page](https://astrogeology.usgs.gov/search/map/mars_mgs_mola_dem_463m) (USGS Astrogeology): access constraints "CC0 (public domain)". Credit:
+NASA/GSFC/MOLA Science Team, USGS. Not legal advice. The `.r16` made from it is under `unreal/Saved/`, outside Git; the report is
+[`far.json`](results/terrain-gale/far.json). Measured and interpolated parts are told apart in [the terrain results](results/terrain-gale/README.md#mount-sharp-in-the-distance-mola-2026-11-16).
+
 ## Poly Haven assets, downloaded 2026-11-16, outside Git
 
 **Not in Git.** Files are in `unreal/Content/Licensed/PolyHaven/`, which `.gitignore` excludes, and the Unreal assets made from
