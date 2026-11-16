@@ -57,6 +57,11 @@ def main() -> int:
     rough.set_editor_property("r", 0.88)
     mel.connect_material_property(color, "", unreal.MaterialProperty.MP_BASE_COLOR)
     mel.connect_material_property(rough, "", unreal.MaterialProperty.MP_ROUGHNESS)
+    # The rocks are Nanite meshes, and a material must say it may be drawn by Nanite or the default material is used
+    material.set_editor_property("used_with_nanite", True)
+    material.set_editor_property(
+        "used_with_instanced_static_meshes", True
+    )  # And as instances, which is how they are drawn
     mel.recompile_material(material)
     unreal.EditorAssetLibrary.save_loaded_asset(material)
 

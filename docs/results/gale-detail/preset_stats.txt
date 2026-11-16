@@ -1,0 +1,24 @@
+=== Chase
+image                        region       R      G      B   luma  B/R
+noon                         all      131.6   90.1   70.4   97.5  0.54
+noon                         sky      198.6  172.0  147.9  175.9  0.74
+afternoon                    all      124.7   76.2   51.5   84.7  0.41
+afternoon                    sky      188.5  143.8  114.1  151.2  0.61
+sunset                       all       90.1   36.3   27.1   47.1  0.30
+sunset                       sky      173.0  130.0  149.5  140.6  0.86
+=== Mast-20-m
+image                        region       R      G      B   luma  B/R
+noon                         all      138.8   96.5   73.9  103.9  0.53
+noon                         sky      196.5  165.8  136.5  170.2  0.69
+afternoon                    all      126.3   76.8   50.5   85.4  0.40
+afternoon                    sky      184.4  134.5   99.3  142.6  0.54
+sunset                       all      104.9   46.6   35.4   58.2  0.34
+sunset                       sky      165.0  114.7  126.9  126.3  0.77
+=== Front-hazard
+image                        region       R      G      B   luma  B/R
+noon                         all      143.6   85.9   60.5   96.3  0.42
+noon                         sky      192.0  155.6  119.6  160.8  0.62
+afternoon                    all      124.7   65.1   39.2   75.9  0.31
+afternoon                    sky      175.4  117.2   76.3  126.7  0.44
+sunset                       all      100.6   31.4   22.9   45.5  0.23
+sunset                       sky      150.7   94.1   87.7  105.7  0.58

@@ -24,6 +24,7 @@
 #include "PhysicalMaterials/PhysicalMaterial.h"
 
 #include "../Roverloom.h"
+#include "../Bridge/Frames.h"
 #include "Greybox.h"
 #include "RoverDrive.h"
 #include "RoverHud.h"
@@ -78,9 +79,13 @@ void ARoverPlaygroundGameMode::RestartPlayer(AController* NewPlayer)
 
 void ARoverPlaygroundGameMode::SpawnScatter()
 {
-	// Rocks for the Gale level: four Poly Haven meshes (see docs/assets-and-sources.md) as instances, with a fixed seed. They are
-	// visual only: no collision, no physics, so the rover's drive does not depend on them. They are kept off the straight test
-	// lane ahead of the start and out of a circle around it. Without the meshes (they live outside Git) nothing is placed.
+	// Rocks and pebbles for the Gale level, as instanced Poly Haven meshes (see docs/assets-and-sources.md) with a fixed seed.
+	// Sizes follow a bounded power law, so there are very many small stones and few large rocks: the radius runs from 3 cm to
+	// 1.5 m, and the number larger than r falls as r^-1.9. Each one has a random yaw, tilt, and slightly squashed scale, and sits
+	// half buried: the middle of its bounds is put on the ground. They are visual only: no collision, no physics, so the rover's
+	// drive does not depend on them. They are kept off the straight test lane ahead of the start and out of a circle around it.
+	// Without the meshes (they live outside Git) nothing is placed. -RoverRocks=0 turns them off; -RoverRockScale=N sets the
+	// count to N percent, for measuring cost.
 	if (!bHasLandscape)
 	{
 		return;
@@ -91,21 +96,36 @@ void ARoverPlaygroundGameMode::SpawnScatter()
 	{
 		return;
 	}
-	struct FKind
+	int32 CountPercent = 100;
+	FParse::Value(FCommandLine::Get(), TEXT("RoverRockScale="), CountPercent);
+	int32 CullPercent = 100; // -RoverRockCull=N scales every draw distance, for measuring cost
+	FParse::Value(FCommandLine::Get(), TEXT("RoverRockCull="), CullPercent);
+	int32 Shadows = 1; // -RoverRockShadows=0 turns off every rock shadow
+	FParse::Value(FCommandLine::Get(), TEXT("RoverRockShadows="), Shadows);
+
+	static const TCHAR* MeshPaths[] = {
+		TEXT("/Game/Licensed/PolyHaven/rock_09/rock_09_1k.rock_09_1k"),
+		TEXT("/Game/Licensed/PolyHaven/namaqualand_boulder_06/namaqualand_boulder_06_1k.namaqualand_boulder_06_1k"),
+		TEXT("/Game/Licensed/PolyHaven/namaqualand_boulder_02/namaqualand_boulder_02_1k.namaqualand_boulder_02_1k"),
+		TEXT("/Game/Licensed/PolyHaven/namaqualand_boulder_04/namaqualand_boulder_04_1k.namaqualand_boulder_04_1k"),
+	};
+	constexpr int32 MeshCount = UE_ARRAY_COUNT(MeshPaths);
+	UStaticMesh* Meshes[MeshCount] = {};
+	double BaseRadiusCm[MeshCount] = {};
+	FVector LocalCenter[MeshCount];
+	for (int32 M = 0; M < MeshCount; ++M)
 	{
-		const TCHAR* Path;
-		double MinScale;
-		double MaxScale;
-		double Share;
-		float CullCm;  // Not drawn beyond this distance. Small rocks are not worth drawing far away
-		bool bShadow;  // Whether it casts a shadow. Lumen's scene and the shadow pass are where 1,140 rocks cost the most
-	};
-	static const FKind Kinds[] = {
-		{TEXT("/Game/Licensed/PolyHaven/rock_09/rock_09_1k.rock_09_1k"), 1.5, 7.0, 0.55, 5000.0f, false},                                     // Pebbles, 10 to 50 cm
-		{TEXT("/Game/Licensed/PolyHaven/namaqualand_boulder_06/namaqualand_boulder_06_1k.namaqualand_boulder_06_1k"), 0.35, 1.7, 0.25, 15000.0f, true}, // 25 cm to 1.1 m
-		{TEXT("/Game/Licensed/PolyHaven/namaqualand_boulder_02/namaqualand_boulder_02_1k.namaqualand_boulder_02_1k"), 0.12, 0.5, 0.12, 30000.0f, true}, // 30 cm to 1.3 m
-		{TEXT("/Game/Licensed/PolyHaven/namaqualand_boulder_04/namaqualand_boulder_04_1k.namaqualand_boulder_04_1k"), 0.10, 0.4, 0.08, 30000.0f, true}, // 25 cm to 1.0 m
-	};
+		Meshes[M] = LoadObject<UStaticMesh>(nullptr, MeshPaths[M], nullptr, LOAD_NoWarn | LOAD_Quiet);
+		if (!Meshes[M])
+		{
+			UE_LOG(LogRoverloom, Display, TEXT("Rock scatter: %s not found (the Poly Haven rocks are outside Git); none placed"), MeshPaths[M]);
+			return;
+		}
+		const FBoxSphereBounds Bounds = Meshes[M]->GetBounds();
+		BaseRadiusCm[M] = 0.5 * (Bounds.BoxExtent.X + Bounds.BoxExtent.Y);
+		LocalCenter[M] = Bounds.Origin;
+	}
+
 	UWorld* World = GetWorld();
 	AActor* Holder = World->SpawnActor<AActor>();
 	USceneComponent* Root = NewObject<USceneComponent>(Holder, TEXT("RockRoot"));
@@ -113,87 +133,126 @@ void ARoverPlaygroundGameMode::SpawnScatter()
 	Root->RegisterComponent();
 	Holder->SetActorLabel(TEXT("GaleRocks"));
 
-	TArray<UHierarchicalInstancedStaticMeshComponent*> Components;
-	for (const FKind& Kind : Kinds)
+	// One instanced component per mesh and size class. Small stones are not drawn far away and cast no shadow, and nothing here
+	// enters Lumen's scene: it is decoration, not lighting.
+	struct FClass
 	{
-		UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, Kind.Path, nullptr, LOAD_NoWarn | LOAD_Quiet);
-		if (!Mesh)
+		double MaxRadiusM;
+		float CullCm;
+		bool bShadow;
+	};
+	static const FClass Classes[] = {{0.06, 450.0f, false}, {0.15, 900.0f, false}, {0.40, 2200.0f, false}, {0.90, 7000.0f, true}, {1.6, 20000.0f, true}};
+	constexpr int32 ClassCount = UE_ARRAY_COUNT(Classes);
+	TMap<int32, UHierarchicalInstancedStaticMeshComponent*> Components;
+	TMap<int32, TArray<FTransform>> Placed;
+	auto ComponentFor = [&](int32 Mesh, int32 Class)
+	{
+		const int32 Key = Mesh * ClassCount + Class;
+		if (UHierarchicalInstancedStaticMeshComponent** Found = Components.Find(Key))
 		{
-			UE_LOG(LogRoverloom, Display, TEXT("Rock scatter: %s not found (the Poly Haven rocks are outside Git); none placed"), Kind.Path);
-			Holder->Destroy();
-			return;
+			return *Found;
 		}
 		UHierarchicalInstancedStaticMeshComponent* Component = NewObject<UHierarchicalInstancedStaticMeshComponent>(Holder);
 		Component->SetupAttachment(Root);
-		Component->SetStaticMesh(Mesh);
+		Component->SetStaticMesh(Meshes[Mesh]);
 		Component->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		Component->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 		Component->SetCanEverAffectNavigation(false);
-		Component->SetCullDistances(0, static_cast<int32>(Kind.CullCm));
-		Component->SetCastShadow(Kind.bShadow);
-		Component->bAffectDistanceFieldLighting = false; // Kept out of Lumen's scene: decoration, not lighting
+		Component->SetCullDistances(0, static_cast<int32>(Classes[Class].CullCm * CullPercent / 100.0f));
+		Component->SetCastShadow(Classes[Class].bShadow && Shadows != 0);
+		Component->bAffectDistanceFieldLighting = false;
 		Component->bAffectDynamicIndirectLighting = false;
 		Component->RegisterComponent();
-		Components.Add(Component);
-	}
+		Components.Add(Key, Component);
+		return Component;
+	};
 
-	FRandomStream Random(ScatterSeed);
-	TArray<TArray<FTransform>> Placed;
-	Placed.SetNum(Components.Num());
 	auto Forbidden = [](double X, double Y)
 	{
-		const bool bLane = X > -300.0 && X < 4200.0 && FMath::Abs(Y) < 450.0; // The straight lane: 3 m behind to 42 m ahead, 9 m wide
-		const bool bStart = X * X + Y * Y < 800.0 * 800.0;                      // And 8 m around the start
+		const bool bLane = X > -300.0 && X < 4200.0 && FMath::Abs(Y) < 250.0; // The straight lane: 3 m behind to 42 m ahead, 5 m wide
+		const bool bStart = X * X + Y * Y < 300.0 * 300.0;                      // And 3 m around the start
 		return bLane || bStart;
 	};
-	const struct { int32 Count; double MinR; double MaxR; } Zones[] = {{350, 800.0, 6000.0}, {350, 6000.0, 40000.0}};
+
+	constexpr double Alpha = 1.9;     // Cumulative number larger than r falls as r^-Alpha
+	constexpr double MaxRadiusM = 1.5;
+	const struct { int32 Count; double MinR; double MaxR; double MinRadiusM; } Zones[] = {
+		{12000, 300.0, 1200.0, 0.03},     // Near: 3 to 12 m around the start, down to 3 cm
+		{14000, 1200.0, 6000.0, 0.06},    // Mid: 12 to 60 m
+		{8000, 6000.0, 42000.0, 0.15},    // Far: to 420 m, small stones would not show
+	};
+	FRandomStream Random(ScatterSeed);
 	int32 Total = 0;
+	int32 BySize[ClassCount] = {};
+	double SmallestM = 1e9;
+	double LargestM = 0.0;
 	for (const auto& Zone : Zones)
 	{
-		for (int32 Index = 0; Index < Zone.Count; ++Index)
+		const int32 Count = Zone.Count * FMath::Clamp(CountPercent, 0, 400) / 100;
+		const double Tail = 1.0 - FMath::Pow(Zone.MinRadiusM / MaxRadiusM, Alpha);
+		for (int32 Index = 0; Index < Count; ++Index)
 		{
-			// Uniform over the ring's area
-			const double R = FMath::Sqrt(Random.FRandRange(Zone.MinR * Zone.MinR, Zone.MaxR * Zone.MaxR));
+			// Every draw is made before any rejection, so the layout elsewhere does not depend on the lane
+			const double Ring = FMath::Sqrt(Random.FRandRange(Zone.MinR * Zone.MinR, Zone.MaxR * Zone.MaxR));
 			const double Angle = Random.FRandRange(0.0, 2.0 * PI);
-			const double X = R * FMath::Cos(Angle);
-			const double Y = R * FMath::Sin(Angle);
-			const double PickKind = Random.FRand();
 			const double SizeDraw = Random.FRand();
+			const double MeshDraw = Random.FRand();
 			const double Yaw = Random.FRandRange(0.0, 360.0);
-			const double Tilt1 = Random.FRandRange(-10.0, 10.0);
-			const double Tilt2 = Random.FRandRange(-10.0, 10.0);
+			const double Pitch = Random.FRandRange(-15.0, 15.0);
+			const double Roll = Random.FRandRange(-15.0, 15.0);
+			const double Squash = Random.FRandRange(0.5, 0.95);
+			const double Stretch = Random.FRandRange(0.8, 1.3);
+			const double X = Ring * FMath::Cos(Angle);
+			const double Y = Ring * FMath::Sin(Angle);
 			if (Forbidden(X, Y))
 			{
-				continue; // The draws above are still consumed, so the layout elsewhere does not depend on the lane
+				continue;
 			}
-			int32 Chosen = 0;
-			double Cumulative = 0.0;
-			for (int32 K = 0; K < UE_ARRAY_COUNT(Kinds); ++K)
+			// Bounded Pareto, by inverting its distribution
+			const double RadiusM = Zone.MinRadiusM * FMath::Pow(1.0 - SizeDraw * Tail, -1.0 / Alpha);
+			int32 Class = 0;
+			while (Class < ClassCount - 1 && RadiusM > Classes[Class].MaxRadiusM)
 			{
-				Cumulative += Kinds[K].Share;
-				if (PickKind <= Cumulative)
-				{
-					Chosen = K;
-					break;
-				}
+				++Class;
+			}
+			// Small stones borrow every shape; big ones only the big boulders
+			int32 Mesh;
+			if (RadiusM < 0.12)
+			{
+				Mesh = MeshDraw < 0.6 ? 0 : (MeshDraw < 0.85 ? 1 : (MeshDraw < 0.93 ? 2 : 3));
+			}
+			else if (RadiusM < 0.5)
+			{
+				Mesh = MeshDraw < 0.5 ? 1 : (MeshDraw < 0.7 ? 0 : (MeshDraw < 0.85 ? 2 : 3));
+			}
+			else
+			{
+				Mesh = MeshDraw < 0.4 ? 2 : (MeshDraw < 0.8 ? 3 : 1);
 			}
 			FHitResult Hit;
 			if (!World->LineTraceSingleByObjectType(Hit, FVector(X, Y, 50000.0), FVector(X, Y, -50000.0), FCollisionObjectQueryParams(ECC_WorldStatic)))
 			{
 				continue; // Off the site Landscape
 			}
-			// Few large, many small: the size grows with the cube of the draw
-			const double Scale = Kinds[Chosen].MinScale + (Kinds[Chosen].MaxScale - Kinds[Chosen].MinScale) * SizeDraw * SizeDraw * SizeDraw;
-			Placed[Chosen].Add(FTransform(FRotator(Tilt1, Yaw, Tilt2), Hit.ImpactPoint - FVector(0.0, 0.0, 6.0 * Scale), FVector(Scale)));
+			const double Scale = RadiusM * 100.0 / BaseRadiusCm[Mesh];
+			const FVector Scale3(Scale * Stretch, Scale / Stretch, Scale * Squash);
+			const FRotator Rotation(Pitch, Yaw, Roll);
+			// Half buried: the middle of the mesh's bounds is put on the ground
+			const FVector Location = Hit.ImpactPoint - Rotation.RotateVector(Scale3 * LocalCenter[Mesh]);
+			Placed.FindOrAdd(Mesh * ClassCount + Class).Add(FTransform(Rotation, Location, Scale3));
 			++Total;
+			++BySize[Class];
+			SmallestM = FMath::Min(SmallestM, RadiusM);
+			LargestM = FMath::Max(LargestM, RadiusM);
 		}
 	}
-	for (int32 K = 0; K < Components.Num(); ++K)
+	for (TPair<int32, TArray<FTransform>>& Pair : Placed)
 	{
-		Components[K]->AddInstances(Placed[K], false, true);
+		ComponentFor(Pair.Key / ClassCount, Pair.Key % ClassCount)->AddInstances(Pair.Value, false, true);
 	}
 	RocksSpawned += Total;
-	UE_LOG(LogRoverloom, Display, TEXT("Rock scatter: %d instances (seed %d), no collision, off the test lane"), Total, ScatterSeed);
+	UE_LOG(LogRoverloom, Display, TEXT("Rock scatter: %d instances (seed %d), radius %.3f to %.2f m, by class (to 6, 15, 40, 90 cm, larger) %d %d %d %d %d, no collision, off the test lane"),
+		Total, ScatterSeed, SmallestM, LargestM, BySize[0], BySize[1], BySize[2], BySize[3], BySize[4]);
 }
 
 void ARoverPlaygroundGameMode::ApplyProfile()
@@ -220,6 +279,10 @@ void ARoverPlaygroundGameMode::ApplyProfile()
 	Set(TEXT("r.DynamicGlobalIlluminationMethod"), TEXT("1")); // Lumen
 	Set(TEXT("r.ReflectionMethod"), TEXT("1"));                // Lumen reflections
 	Set(TEXT("r.Lumen.HardwareRayTracing"), TEXT("0"));        // Software Lumen: no hardware ray tracing on this Mac
+	if (Profile == TEXT("dev"))
+	{
+		Set(TEXT("r.AntiAliasingMethod"), TEXT("3")); // TAA: about 2.5 ms cheaper than TSR at 1280 x 720 on this Mac (measured)
+	}
 	if (Profile == TEXT("capture"))
 	{
 		Set(TEXT("r.Shadow.Virtual.Enable"), TEXT("1"));
@@ -269,18 +332,31 @@ void ARoverPlaygroundGameMode::SpawnRover()
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 	// The site origin is at z = 0 on the greybox ground; on a Landscape it is the ground found straight below the origin.
 	double GroundCm = 0.0;
+	// -RoverStartM=east,north starts the rover elsewhere on the Landscape (site frame, meters), to look at other ground. Only for
+	// viewing: the mission link and the scenarios assume the origin.
+	FVector StartCm = FVector::ZeroVector;
+	FString StartText;
+	if (bHasLandscape && FParse::Value(FCommandLine::Get(), TEXT("RoverStartM="), StartText, false)) // false: do not stop at the comma
+	{
+		TArray<FString> Parts;
+		StartText.ParseIntoArray(Parts, TEXT(","));
+		if (Parts.Num() >= 2)
+		{
+			StartCm = RoverloomFrames::SiteToUnrealPosition(FVector(FCString::Atod(*Parts[0]), FCString::Atod(*Parts[1]), 0.0));
+		}
+	}
 	if (bHasLandscape)
 	{
 		FHitResult Hit;
 		// By object type, so that a spectator pawn at the origin is not mistaken for ground
-		if (GetWorld()->LineTraceSingleByObjectType(Hit, FVector(0.0, 0.0, 50000.0), FVector(0.0, 0.0, -50000.0), FCollisionObjectQueryParams(ECC_WorldStatic)))
+		if (GetWorld()->LineTraceSingleByObjectType(Hit, FVector(StartCm.X, StartCm.Y, 50000.0), FVector(StartCm.X, StartCm.Y, -50000.0), FCollisionObjectQueryParams(ECC_WorldStatic)))
 		{
 			GroundCm = Hit.ImpactPoint.Z;
 			UE_LOG(LogRoverloom, Display, TEXT("Rover start trace hit %s on %s"), Hit.GetActor() ? *Hit.GetActor()->GetActorLabel() : TEXT("none"), Hit.GetComponent() ? *Hit.GetComponent()->GetName() : TEXT("none"));
 		}
 		UE_LOG(LogRoverloom, Display, TEXT("Rover start on the Landscape: ground at z %.1f cm"), GroundCm);
 	}
-	Rover = GetWorld()->SpawnActor<ARoverPawn>(ARoverPawn::StaticClass(), FVector(0.0, 0.0, GroundCm + RoverloomRover::RideHeightCm),
+	Rover = GetWorld()->SpawnActor<ARoverPawn>(ARoverPawn::StaticClass(), FVector(StartCm.X, StartCm.Y, GroundCm + RoverloomRover::RideHeightCm),
 		FRotator::ZeroRotator, SpawnParams);
 }
 
@@ -369,47 +445,55 @@ void ARoverPlaygroundGameMode::SpawnLights()
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-	// Light presets, chosen with -RoverLight=noon|afternoon|sunset. Sun height above the horizon, sun strength, and the fixed
-	// exposure of the camera (as a camera would have it: the same for the whole run). Values were set by eye. They are
-	// artistic presets, not a model of the real sky. The default is the original 20 degrees.
+	// Light presets, chosen with -RoverLight=noon|afternoon|sunset. Each is a whole look: where the sun is and what color its light
+	// is, what the dust in the air does to the sky, the haze, the sky light, and the fixed exposure of the camera (the same for the
+	// whole run, as a camera would have it). Values were set by eye against renders. They are artistic presets (mars_inspired), not
+	// a model of the real sky. The default, without -RoverLight, is the original look.
+	struct FLook
+	{
+		double SunElevationDeg;
+		double SunYawDeg;     // The direction the light travels. 45 puts the sun behind and to the left of the start; 195 puts it ahead and a little to the right
+		float SunLux;
+		FLinearColor SunColor;
+		float ExposureEv;
+		float MieScale;
+		FLinearColor MieColor;
+		float MieAnisotropy;  // Near 1 the dust throws its light forward, which makes a glow around the sun
+		float RayleighScale;
+		float SkyLightIntensity;
+		FLinearColor FogColor;
+		float FogDensity;
+	};
+	FLook Look{20.0, 45.0, 10.0f, FLinearColor(1.0f, 0.96f, 0.90f), 0.0f, 0.02f, FLinearColor(0.95f, 0.60f, 0.32f), 0.5f, 0.0005f, 1.0f, FLinearColor(0.42f, 0.50f, 0.64f), 0.004f};
 	FString Preset = TEXT("default");
 	FParse::Value(FCommandLine::Get(), TEXT("RoverLight="), Preset);
-	double SunElevationDeg = 20.0;
-	float SunLux = 10.0f;
-	FLinearColor SunColor(1.0f, 0.96f, 0.90f); // Slightly warm white; the dusty sky does the rest
-	float MieScale = 0.02f;
-	float ExposureEv = 0.0f;
 	bool bFixedExposure = true;
 	if (Preset == TEXT("noon"))
 	{
-		SunElevationDeg = 58.0;
-		SunLux = 4.3f; // Mars gets about 43% of the sunlight Earth does
-		ExposureEv = 10.5f;
+		// High sun, white-yellow light, a bright butterscotch sky, and a cool grey-blue haze
+		Look = {58.0, 45.0, 4.3f, FLinearColor(1.0f, 0.97f, 0.90f), 10.8f, 0.02f, FLinearColor(0.95f, 0.60f, 0.32f), 0.5f, 0.0005f, 1.0f, FLinearColor(0.42f, 0.50f, 0.64f), 0.004f};
 	}
 	else if (Preset == TEXT("afternoon"))
 	{
-		SunElevationDeg = 22.0;
-		SunLux = 4.3f;
-		ExposureEv = 11.3f;
+		// Lower, amber light, a deeper orange sky, long shadows, and a warm violet-grey haze
+		Look = {22.0, 45.0, 4.3f, FLinearColor(1.0f, 0.80f, 0.56f), 10.8f, 0.035f, FLinearColor(0.95f, 0.50f, 0.26f), 0.6f, 0.0005f, 0.8f, FLinearColor(0.56f, 0.46f, 0.52f), 0.005f};
 	}
 	else if (Preset == TEXT("sunset"))
 	{
-		SunElevationDeg = 2.5;
-		SunLux = 2.2f;
-		ExposureEv = 11.4f;
-		SunColor = FLinearColor(1.0f, 0.55f, 0.30f); // The sun's light has crossed a long path of dust
-		MieScale = 0.06f; // More dust in the air, as on a hazy evening
+		// The sun is almost on the horizon, ahead of the rover and a little to its right, its light red. The dust scatters blue forward in a narrow cone, so
+		// the sky around the sun glows blue, as in the photographs of Martian sunsets, and the haze turns blue-violet
+		Look = {5.5, 195.0, 2.4f, FLinearColor(1.0f, 0.42f, 0.20f), 11.4f, 0.14f, FLinearColor(0.22f, 0.42f, 1.0f), 0.93f, 0.001f, 0.5f, FLinearColor(0.30f, 0.34f, 0.70f), 0.007f};
 	}
 	else
 	{
 		bFixedExposure = false; // The original look, with the engine's own exposure
 	}
-	if (FParse::Value(FCommandLine::Get(), TEXT("RoverExposure="), ExposureEv))
+	if (FParse::Value(FCommandLine::Get(), TEXT("RoverExposure="), Look.ExposureEv))
 	{
 		bFixedExposure = true; // -RoverExposure=EV overrides the preset's value, for tuning
 	}
-	// Sun behind and to the left of the rover's start, as shot 1. Movable, since nothing is baked.
-	const FTransform SunTransform(FRotator(-SunElevationDeg, 45.0, 0.0));
+	// Movable, since nothing is baked.
+	const FTransform SunTransform(FRotator(-Look.SunElevationDeg, Look.SunYawDeg, 0.0));
 	ADirectionalLight* Sun = World->SpawnActorDeferred<ADirectionalLight>(ADirectionalLight::StaticClass(), SunTransform, nullptr,
 		nullptr, ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
 	// ADirectionalLight::GetComponent is editor-only; ALight::GetLightComponent exists in every build.
@@ -418,10 +502,10 @@ void ARoverPlaygroundGameMode::SpawnLights()
 	if (UDirectionalLightComponent* SunLight = Cast<UDirectionalLightComponent>(Sun->GetLightComponent()))
 	{
 		SunLight->SetAtmosphereSunLight(true);
-		SunLight->SetLightColor(SunColor);
+		SunLight->SetLightColor(Look.SunColor);
 		if (Preset != TEXT("default"))
 		{
-			SunLight->SetIntensity(SunLux);
+			SunLight->SetIntensity(Look.SunLux);
 		}
 	}
 	if (bFixedExposure)
@@ -432,8 +516,8 @@ void ARoverPlaygroundGameMode::SpawnLights()
 		Exposure->Settings.bOverride_AutoExposureMethod = true;
 		Exposure->Settings.AutoExposureMethod = EAutoExposureMethod::AEM_Manual;
 		Exposure->Settings.bOverride_AutoExposureBias = true;
-		Exposure->Settings.AutoExposureBias = ExposureEv;
-		UE_LOG(LogRoverloom, Display, TEXT("Rover light preset '%s': sun %.1f deg above the horizon, %.1f lux, fixed exposure %.1f"), *Preset, SunElevationDeg, SunLux, ExposureEv);
+		Exposure->Settings.AutoExposureBias = Look.ExposureEv;
+		UE_LOG(LogRoverloom, Display, TEXT("Rover light preset '%s': sun %.1f deg above the horizon, %.1f lux, fixed exposure %.1f"), *Preset, Look.SunElevationDeg, Look.SunLux, Look.ExposureEv);
 	}
 
 	// A Mars-inspired sky (mars_inspired: an artistic preset, not a validated atmosphere model): Mars's radius, a thin
@@ -447,13 +531,13 @@ void ARoverPlaygroundGameMode::SpawnLights()
 		Air->SetBottomRadius(3389.5f);   // km
 		Air->SetAtmosphereHeight(80.0f); // km
 		Air->SetGroundAlbedo(FColor(170, 110, 70));
-		Air->SetRayleighScatteringScale(0.0005f);
+		Air->SetRayleighScatteringScale(Look.RayleighScale);
 		Air->SetRayleighExponentialDistribution(11.0f); // km, Mars's scale height
-		Air->SetMieScatteringScale(MieScale);
-		Air->SetMieScattering(FLinearColor(0.95f, 0.60f, 0.32f));
+		Air->SetMieScatteringScale(Look.MieScale);
+		Air->SetMieScattering(Look.MieColor);
 		Air->SetMieAbsorptionScale(0.006f);
 		Air->SetMieAbsorption(FLinearColor(0.35f, 0.55f, 0.75f));
-		Air->SetMieAnisotropy(0.5f);
+		Air->SetMieAnisotropy(Look.MieAnisotropy);
 		Air->SetMieExponentialDistribution(11.0f);
 	}
 
@@ -461,6 +545,10 @@ void ARoverPlaygroundGameMode::SpawnLights()
 		ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
 	Sky->GetLightComponent()->SetMobility(EComponentMobility::Movable);
 	Sky->GetLightComponent()->SetRealTimeCapture(true);
+	if (Preset != TEXT("default"))
+	{
+		Sky->GetLightComponent()->SetIntensity(Look.SkyLightIntensity);
+	}
 	Sky->FinishSpawning(FTransform::Identity);
 
 	AExponentialHeightFog* Fog = World->SpawnActor<AExponentialHeightFog>(AExponentialHeightFog::StaticClass(), FTransform::Identity, SpawnParams);
@@ -468,14 +556,16 @@ void ARoverPlaygroundGameMode::SpawnLights()
 	{
 		if (bHasLandscape)
 		{
-			// Distance haze for the Gale level: nothing within 400 m, then a cool blue-grey that thickens with distance, so
-			// the ridges of the horizon Landscape recede. A chosen look (the owner asked for a bluish haze). Mars's own
-			// daytime dust haze is butterscotch, and its blue is a glow near the sun at sunset, so this is not a measurement.
-			FogComponent->SetFogInscatteringColor(FLinearColor(0.42f, 0.50f, 0.64f));
-			FogComponent->SetFogDensity(0.004f);
+			// Distance haze for the Gale level: nothing within 400 m, then a color that thickens with distance, so the ridges of the
+			// horizon Landscape recede. Its color follows the preset. The owner asked for a bluish haze by day; Mars's own daytime
+			// dust haze is butterscotch, and its blue is a glow near the sun at sunset, so these are chosen looks, not measurements.
+			FogComponent->SetFogInscatteringColor(Look.FogColor);
+			FogComponent->SetFogDensity(Look.FogDensity);
 			FogComponent->SetFogHeightFalloff(0.25f);
 			FogComponent->SetStartDistance(40000.0f);
-			FogComponent->SetFogMaxOpacity(0.92f);
+			float FogMax = Preset == TEXT("sunset") ? 0.55f : 0.92f; // Fog covers the sky too, at its maximum opacity; -RoverFogMax=F tunes it
+			FParse::Value(FCommandLine::Get(), TEXT("RoverFogMax="), FogMax);
+			FogComponent->SetFogMaxOpacity(FogMax);
 		}
 		else
 		{
