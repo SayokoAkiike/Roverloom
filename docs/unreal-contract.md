@@ -91,6 +91,12 @@ Loopback TCP, UTF-8 JSON Lines, 1 MiB per line. Each line is `{"type": ..., "bod
 
 The simulator listens and the agent connects. A client refuses another protocol version.
 
+**Mission link, real time, written 2026-11-16 and never compiled:** `ARoverPawn` (loopback 8100) also accepts `action`
+lines from `python -m roverloom.unreal_link --agent NAME`. They go through `FCommandRouter` as the source `agent`,
+in contract units; a held key takes the rover back, and a dropped client returns control to the keyboard from a stop.
+The C++ is unbuilt, so its behavior is unknown. Only the Python side is tested, against a stand-in that obeys the
+actions.
+
 ## Safety on disconnection
 
 [`RealtimeCommandLink`](../python/src/roverloom/bridge.py) is the reference for Unreal's receiver:
@@ -121,5 +127,5 @@ accepts both the lightweight backend and the stand-in, and that deliberately wro
 
 - Whether Chaos can be made to step deterministically in lockstep.
 - Real wheel-level telemetry. Today `failed_wheels` is the only per-wheel field.
-- Mapping `terrain_id` to Landscape, and how a Mars elevation tile is scaled.
+- Mapping `terrain_id` to Landscape. A measured terrain can now be named in `terrain.schema.json` ([ADR 0016](decisions/0016-gale-terrain-in-lightweight-backend.md)); Unreal's side is not written.
 - Whether the real bridge's threading holds at 10 Hz in a packaged build.

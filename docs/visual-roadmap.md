@@ -87,6 +87,6 @@ Ordered by what can start now. Nothing below is done unless marked.
 | 7 | HUD readable at 1080p with the PROVISIONAL label | UE | Waiting |
 | 8 | Three fixed shots, Movie Render Queue checked on the Mac, a 30 s video outside Git; README top image from the game | Steps 3–7 | Waiting |
 | 9 | G2 acceptance: a 10-minute drive and scored run logs from Unreal | UE | Waiting |
-| 10 | Bridge v1 in C++, so that a Python agent drives the Unreal rover | UE; **the owner's go-ahead** | Not started |
-| 11 | The Gale site as a terrain in the lightweight backend, so both backends share a `terrain_id` | **An owner decision and an ADR**: it changes `schemas/terrain.schema.json`, which accepts procedural terrain only | Not started |
+| 10 | Bridge v1 in C++, so that a Python agent drives the Unreal rover | UE; the owner gave the go-ahead 2026-11-16 | **Written, never compiled or run.** `action` lines on the mission link, `python -m roverloom.unreal_link --agent`; tested in Python against a stand-in only |
+| 11 | The Gale site as a terrain in the lightweight backend, so both backends share a `terrain_id` | Owner decided 2026-11-16; [ADR 0016](decisions/0016-gale-terrain-in-lightweight-backend.md) | Schema and loader done, with synthetic-data tests. The terrain document and a scenario need `gale_site.r16` from the Mac mini |
 

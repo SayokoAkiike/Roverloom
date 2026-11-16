@@ -9,6 +9,12 @@ protocol's: UTF-8 JSON Lines of {"type": ..., "body": ...}, 1 MiB per line.
 
     python -m roverloom.unreal_link --scenario g3_reach_target --port 18100 --out runs/g3
 
+With `--agent NAME`, the named agent also drives: it sees Unreal's position through the session's
+ordinary sensors and comms model, and each command the session accepts goes back to Unreal as an
+`action` line (bridge v1 body, contract units). Unreal's router clamps it, a held key takes the
+rover back, and a lost link returns control to the keyboard. This is real time, not lockstep: such
+runs do not reproduce and must not be ranked.
+
 Unreal's physics are its own: this run is not comparable with lightweight-backend runs, and it is
 not scored here. The session's battery and energy still come from the Mission Core's model.
 """
@@ -21,7 +27,7 @@ import time
 from pathlib import Path
 
 from roverloom.agents import create_agent
-from roverloom.api import Pose
+from roverloom.api import Action, Pose
 from roverloom.bridge import MAX_LINE_BYTES, _require_loopback
 from roverloom.contract import JsonDict, dump_json
 from roverloom.session import MissionSession
@@ -73,7 +79,13 @@ def connect(host: str, port: int, wait_s: float) -> socket.socket:
 
 
 def run(
-    scenario_name: str, host: str, port: int, out: Path, wait_s: float, linger_s: float
+    scenario_name: str,
+    host: str,
+    port: int,
+    out: Path,
+    wait_s: float,
+    linger_s: float,
+    agent: str | None = None,
 ) -> JsonDict:
     out.mkdir(parents=True, exist_ok=True)
     events_file = (out / "events.jsonl").open("w", encoding="utf-8")
@@ -85,8 +97,9 @@ def run(
 
     session = MissionSession(
         scenario,
-        {"hold": create_agent("stop")},  # Unreal's driver moves the rover; this source only exists
-        "hold",
+        # Without an agent, Unreal's driver moves the rover and this source only exists.
+        {"agent": create_agent(agent or "stop")},
+        "agent",
         on_event=write_event,
     )
     sim = UnrealPoseSim(session.sim)
@@ -128,6 +141,14 @@ def run(
                     body["time_s"]
                 ):
                     session.step()
+                if agent is not None and not session.mission.finished:
+                    command = session.router.current(session.time_s)
+                    action = Action(command.linear_velocity_mps, command.yaw_rate_radps)
+                    conn.sendall(
+                        (dump_json({"type": "action", "body": action.to_dict()}) + "\n").encode(
+                            "utf-8"
+                        )
+                    )
                 state = mission_state(session)
                 states_file.write(dump_json(state) + "\n")
                 conn.sendall(
@@ -158,8 +179,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--linger", type=float, default=5.0, help="seconds to keep answering after the end"
     )
+    parser.add_argument("--agent", help="agent that drives the rover through the link (real time)")
     args = parser.parse_args(argv)
-    final = run(args.scenario, args.host, args.port, args.out, args.wait, args.linger)
+    final = run(args.scenario, args.host, args.port, args.out, args.wait, args.linger, args.agent)
     print(json.dumps(final))
     return 0
 

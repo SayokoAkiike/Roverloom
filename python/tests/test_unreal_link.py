@@ -57,3 +57,48 @@ def test_the_link_refuses_a_non_loopback_host(tmp_path: Path) -> None:
 
     with pytest.raises(Exception, match="loopback"):
         run("g3_reach_target", "192.0.2.1", 1, tmp_path, wait_s=0.0, linger_s=0.0)
+
+
+def test_an_agent_drives_a_stand_in_unreal_to_the_target(tmp_path: Path) -> None:
+    """Bridge v1 `action` lines move a stand-in rover that obeys them; the Mission Core judges it."""
+    server = socket.create_server(("127.0.0.1", 0))
+    port = server.getsockname()[1]
+    actions: list[dict] = []
+    final_states: list[dict] = []
+
+    def fake_unreal_obeying() -> None:
+        conn, _ = server.accept()
+        with conn:
+            reader = conn.makefile("rb")
+            x, time_s, speed = 0.0, 0.0, 0.0
+            for _ in range(900):  # at most 90 s of simulated time at 10 Hz
+                time_s += 0.1
+                x += speed * 0.1  # moves straight along +X; steering is not modeled
+                body = {"time_s": round(time_s, 3), "position_m": [x, 0.0, 0.7]}
+                conn.sendall((json.dumps({"type": "telemetry", "body": body}) + "\n").encode())
+                # Python answers an action (when it drives) and then a mission_state.
+                for _ in range(2):
+                    line = reader.readline()
+                    if not line:
+                        return
+                    message = json.loads(line)
+                    if message["type"] == "action":
+                        actions.append(message["body"])
+                        speed = max(0.0, message["body"]["linear_velocity_mps"])
+                    else:
+                        final_states.append(message["body"])
+                if final_states and final_states[-1]["outcome"] != "running":
+                    return
+
+    thread = threading.Thread(target=fake_unreal_obeying)
+    thread.start()
+    final = run(
+        "g3_reach_target", "127.0.0.1", port, tmp_path, wait_s=5.0, linger_s=0.0, agent="reactive"
+    )
+    thread.join(timeout=30)
+    server.close()
+    assert actions, "the agent never sent an action"
+    assert all(
+        set(a) >= {"schema_version", "linear_velocity_mps", "yaw_rate_radps"} for a in actions
+    )
+    assert final["outcome"] == "success" and final["targets_reached"] == 1

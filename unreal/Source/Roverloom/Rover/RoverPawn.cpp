@@ -49,6 +49,7 @@ using namespace RoverloomCommand;
 using namespace RoverloomRover;
 
 const TCHAR* ARoverPawn::KeyboardSource = TEXT("keyboard");
+const TCHAR* ARoverPawn::AgentSource = TEXT("agent");
 
 namespace
 {
@@ -169,7 +170,7 @@ ARoverPawn::ARoverPawn()
 	HazardCamera->SetFieldOfView(110.0f);
 	HazardCamera->SetAutoActivate(false);
 
-	Router = MakeUnique<FCommandRouter>(TArray<FString>{KeyboardSource}, KeyboardSource, MaxSpeedMps, MaxYawRateRadps);
+	Router = MakeUnique<FCommandRouter>(TArray<FString>{KeyboardSource, AgentSource}, KeyboardSource, MaxSpeedMps, MaxYawRateRadps);
 	WheelAnglesRad.Init(0.0, NumWheels);
 }
 
@@ -452,6 +453,7 @@ void ARoverPawn::Tick(float DeltaSeconds)
 		FAction Requested;
 		Requested.LinearVelocityMps = DriveInput * MaxSpeedMps;
 		Requested.YawRateRadps = TurnInput * MaxYawRateRadps;
+		Router->SetActive(KeyboardSource); // A held key takes the rover back from an agent, starting from a stop
 		Status.bClamped = Router->Submit(KeyboardSource, Requested, NowS).bClamped;
 	}
 	const FAction Applied = Router->Current(NowS);
@@ -527,6 +529,10 @@ void ARoverPawn::MissionLinkDrop(const TCHAR* Why)
 		LinkClient = nullptr;
 	}
 	LinkBuffer.Reset();
+	if (Router)
+	{
+		Router->SetActive(KeyboardSource); // Handover after a lost agent starts from a stop; the watchdog covers the rest
+	}
 	UE_LOG(LogRoverloom, Display, TEXT("Rover mission link: client dropped (%s)"), Why);
 	if (!Status.bMissionEnded)
 	{
@@ -614,13 +620,28 @@ void ARoverPawn::MissionLinkTick(double NowS)
 		const FString Line = LinkBuffer.Left(NewLine);
 		LinkBuffer.RightChopInline(NewLine + 1);
 		TSharedPtr<FJsonObject> Message;
+		FString Type;
+		const TSharedPtr<FJsonObject>* Body = nullptr;
 		if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Line), Message) || !Message.IsValid()
-			|| Message->GetStringField(TEXT("type")) != TEXT("mission_state"))
+			|| !Message->TryGetStringField(TEXT("type"), Type) || !Message->TryGetObjectField(TEXT("body"), Body))
 		{
 			continue; // Ignored, never fatal
 		}
-		const TSharedPtr<FJsonObject>* Body = nullptr;
-		if (!Message->TryGetObjectField(TEXT("body"), Body))
+		if (Type == TEXT("action"))
+		{
+			// Bridge v1 `action` (schemas/action.schema.json): body-frame m/s and rad/s, positive yaw turning left.
+			// Contract units, so no conversion. The router clamps and refuses non-finite values; a held key wins.
+			FAction Requested;
+			if (!(*Body)->TryGetNumberField(TEXT("linear_velocity_mps"), Requested.LinearVelocityMps)
+				|| !(*Body)->TryGetNumberField(TEXT("yaw_rate_radps"), Requested.YawRateRadps) || bKeyboardHeld)
+			{
+				continue;
+			}
+			Router->SetActive(AgentSource);
+			Status.bClamped = Router->Submit(AgentSource, Requested, NowS).bClamped;
+			continue;
+		}
+		if (Type != TEXT("mission_state"))
 		{
 			continue;
 		}

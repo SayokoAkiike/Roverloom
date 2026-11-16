@@ -118,7 +118,7 @@
     "agent:replanner": "5fe5a15bfe62d287423a963712db41e411e1fffcc245731b895c8fd7a9082bde",
     "agent:stop": "5fe5a15bfe62d287423a963712db41e411e1fffcc245731b895c8fd7a9082bde",
     "agent:waypoint": "5fe5a15bfe62d287423a963712db41e411e1fffcc245731b895c8fd7a9082bde",
-    "code:core": "c466a4b32014d86b3d31a79aead0adfde7bb8e7294cc103653eebe8ef80615de",
+    "code:core": "dcae4e968af597a07ba7e4ff063dac827aba50a01bf54c4de613f84de8b4db43",
     "rover:hauler_8w": "1018acd049447f80398df9cb5bef87987b5323435783cdd72925bff35fb52bf9",
     "rover:pathfinder_6w": "c327bb96abfa4411ea2eb64f70ea9f442b21e3a4dad1deb677f80729ca85bda2",
     "rover:scout_4w": "56247d276e1cfd694ae4f33468c552e63aafe84ca4a3c5fe67c037a7a1f719ff",
