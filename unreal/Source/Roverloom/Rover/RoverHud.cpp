@@ -1,6 +1,8 @@
 #include "RoverHud.h"
 
 #include "Engine/Canvas.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 
 #include "../Roverloom.h"
 #include "RoverDrive.h"
@@ -87,19 +89,23 @@ void ARoverHud::DrawHUD()
 		Line(TEXT("Free camera: mouse to look, arrows to move, Page Up/Down to rise"), White, 1.0f);
 	}
 
+	// The sizes below were chosen for a 720 p window. Everything scales with the viewport height, so that at 1080 p the text takes the
+	// same share of the screen and is as easy to read (a 720 p HUD looks small on a 1080 p screen). -RoverHudScale=F overrides it.
+	float Ui = FMath::Clamp(Canvas->ClipY / 720.0f, 1.0f, 3.0f);
+	FParse::Value(FCommandLine::Get(), TEXT("RoverHudScale="), Ui);
 	// A translucent dark panel behind the text, sized from the measured text, so it stays legible over sky and ground.
-	const float X = 24.0f;
-	const float Top = 20.0f;
-	const float Pad = 10.0f;
+	const float X = 24.0f * Ui;
+	const float Top = 20.0f * Ui;
+	const float Pad = 10.0f * Ui;
 	float Y = Top;
 	float Width = 0.0f;
 	for (const FHudLine& L : Lines)
 	{
 		float W = 0.0f;
 		float H = 0.0f;
-		GetTextSize(L.Text, W, H, nullptr, L.Scale);
+		GetTextSize(L.Text, W, H, nullptr, L.Scale * Ui);
 		Width = FMath::Max(Width, W);
-		Y += L.GapBefore + 20.0f * L.Scale;
+		Y += (L.GapBefore + 20.0f * L.Scale) * Ui;
 	}
 	const FIntRect Panel(FMath::FloorToInt32(X - Pad), FMath::FloorToInt32(Top - Pad), FMath::CeilToInt32(X + Width + Pad),
 		FMath::CeilToInt32(Y + Pad));
@@ -114,8 +120,8 @@ void ARoverHud::DrawHUD()
 	Y = Top;
 	for (const FHudLine& L : Lines)
 	{
-		Y += L.GapBefore;
-		DrawText(L.Text, L.Color, X, Y, nullptr, L.Scale);
-		Y += 20.0f * L.Scale;
+		Y += L.GapBefore * Ui;
+		DrawText(L.Text, L.Color, X, Y, nullptr, L.Scale * Ui);
+		Y += 20.0f * L.Scale * Ui;
 	}
 }
