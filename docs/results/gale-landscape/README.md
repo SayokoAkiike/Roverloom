@@ -5,6 +5,10 @@ Metal). It is looks only. No physics, collision, or drive value was changed (`Ro
 WheelSpike code are untouched, and the rock scatter has no collision). The site is derived from a HiRISE DTM with generated
 detail; Earth textures and rocks stand in for Martian ones, so none of this says anything about soil or rock behavior.
 
+**Superseded in part, 2026-11-16 (later):** the rocks, the ground material, the colour, the light presets, and the Dev
+anti-aliasing described below were reworked in [gale-detail](../gale-detail/README.md): 32,434 stones instead of 691, ripples and
+sand drifts, new preset values, and TAA in Dev. The images and frame times below are of the first version.
+
 ## What was built
 
 | Part | How | Where |
