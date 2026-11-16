@@ -72,6 +72,7 @@ public:
 	const FRoverStatus& GetStatus() const { return Status; }
 	static const TCHAR* CameraName(ERoverCamera Camera);
 	static const TCHAR* KeyboardSource;
+	static const TCHAR* AgentSource; // Actions from a Python agent over the mission link (bridge v1, real time)
 
 protected:
 	virtual void BeginPlay() override;

@@ -38,6 +38,9 @@ The state of the project at the end of Windows verification, 2026-11-02, for who
 - Done without Unreal: [concept renders](results/concept-renders/README.md) with vork, labeled as not game
   screenshots; the [Gale terrain site](results/terrain-gale/README.md), a 1 km heightfield checked against its HiRISE
   source and not imported; a Mission Control restyle with the same behavior and passing browser tests.
+- 2026-11-16, from a cloud session with no Unreal or Mac access: bridge v1 `action` input in `RoverPawn.cpp` and
+  `unreal_link.py --agent` **(C++ not compiled, not run)**; measured-heightfield terrain in the schema and loader
+  ([ADR 0016](decisions/0016-gale-terrain-in-lightweight-backend.md)), tested on synthetic data only.
 - The ordered plan is in [visual-roadmap.md](visual-roadmap.md#next-work-2026-11-16).
 
 ## Known problems

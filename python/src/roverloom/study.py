@@ -143,6 +143,13 @@ def classify_run(run: LoadedRun) -> JsonDict:
     }
 
 
+def _relief_m(terrain: JsonDict) -> float:
+    if "heightfield" in terrain:
+        field = terrain["heightfield"]
+        return float(field["height_max_m"]) - float(field["height_min_m"])
+    return float(terrain["height"]["amplitude_m"])
+
+
 _ENVELOPE: dict[str, Callable[[JsonDict, JsonDict], float]] = {
     "gravity_mps2": lambda s, _: float(s["environment"]["gravity_mps2"]),
     "solar_factor": lambda s, _: float(s["environment"].get("solar_factor", 1.0)),
@@ -150,7 +157,7 @@ _ENVELOPE: dict[str, Callable[[JsonDict, JsonDict], float]] = {
     "loss_probability": lambda s, _: float(s.get("comms", {}).get("loss_probability", 0.0)),
     "pose_noise_m": lambda s, _: float(s.get("sensors", {}).get("pose_noise_m", 0.0)),
     "range_noise_m": lambda s, _: float(s.get("sensors", {}).get("range_noise_m", 0.0)),
-    "terrain_relief_m": lambda _, t: float(t["height"]["amplitude_m"]),
+    "terrain_relief_m": lambda _, t: _relief_m(t),
     "generated_rocks": lambda _, t: float(t.get("rocks", {}).get("generated", {}).get("count", 0)),
     "max_soil_slip": lambda _, t: max(
         (float(s["slip_fraction"]) for s in t.get("soft_soil", [])), default=0.0

@@ -1,7 +1,10 @@
 """Loads and checks scenarios, terrain, and rover definitions."""
 
 import math
+import os
 import random
+import sys
+from array import array
 from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
@@ -70,7 +73,11 @@ class Terrain:
         self.ny = int(math.ceil((self.max_y - self.min_y) / self.spacing)) + 1
         if self.nx * self.ny > 4_000_000:
             raise ContractError(f"{self.terrain_id}: terrain grid is too large")
-        self.heights = self._generate_heights(document["height"])
+        self.heights = (
+            self._load_heightfield(document["heightfield"])
+            if "heightfield" in document
+            else self._generate_heights(document["height"])
+        )
         self.rocks = self._generate_rocks(document.get("rocks", {}))
         self.soft_soil = [
             (_circle(s), float(s["slip_fraction"])) for s in document.get("soft_soil", [])
@@ -85,6 +92,43 @@ class Terrain:
     @staticmethod
     def _bucket(value: float) -> int:
         return math.floor(value / _ROCK_BUCKET_M)
+
+    def _load_heightfield(self, spec: JsonDict) -> list[list[float]]:
+        """Measured heights from a raw .r16 file, relative to the lowest sample, row 0 at min y."""
+        cols, rows = spec["samples_xy"]
+        if (cols, rows) != (self.nx, self.ny):
+            raise ContractError(
+                f"{self.terrain_id}: heightfield is {cols} x {rows} but the extent and spacing"
+                f" need {self.nx} x {self.ny}"
+            )
+        if spec["height_max_m"] <= spec["height_min_m"]:
+            raise ContractError(f"{self.terrain_id}: heightfield max must exceed min")
+        directory = Path(
+            os.environ.get("ROVERLOOM_TERRAIN_DIR")
+            or repo_root() / "scenarios" / "terrains" / "data"
+        )
+        path = directory / spec["file"]
+        if not path.is_file():
+            raise ContractError(
+                f"{self.terrain_id}: heightfield file {spec['file']} is not in {directory}."
+                " Raw terrain stays outside Git; see"
+                " docs/decisions/0016-gale-terrain-in-lightweight-backend.md"
+            )
+        raw = path.read_bytes()
+        if sha256_bytes(raw) != spec["sha256"]:
+            raise ContractError(f"{self.terrain_id}: {spec['file']} does not match its SHA-256")
+        if len(raw) != cols * rows * 2:
+            raise ContractError(f"{self.terrain_id}: {spec['file']} has the wrong size")
+        samples = array("H")
+        samples.frombytes(raw)
+        if sys.byteorder == "big":
+            samples.byteswap()
+        low = float(spec["height_min_m"])
+        scale = (float(spec["height_max_m"]) - low) / 65535.0
+        # Row 0 of the file is north; the grid's row 0 is min y, so rows are read from the end.
+        return [
+            [samples[(rows - 1 - j) * cols + i] * scale for i in range(cols)] for j in range(rows)
+        ]
 
     def _generate_heights(self, spec: JsonDict) -> list[list[float]]:
         heights = [[0.0] * self.nx for _ in range(self.ny)]

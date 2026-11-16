@@ -38,6 +38,32 @@
       "required": ["seed", "amplitude_m", "feature_size_m", "octaves"],
       "additionalProperties": false
     },
+    "heightfield": {
+      "description": "Measured heights from a raw file kept outside Git, instead of procedural `height`. Exactly one of the two is given. The file is checked by SHA-256 before use.",
+      "type": "object",
+      "properties": {
+        "file": {
+          "description": "File name looked up in scenarios/terrains/data/, or in ROVERLOOM_TERRAIN_DIR",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+$"
+        },
+        "format": {
+          "description": "r16: unsigned 16-bit little-endian, row 0 north; 0 is height_min_m and 65535 is height_max_m",
+          "enum": ["r16"]
+        },
+        "samples_xy": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 2 },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "height_min_m": { "type": "number" },
+        "height_max_m": { "type": "number" },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      },
+      "required": ["file", "format", "samples_xy", "height_min_m", "height_max_m", "sha256"],
+      "additionalProperties": false
+    },
     "rocks": {
       "description": "Fixed rocks plus an optional generated field that avoids keep_clear areas.",
       "type": "object",
@@ -72,7 +98,8 @@
       }
     }
   },
-  "required": ["schema_version", "terrain_id", "source", "extent_m", "grid_spacing_m", "height"],
+  "required": ["schema_version", "terrain_id", "source", "extent_m", "grid_spacing_m"],
+  "oneOf": [{ "required": ["height"] }, { "required": ["heightfield"] }],
   "additionalProperties": false,
   "$defs": {
     "xy": {
