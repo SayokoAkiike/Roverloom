@@ -451,8 +451,29 @@ class _PreviewServer(ThreadingHTTPServer):
     request_queue_size = 128
 
 
-def make_server(live: LiveMission, port: int) -> ThreadingHTTPServer:
-    server = _PreviewServer((_HOST, port), _Handler)
+DEFAULT_PORT = 8770
+_PORT_TRIES = 20
+
+
+def _bind(port: int | None) -> _PreviewServer:
+    """Bind to an explicit port exactly. With None, take the first free port from DEFAULT_PORT.
+
+    macOS keeps 8770 busy through ``sharingd``, so a default that cannot move would fail there.
+    """
+    if port is not None:
+        return _PreviewServer((_HOST, port), _Handler)
+    last: OSError | None = None
+    for candidate in range(DEFAULT_PORT, DEFAULT_PORT + _PORT_TRIES):
+        try:
+            return _PreviewServer((_HOST, candidate), _Handler)
+        except OSError as error:
+            last = error
+    assert last is not None
+    raise last
+
+
+def make_server(live: LiveMission, port: int | None) -> ThreadingHTTPServer:
+    server = _bind(port)
     actual = server.server_address[1]
     data = {
         "mode": "live",
@@ -477,7 +498,7 @@ def serve(
     scenario: Scenario,
     agent: str,
     seed: int | None,
-    port: int,
+    port: int | None,
     out_dir: Path,
     open_browser: bool,
     speed: float,
