@@ -5,6 +5,7 @@
 
 #include "RoverPlaygroundGameMode.generated.h"
 
+class ARoverEffects;
 class ARoverPawn;
 class UPhysicalMaterial;
 
@@ -35,6 +36,9 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<ARoverPawn> Rover;
+
+	UPROPERTY()
+	TObjectPtr<ARoverEffects> Effects; // Wheel ruts and dust: looks only
 
 	UPROPERTY()
 	TObjectPtr<UPhysicalMaterial> GroundMaterial;
