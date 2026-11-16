@@ -90,3 +90,12 @@ Ordered by what can start now. Nothing below is done unless marked.
 | 10 | Bridge v1 in C++, so that a Python agent drives the Unreal rover | UE; the owner gave the go-ahead 2026-11-16 | **Compiled and run once, 2026-11-16:** one `unreal_link --agent reactive` run reached the G3 target ([results](results/unreal-link-g3/README.md)). One run, not a verified path |
 | 11 | The Gale site as a terrain in the lightweight backend, so both backends share a `terrain_id` | Owner decided 2026-11-16; [ADR 0016](decisions/0016-gale-terrain-in-lightweight-backend.md) | Schema and loader done, with synthetic-data tests. The terrain document and a scenario need `gale_site.r16` from the Mac mini |
 
+## Known visual problems, reported by the owner 2026-11-16
+
+Not fixed yet. Both are visible in the README image ([`docs/images/game/hero.jpg`](images/game/hero.jpg)) and the Capture stills.
+
+| # | Problem | What is known | Where to start |
+| --- | --- | --- | --- |
+| V1 | **The sand ripples read as regular concentric rings** on the ground, not as wind-blown ripples | The ripple is a cosine of 17 cm wavelength in world space, with its phase bent by two large noises, so the crests follow contours of those noises and close into loops. A first version drew rings far from the origin because its wavelength varied by place; that is fixed, but the loops remain. Real ripples are mostly straight and parallel to one another, with forks and short breaks | `scripts/unreal/build_gale_material.py`: drive the crest direction by the wind, bend it much less, vary the amplitude along the crest, and break it up with a second, rotated set |
+| V2 | **The dust-devil column looks like smoke**, not like a dust devil | 260 translucent spheres rise in a widening, turning column, with one soft brown colour and a squared falloff. It has no dense, dark, narrow core, no tilt, no sharp leading edge, and no ground disc where it lifts the dust | `Rover/RoverEffects.cpp` and `M_DustParticle`: a narrower, denser base, a lean downwind, particles that thin out with height, and a lighter colour at the top that catches the sun |
+

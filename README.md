@@ -5,17 +5,22 @@ Roverloom is a simulation and benchmarking platform for autonomous rover agents.
 It runs different agents on the same missions, terrain, communication delay and loss, injected
 faults, and scoring rules, and compares them from their logs alone.
 
-![Concept render (vork), not a game screenshot: the V2 rover from the front left, late afternoon, in an invented Mars-inspired scene](docs/images/concept/hero.jpg)
+![A game screenshot from Unreal Engine 5.8.4: the six-wheeled V2 rover on rippled red-brown ground under a butterscotch sky](docs/images/game/hero.jpg)
 
-*Concept render (vork), not a game screenshot. The V2 rover model from this repository in an invented,
-Mars-inspired scene, rendered offline. This look is not yet in the Unreal client; the game today is the greybox
-shown below. [How it was made](docs/results/concept-renders/README.md).*
+*Game screenshot, not a concept render. Unreal Engine 5.8.4, Capture profile (Movie Render Queue, 1920 x 1080), Mac mini
+(Apple M4), afternoon preset, rendered with the code of commit `a0f2378` ([how it was made](docs/results/gale-effects/README.md)).
+The rover is an original design. The ground is a 1 km site of Gale crater cut from a HiRISE elevation model
+(NASA/JPL/University of Arizona, CC0), with detail below about 1 m generated. Its textures and rocks are Earth materials from
+Poly Haven (CC0). The sky, light, and colours are artistic choices, and the models are not validated. The level and its textures
+are kept outside Git, so this image cannot be regenerated from a clone alone.*
 
 > **Status: pre-alpha.** The Python Mission Core, rover builder, agent SDK, offline leagues,
 > scoring, replay, and a 2D Mission Control work today. An Unreal Engine client is in early
-> development: a greybox rover that a person drives by keyboard, while the Python Mission Core
-> judges the mission. **Python agents do not yet drive the Unreal rover.** No language model is
-> connected; the code-as-policy interface runs only with a rule-based mock. The online
+> development: a six-wheeled rover that a person drives by keyboard on flat test ground, while the Python
+> Mission Core judges the mission, and a terrain cut from a HiRISE elevation model, which is in the game for its looks
+> (nobody has driven it by hand). **A Python agent has driven the Unreal rover
+> once, in a single real-time run ([record](docs/results/unreal-link-g3/README.md)); that is not a verified path.**
+> No language model is connected; the code-as-policy interface runs only with a rule-based mock. The online
 > competition does not exist yet.
 >
 > The rover, soil, power, sensor, and event models are simple approximations for games and early
@@ -28,6 +33,12 @@ A person drove to the target by keyboard; the Python Mission Core judged success
 Unreal only shows the verdict. Engine basic shapes on flat test ground, no terrain data, and a
 provisional drive model that is not validated.*
 
+![Concept render (vork), not a game screenshot: the V2 rover from the front left, late afternoon, in an invented Mars-inspired scene](docs/images/concept/hero.jpg)
+
+*Concept render (vork), not a game screenshot. The V2 rover model from this repository in an invented,
+Mars-inspired scene, rendered offline before the Unreal look existed. The game screenshot at the top of this page is the
+current look. [How it was made](docs/results/concept-renders/README.md).*
+
 ## How a comparison works
 
 ```mermaid
@@ -39,7 +50,7 @@ flowchart LR
     score["One Python scorer<br/>reads logs only"]
     board["Comparisons,<br/>leagues, replay"]
     person["Person at<br/>the keyboard"]
-    unreal["Unreal client<br/>greybox, early"]
+    unreal["Unreal client<br/>early"]
 
     inputs --> core
     agents -- "Action" --> core
@@ -50,8 +61,8 @@ flowchart LR
 ```
 
 Solid lines work today. Dotted lines are the Unreal link as it stands: a person drives the Unreal
-rover, and the Mission Core judges one reach-target mission from its position. Python agents
-cannot drive the Unreal rover yet, and Unreal runs are not scored.
+rover, and the Mission Core judges one reach-target mission from its position. A Python agent drove the
+Unreal rover once ([record](docs/results/unreal-link-g3/README.md)); that is not a verified path, and Unreal runs are not scored.
 
 ## What is held equal between agents
 
@@ -133,10 +144,11 @@ Run these from `python/`.
 | Mission Control | Works locally | [Guide](docs/mission-control.md), tested in a real browser. No frontend framework |
 | Agent-to-simulator bridge | Works on the lightweight backend | Loopback JSON Lines, protocol version 1 |
 | Unreal contract | Specified and tested without Unreal | [Frames, units, time, safety](docs/unreal-contract.md) |
-| Unreal rover, cameras, HUD | Greybox, on one Mac | Keyboard driving on a provisional, unvalidated drive model; four cameras; watchdog. See [game readiness](docs/results/game-readiness/README.md) |
+| Unreal rover, cameras, HUD | On one Mac | Keyboard driving on a provisional, unvalidated drive model; four cameras; watchdog. See [game readiness](docs/results/game-readiness/README.md) |
 | Unreal mission link | One scenario | The Mission Core judges one reach-target mission from Unreal's position. See [G3](docs/results/g3-mission-link/README.md), [G4a](docs/results/g4a-manual/README.md) |
-| Python agents driving Unreal | **Not started** | Bridge protocol v1 is not implemented in C++ |
-| Unreal terrain, faults, battery, run logs | **Not started** | Flat test ground only. A [Gale heightfield](docs/results/terrain-gale/README.md) from HiRISE is prepared, not imported. Unreal runs are not scored |
+| Python agents driving Unreal | **One run, not verified** | `unreal_link --agent reactive` reached the G3 target once in real time ([record](docs/results/unreal-link-g3/README.md)). Not repeated, not reproducible, not scored |
+| Unreal terrain | Visual only | A 1 km [Gale heightfield](docs/results/terrain-gale/README.md) from HiRISE as a Landscape with a 5.6 km horizon, stones, and light presets ([results](docs/results/gale-landscape/README.md)); the rover keeps its existing friction values |
+| Unreal faults, battery, run logs | **Not started** | Unreal runs are not scored |
 | Unreal MCP | Verified in a disposable project on one Mac | [Measured results](docs/unreal-mcp.md#measured-results) |
 | Online competition | **Not started** | [Input and output draft](docs/competition-io.md) |
 
@@ -185,7 +197,7 @@ scenarios/   Practice and benchmark missions, terrain definitions
 rovers/      Rover parameters and designs
 benchmarks/  Pinned benchmark definitions
 competition/ Draft Codabench bundle files and public reference data
-unreal/      Unreal Engine C++ project: greybox rover, test ground, HUD
+unreal/      Unreal Engine C++ project: rover, test ground, Gale level, HUD
 docs/        Design, decisions, plans, and guides
 scripts/     Repository checks and preview capture
 .github/     CI and templates
