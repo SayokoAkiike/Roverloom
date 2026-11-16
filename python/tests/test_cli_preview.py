@@ -275,3 +275,25 @@ def test_quick_start_commands_exist() -> None:
     readme = (repo_root() / "README.md").read_text(encoding="utf-8")
     assert "uv run roverloom demo" in readme
     assert "uv run roverloom play" in readme
+
+
+def test_default_port_moves_when_busy() -> None:
+    import contextlib
+    import socket
+
+    from roverloom.preview.server import DEFAULT_PORT, _bind
+
+    blocker = socket.socket()
+    try:
+        with contextlib.suppress(OSError):  # already busy elsewhere is the case under test
+            blocker.bind(("127.0.0.1", DEFAULT_PORT))
+        blocker.listen()
+        server = _bind(None)
+        try:
+            assert server.server_address[1] != DEFAULT_PORT
+        finally:
+            server.server_close()
+        with pytest.raises(OSError):
+            _bind(DEFAULT_PORT)
+    finally:
+        blocker.close()

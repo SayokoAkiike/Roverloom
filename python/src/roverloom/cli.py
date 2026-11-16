@@ -422,7 +422,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     play.add_argument("--rover", help="rover name or design file")
     play.add_argument("--seed", type=int)
-    play.add_argument("--port", type=int, default=8770)
+    play.add_argument(
+        "--port",
+        type=int,
+        help="exact port; by default the first free port from 8770",
+    )
     play.add_argument("--speed", type=float, default=4.0, help="simulation speed multiplier")
     play.add_argument("--out")
     play.add_argument("--no-browser", action="store_true")

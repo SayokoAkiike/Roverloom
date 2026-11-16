@@ -42,7 +42,7 @@ The state of the project at the end of Windows verification, 2026-11-02, for who
 
 ## Known problems
 
-- **Port on macOS:** `roverloom play` fails on the measured Mac unless given `--port`, because `sharingd` holds the default 8770.
+- **Port on macOS:** `sharingd` holds the default 8770 on the measured Mac. `roverloom play` now takes the next free port unless `--port` is given (fix not yet measured on a Mac).
 - **Cross-platform study results:** Mac and Windows differ in score, energy, and time, for an uninvestigated reason. See the [comparison](macos-checklist.md#results-on-this-mac).
 - **Withdrawal rule:** it lowers achievement outside the standard range. Not tuned further, because
   the final results must stay comparable. See [results](scientific-benchmark.md#what-each-behavior-contributes).
