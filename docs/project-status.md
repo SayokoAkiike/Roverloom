@@ -33,6 +33,12 @@ The state of the project at the end of Windows verification, 2026-11-02, for who
 
 ## Visual work on the Mac mini, 2026-11-15 to 16
 
+- **Update, 2026-11-16 (later):** UE 5.8.4 is installed on the Mac mini. The C++ module, including PR #16's `action` input and the V2
+  pawn (PR #9), compiled with no warnings; the V2 meshes were imported and shown ([results](results/v2-rover-model/README.md)); the
+  Gale Landscape, a four-layer ground, rocks, and light presets run in the game ([results](results/gale-landscape/README.md)). **One run
+  of `unreal_link --agent reactive` reached the target** ([results](results/unreal-link-g3/README.md)); that is one run, not a verified
+  path. Not done: Niagara dust, decals, Movie Render Queue, and any human judgment of the images. The paragraphs below are as of the
+  morning, before this.
 - Unreal Engine is not installed on the Mac mini, so no Unreal visual step has run. The merged V2 pawn (PR #9) has
   never been compiled.
 - Done without Unreal: [concept renders](results/concept-renders/README.md) with vork, labeled as not game

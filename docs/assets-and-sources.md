@@ -38,6 +38,35 @@ URL, processing, and which assets use it.
 Mention of these sources does not imply endorsement. Using real terrain data **does not validate
 the simulator's physics**.
 
+## Poly Haven assets, downloaded 2026-11-16, outside Git
+
+**Not in Git.** Files are in `unreal/Content/Licensed/PolyHaven/`, which `.gitignore` excludes, and the Unreal assets made from
+them stay under `unreal/Content/Licensed/` too. Fetched by [`scripts/assets/polyhaven_fetch.py`](../scripts/assets/polyhaven_fetch.py)
+from the public API, 28 files, 57.5 MB, each checked against the API's md5 (`downloaded.json` lists URLs and hashes).
+
+**Terms read on 2026-11-16, not legal advice:**
+[license page](https://polyhaven.com/license) says the assets are CC0 and no credit is needed; the
+[API Terms of Service](https://github.com/Poly-Haven/Public-API/blob/master/ToS.md) allow API use for any purpose if calls carry a
+User-Agent that names the software (`Roverloom`), and ask for a credit only where the live API surfaces content in a product. The
+site's terms prohibit scraping, so the list is fixed and short. Credit is given anyway: "Poly Haven (polyhaven.com), CC0".
+
+| Asset | Page | Use |
+| --- | --- | --- |
+| `dry_ground_01` (2k: diffuse, GL normal, ARM) | https://polyhaven.com/a/dry_ground_01 | Landscape layer: regolith |
+| `dense_sand` (2k) | https://polyhaven.com/a/dense_sand | Landscape layer: sand |
+| `rock_boulder_cracked` (2k) | https://polyhaven.com/a/rock_boulder_cracked | Landscape layer: bedrock |
+| `rocks_ground_03` (2k) | https://polyhaven.com/a/rocks_ground_03 | Landscape layer: gravel |
+| `namaqualand_boulder_02`, `_04`, `_06`, `rock_09` (1k FBX with textures) | https://polyhaven.com/a/namaqualand_boulder_02 and the others by id | Scattered rocks, visual only, no collision |
+
+These are Earth rocks and soil used as stand-ins for Martian surfaces. They are not Martian materials and their look says
+nothing about regolith properties. No Poly Haven HDRI is used: the sky is Unreal's Sky Atmosphere, tuned by hand.
+
+**HiRISE-derived heightfields, outside Git** (source: the HiRISE DTM above, CC0-1.0, credit "NASA/JPL/University of Arizona"; DTM distributed
+by USGS): `gale_site.r16` (1 km, 1 m posts) and `gale_horizon.r16` (5.6 km, 5.55 m posts, 18.2% interpolated), made by
+[`hirise_site.py`](../scripts/terrain/hirise_site.py) and [`hirise_horizon.py`](../scripts/terrain/hirise_horizon.py), in
+`unreal/Saved/Terrain/gale/`. A copy of `gale_site.r16` is in `scenarios/terrains/data/`, which `.gitignore` excludes for `*.r16`. The Unreal
+Landscape, level, and materials made from them and from the Poly Haven files are in `unreal/Content/Licensed/Gale/`, also ignored.
+
 ## Template for new entries
 
 ```text

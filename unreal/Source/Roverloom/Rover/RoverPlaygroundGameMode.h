@@ -26,6 +26,8 @@ public:
 private:
 	void SpawnTerrain();
 	void SpawnLights();
+	void ApplyProfile();
+	void SpawnScatter();
 	void SpawnRover();
 	AActor* SpawnBlock(const FVector& Center, const FRotator& Rotation, const FVector& SizeCm, const FLinearColor& Color,
 		const TCHAR* MeshPath = TEXT("/Engine/BasicShapes/Cube.Cube"));
@@ -38,6 +40,9 @@ private:
 	TObjectPtr<UPhysicalMaterial> GroundMaterial;
 
 	bool bTerrainSpawned = false;
+	void BindLandscape();
+	bool bLandscapeChecked = false;
+	bool bHasLandscape = false; // The level brought its own ground (the Gale level), so no greybox blocks were spawned
 	int32 BlocksSpawned = 0; // Every block, ramp, plateau, and rock, for the start-up log
 	int32 RocksSpawned = 0;
 	int32 LightsSpawned = 0;
