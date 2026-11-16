@@ -260,6 +260,20 @@ def main() -> int:
     # Patches swing between reddish and ochre, over hundreds of meters
     patch_tint = lerp(const3(1.12, 0.78, 0.60), const3(1.0, 0.98, 0.84), macro_noise)
     base = mul(base, patch_tint)
+    # Real pebbles for the first few metres, around the wheels, where no stone instances may lie: the gravel texture again at 26 cm a
+    # tile, laid over the gravelly ground and the drift edges, and fading out by about 10 m
+    pebble_depth = sub(const(1.0), saturate(mul(depth, const(1.0 / 1000.0))))
+    pebble_uv = uv(26.0, 0.57)
+    pebble_color = sample(LAYERS[3], pebble_uv, "diff")
+    pebble_grey = node(unreal.MaterialExpressionDesaturation)
+    link(pebble_color, pebble_grey, "")
+    link(const(0.5), pebble_grey, "Fraction")
+    pebble_tinted = mul(mul(pebble_grey, const3(*TINTS[3])), const(1.5))
+    gravel_amount = mul(
+        pebble_depth,
+        saturate(add(add(w_gravel, mul(w_sand, const(0.6))), mul(w_regolith, const(0.35)))),
+    )
+    base = lerp(base, mul(pebble_tinted, brightness), mul(gravel_amount, const(0.75)))
     final_color = mul(power(base, 1.12), const(1.12))  # Contrast, then a little back
 
     # ---- Normal: texture relief, micro relief, and ripples
@@ -270,6 +284,22 @@ def main() -> int:
         sample(LAYERS[0], micro_uv, "nor_gl"), sample(LAYERS[3], micro_uv, "nor_gl"), weights[3]
     )
     normal = add(normal, mul(sub(micro, flat_normal), mul(near_amount, const(0.9))))
+    grain_amount = sub(
+        const(1.0), saturate(mul(depth, const(1.0 / 1100.0)))
+    )  # Grain relief, to about 11 m
+    grain = sample(
+        LAYERS[1], uv(4.5, 0.13), "nor_gl"
+    )  # The sand's own normal map, at 4.5 cm a tile
+    normal = add(normal, mul(sub(grain, flat_normal), mul(grain_amount, const(0.9))))
+    # Pebble relief from the gravel texture's own normal map, at the same scale as its colour above
+    pebble_normal = sample(LAYERS[3], uv(26.0, 0.57), "nor_gl")
+    normal = add(
+        normal,
+        mul(
+            sub(pebble_normal, flat_normal),
+            mul(grain_amount, mul(add(w_gravel, mul(w_sand, const(0.6))), const(1.0))),
+        ),
+    )
     # Ripples: crests run across the wind, here along world (0.44, -0.9). Their phase is warped by noise.
     along = add(mul(wx, const(0.9)), mul(wy, const(0.44)))
     # A constant wavelength, with the crests bent by noise as a phase offset. (A wavelength that varies by place makes the phase

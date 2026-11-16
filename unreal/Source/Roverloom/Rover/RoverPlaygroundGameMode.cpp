@@ -3,6 +3,7 @@
 #include "Components/DirectionalLightComponent.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Engine/CollisionProfile.h"
+#include "NiagaraSystem.h"
 #include "Components/ExponentialHeightFogComponent.h"
 #include "Components/SkyAtmosphereComponent.h"
 #include "Components/SkyLightComponent.h"
@@ -28,6 +29,7 @@
 #include "Greybox.h"
 #include "RoverDrive.h"
 #include "RoverHud.h"
+#include "RoverEffects.h"
 #include "RoverPawn.h"
 
 namespace
@@ -51,6 +53,35 @@ ARoverPlaygroundGameMode::ARoverPlaygroundGameMode()
 
 void ARoverPlaygroundGameMode::StartPlay()
 {
+	if (FParse::Param(FCommandLine::Get(), TEXT("RoverNiagaraProbe")))
+	{
+		// What can be set from code on the template Niagara systems? Listed to the log, then the game goes on.
+		static const TCHAR* Templates[] = {TEXT("FountainLightweight"), TEXT("DirectionalBurstLightweight"), TEXT("MinimalLightweight"),
+			TEXT("SimpleExplosion"), TEXT("RadialBurst"), TEXT("DirectionalBurst")};
+		for (const TCHAR* Name : Templates)
+		{
+			const FString Path = FString::Printf(TEXT("/Niagara/DefaultAssets/Templates/Systems/%s.%s"), Name, Name);
+			UNiagaraSystem* System = LoadObject<UNiagaraSystem>(nullptr, *Path, nullptr, LOAD_NoWarn | LOAD_Quiet);
+			if (!System)
+			{
+				UE_LOG(LogRoverloom, Display, TEXT("Niagara probe: %s not found"), *Path);
+				continue;
+			}
+			TArray<FNiagaraVariable> Variables;
+			System->GetExposedParameters().GetParameters(Variables);
+			FString Names;
+			for (const FNiagaraVariable& Variable : Variables)
+			{
+				Names += FString::Printf(TEXT(" [%s : %s]"), *Variable.GetName().ToString(), *Variable.GetType().GetName());
+			}
+			FString Emitters;
+			for (const FNiagaraEmitterHandle& Handle : System->GetEmitterHandles())
+			{
+				Emitters += FString::Printf(TEXT(" %s"), *Handle.GetName().ToString());
+			}
+			UE_LOG(LogRoverloom, Display, TEXT("Niagara probe: %s has %d exposed parameters:%s; emitters:%s"), Name, Variables.Num(), *Names, *Emitters);
+		}
+	}
 	AWorldSettings* Settings = GetWorld()->GetWorldSettings();
 	Settings->bGlobalGravitySet = true;
 	Settings->GlobalGravityZ = -MarsGravityCmps2;
@@ -60,6 +91,20 @@ void ARoverPlaygroundGameMode::StartPlay()
 	SpawnLights();
 	SpawnRover();
 	SpawnScatter();
+	// Wheel ruts and dust, as looks only (see RoverEffects.h). -RoverDust=0 and -RoverRuts=0 turn them off.
+	int32 DustOn = 1;
+	int32 RutsOn = 1;
+	FParse::Value(FCommandLine::Get(), TEXT("RoverDust="), DustOn);
+	FParse::Value(FCommandLine::Get(), TEXT("RoverRuts="), RutsOn);
+	if (Rover && bHasLandscape && (DustOn != 0 || RutsOn != 0))
+	{
+		Effects = GetWorld()->SpawnActor<ARoverEffects>();
+		if (!Effects->Init(Rover, DustOn != 0, RutsOn != 0))
+		{
+			Effects->Destroy();
+			Effects = nullptr;
+		}
+	}
 	Super::StartPlay();
 	UE_LOG(LogRoverloom, Display, TEXT("Rover playground started, gravity %.3f, drive model P (provisional)"), GetWorld()->GetGravityZ());
 	UE_LOG(LogRoverloom, Display, TEXT("Rover playground spawned: %d blocks (ground, step, 2 ramps, 2 plateaus, %d rocks), %d light actors, rover %s"),
@@ -356,8 +401,10 @@ void ARoverPlaygroundGameMode::SpawnRover()
 		}
 		UE_LOG(LogRoverloom, Display, TEXT("Rover start on the Landscape: ground at z %.1f cm"), GroundCm);
 	}
+	double StartYawDeg = 0.0; // -RoverStartYawDeg=D turns the rover at the start, for looking at the sun. Only for viewing
+	FParse::Value(FCommandLine::Get(), TEXT("RoverStartYawDeg="), StartYawDeg);
 	Rover = GetWorld()->SpawnActor<ARoverPawn>(ARoverPawn::StaticClass(), FVector(StartCm.X, StartCm.Y, GroundCm + RoverloomRover::RideHeightCm),
-		FRotator::ZeroRotator, SpawnParams);
+		FRotator(0.0, StartYawDeg, 0.0), SpawnParams);
 }
 
 AActor* ARoverPlaygroundGameMode::SpawnBlock(const FVector& Center, const FRotator& Rotation, const FVector& SizeCm,
@@ -463,31 +510,36 @@ void ARoverPlaygroundGameMode::SpawnLights()
 		float SkyLightIntensity;
 		FLinearColor FogColor;
 		float FogDensity;
+		FLinearColor SunGlow; // Fog light toward the sun: the glow of the dust around it. Black for none
+		float SunGlowExponent; // Larger is a tighter glow
 	};
-	FLook Look{20.0, 45.0, 10.0f, FLinearColor(1.0f, 0.96f, 0.90f), 0.0f, 0.02f, FLinearColor(0.95f, 0.60f, 0.32f), 0.5f, 0.0005f, 1.0f, FLinearColor(0.42f, 0.50f, 0.64f), 0.004f};
+	FLook Look{20.0, 45.0, 10.0f, FLinearColor(1.0f, 0.96f, 0.90f), 0.0f, 0.02f, FLinearColor(0.95f, 0.60f, 0.32f), 0.5f, 0.0005f, 1.0f, FLinearColor(0.42f, 0.50f, 0.64f), 0.004f, FLinearColor::Black, 8.0f};
 	FString Preset = TEXT("default");
 	FParse::Value(FCommandLine::Get(), TEXT("RoverLight="), Preset);
 	bool bFixedExposure = true;
 	if (Preset == TEXT("noon"))
 	{
 		// High sun, white-yellow light, a bright butterscotch sky, and a cool grey-blue haze
-		Look = {58.0, 45.0, 4.3f, FLinearColor(1.0f, 0.97f, 0.90f), 10.8f, 0.02f, FLinearColor(0.95f, 0.60f, 0.32f), 0.5f, 0.0005f, 1.0f, FLinearColor(0.42f, 0.50f, 0.64f), 0.004f};
+		Look = {58.0, 45.0, 4.3f, FLinearColor(1.0f, 0.97f, 0.90f), 10.8f, 0.02f, FLinearColor(0.95f, 0.60f, 0.32f), 0.5f, 0.0005f, 1.0f, FLinearColor(0.42f, 0.50f, 0.64f), 0.004f, FLinearColor::Black, 8.0f};
 	}
 	else if (Preset == TEXT("afternoon"))
 	{
 		// Lower, amber light, a deeper orange sky, long shadows, and a warm violet-grey haze
-		Look = {22.0, 45.0, 4.3f, FLinearColor(1.0f, 0.80f, 0.56f), 10.8f, 0.035f, FLinearColor(0.95f, 0.50f, 0.26f), 0.6f, 0.0005f, 0.8f, FLinearColor(0.56f, 0.46f, 0.52f), 0.005f};
+		Look = {22.0, 45.0, 4.3f, FLinearColor(1.0f, 0.80f, 0.56f), 10.8f, 0.035f, FLinearColor(0.95f, 0.50f, 0.26f), 0.6f, 0.0005f, 0.8f, FLinearColor(0.56f, 0.46f, 0.52f), 0.005f, FLinearColor::Black, 8.0f};
 	}
 	else if (Preset == TEXT("sunset"))
 	{
 		// The sun is almost on the horizon, ahead of the rover and a little to its right, its light red. The dust scatters blue forward in a narrow cone, so
 		// the sky around the sun glows blue, as in the photographs of Martian sunsets, and the haze turns blue-violet
-		Look = {5.5, 195.0, 2.4f, FLinearColor(1.0f, 0.42f, 0.20f), 11.4f, 0.14f, FLinearColor(0.22f, 0.42f, 1.0f), 0.93f, 0.001f, 0.5f, FLinearColor(0.30f, 0.34f, 0.70f), 0.007f};
+		Look = {5.5, 195.0, 2.4f, FLinearColor(1.0f, 0.42f, 0.20f), 11.4f, 0.14f, FLinearColor(0.22f, 0.42f, 1.0f), 0.93f, 0.001f, 0.5f, FLinearColor(0.48f, 0.22f, 0.14f), 0.007f, FLinearColor::Black, 5.0f}; // The sun-side fog glow (0.30, 0.52, 1.6) had no visible effect on the sky, even at 12 times (tested 2026-11-16)
 	}
 	else
 	{
 		bFixedExposure = false; // The original look, with the engine's own exposure
 	}
+	double GlowScale = 1.0; // -RoverGlowScale=F scales the sun-side fog glow, for tuning
+	FParse::Value(FCommandLine::Get(), TEXT("RoverGlowScale="), GlowScale);
+	Look.SunGlow = Look.SunGlow * static_cast<float>(GlowScale);
 	if (FParse::Value(FCommandLine::Get(), TEXT("RoverExposure="), Look.ExposureEv))
 	{
 		bFixedExposure = true; // -RoverExposure=EV overrides the preset's value, for tuning
@@ -518,6 +570,27 @@ void ARoverPlaygroundGameMode::SpawnLights()
 		Exposure->Settings.bOverride_AutoExposureBias = true;
 		Exposure->Settings.AutoExposureBias = Look.ExposureEv;
 		UE_LOG(LogRoverloom, Display, TEXT("Rover light preset '%s': sun %.1f deg above the horizon, %.1f lux, fixed exposure %.1f"), *Preset, Look.SunElevationDeg, Look.SunLux, Look.ExposureEv);
+	}
+
+	FString Profile;
+	FParse::Value(FCommandLine::Get(), TEXT("RoverProfile="), Profile);
+	if (Profile == TEXT("capture"))
+	{
+		// A grade like a rover's photographs: muted colour, firmer contrast, a little grain and vignette. Capture only, so that Dev
+		// shows the scene as it is. Tuned by eye; these are not calibrated to any camera.
+		APostProcessVolume* Grade = World->SpawnActor<APostProcessVolume>(APostProcessVolume::StaticClass(), FTransform::Identity, SpawnParams);
+		Grade->bUnbound = true;
+		Grade->Priority = 10.0f;
+		FPostProcessSettings& G = Grade->Settings;
+		G.bOverride_ColorSaturation = true;
+		G.ColorSaturation = FVector4(0.86, 0.86, 0.86, 1.0);
+		G.bOverride_ColorContrast = true;
+		G.ColorContrast = FVector4(1.12, 1.12, 1.12, 1.0);
+		G.bOverride_FilmGrainIntensity = true;
+		G.FilmGrainIntensity = 0.22f;
+		G.bOverride_VignetteIntensity = true;
+		G.VignetteIntensity = 0.35f;
+		UE_LOG(LogRoverloom, Display, TEXT("Rover capture grade: saturation 0.86, contrast 1.12, film grain 0.22, vignette 0.35"));
 	}
 
 	// A Mars-inspired sky (mars_inspired: an artistic preset, not a validated atmosphere model): Mars's radius, a thin
@@ -566,6 +639,14 @@ void ARoverPlaygroundGameMode::SpawnLights()
 			float FogMax = Preset == TEXT("sunset") ? 0.55f : 0.92f; // Fog covers the sky too, at its maximum opacity; -RoverFogMax=F tunes it
 			FParse::Value(FCommandLine::Get(), TEXT("RoverFogMax="), FogMax);
 			FogComponent->SetFogMaxOpacity(FogMax);
+			if (!Look.SunGlow.Equals(FLinearColor::Black))
+			{
+				// The fog covers the sky, so light added toward the sun makes a glow around it. At sunset it is blue, while the fog
+				// itself is red-brown toward the horizon, as in the photographs of Martian sunsets
+				FogComponent->SetDirectionalInscatteringColor(Look.SunGlow);
+				FogComponent->SetDirectionalInscatteringExponent(Look.SunGlowExponent);
+				FogComponent->SetDirectionalInscatteringStartDistance(100.0f);
+			}
 		}
 		else
 		{
