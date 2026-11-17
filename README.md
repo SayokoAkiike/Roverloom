@@ -28,6 +28,8 @@ To drive in a browser, run:
 uv run roverloom play
 ```
 
+For the experimental source-build 3D tutorial, see [First 3D mission](docs/first-3d-mission.md) (macOS; fresh-machine playtest pending).
+
 ## Development priorities
 
 Planned work, beyond the current pre-alpha:

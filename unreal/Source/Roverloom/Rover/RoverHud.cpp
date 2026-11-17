@@ -38,6 +38,12 @@ void ARoverHud::DrawHUD()
 	const FLinearColor White(0.95f, 0.95f, 0.95f);
 	const FLinearColor Red(1.0f, 0.3f, 0.25f);
 	const FLinearColor Green(0.45f, 1.0f, 0.5f);
+	if (FParse::Param(FCommandLine::Get(), TEXT("RoverTutorial")))
+	{
+		Line(TEXT("FIRST MISSION: drive forward into the green target, 8 m ahead (120 s)."), Green);
+		Line(TEXT("Click this window, hold W. Python judges arrival; a lost link is not success."), White, 1.0f);
+		Gap = 8.0f;
+	}
 
 	// The label comes first and is always drawn: model P is a provisional choice by the owner's decision of 2026-11-07.
 	Line(TEXT("PROVISIONAL DRIVE MODEL P: WheelSpike wheel model, gated PGS"), Amber, 1.3f);

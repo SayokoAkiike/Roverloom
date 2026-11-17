@@ -1,4 +1,5 @@
 #include "RoverPlaygroundGameMode.h"
+#include "DrawDebugHelpers.h"
 
 #include "Components/DirectionalLightComponent.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
@@ -91,6 +92,12 @@ void ARoverPlaygroundGameMode::StartPlay()
 	SpawnLights();
 	SpawnRover();
 	SpawnScatter();
+	if (FParse::Param(FCommandLine::Get(), TEXT("RoverTutorial")))
+	{
+		// Visual guide for g3_reach_target only. Python remains the sole arrival judge.
+		const FVector Target = RoverloomFrames::SiteToUnrealPosition(FVector(8.0, 0.0, 0.0));
+		DrawDebugSphere(GetWorld(), Target, 200.0f, 32, FColor::Green, true, -1.0f, 0, 3.0f);
+	}
 	// Wheel ruts and dust, as looks only (see RoverEffects.h). -RoverDust=0 and -RoverRuts=0 turn them off.
 	int32 DustOn = 1;
 	int32 RutsOn = 1;
