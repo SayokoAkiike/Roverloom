@@ -38,6 +38,16 @@ void ARoverHud::DrawHUD()
 	const FLinearColor White(0.95f, 0.95f, 0.95f);
 	const FLinearColor Red(1.0f, 0.3f, 0.25f);
 	const FLinearColor Green(0.45f, 1.0f, 0.5f);
+	if (FParse::Param(FCommandLine::Get(), TEXT("RoverRally")))
+	{
+		Line(TEXT("ROVERLOOM RALLY | experimental game rules | SPACE boost"), Green);
+	}
+	if (FParse::Param(FCommandLine::Get(), TEXT("RoverTutorial")))
+	{
+		Line(TEXT("FIRST MISSION: drive forward into the green target, 8 m ahead (120 s)."), Green);
+		Line(TEXT("Click this window, hold W. Python judges arrival; a lost link is not success."), White, 1.0f);
+		Gap = 8.0f;
+	}
 
 	// The label comes first and is always drawn: model P is a provisional choice by the owner's decision of 2026-11-07.
 	Line(TEXT("PROVISIONAL DRIVE MODEL P: WheelSpike wheel model, gated PGS"), Amber, 1.3f);
@@ -54,6 +64,15 @@ void ARoverHud::DrawHUD()
 	}
 	else
 	{
+		if (FParse::Param(FCommandLine::Get(), TEXT("RoverRally")))
+		{
+			Line(S->MissionLine, S->bMissionEnded ? Green : White);
+			Line(S->RallyLine, White, 1.0f);
+			Line(FString::Printf(TEXT("Speed %.2f m/s | %s camera"), S->ForwardMps, ARoverPawn::CameraName(S->Camera)), White);
+			Line(TEXT("W/S drive | A/D turn | SPACE boost | C camera | R rescue (+60 s)"), White, 1.0f);
+		}
+		else
+		{
 		Line(FString::Printf(TEXT("Speed      %+.2f m/s   (command %+.2f, limit %.2f)"), S->ForwardMps, S->Applied.LinearVelocityMps,
 			RoverloomRover::MaxSpeedMps), White);
 		Line(FString::Printf(TEXT("Yaw rate   %+.3f rad/s (command %+.3f, limit %.4f; + is left)"), S->YawRateRadps, S->Applied.YawRateRadps,
@@ -87,6 +106,7 @@ void ARoverHud::DrawHUD()
 		}
 		Line(TEXT("W/S drive   A/D turn   C camera   R reset"), White, 1.0f);
 		Line(TEXT("Free camera: mouse to look, arrows to move, Page Up/Down to rise"), White, 1.0f);
+		}
 	}
 
 	// The sizes below were chosen for a 720 p window. Everything scales with the viewport height, so that at 1080 p the text takes the

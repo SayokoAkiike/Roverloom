@@ -1,6 +1,6 @@
 # Roverloom
 
-Developed and maintained by [QUODVIS株式会社](https://quodvis.co).
+Developed and maintained by [QUODVIS Inc.](https://quodvis.co).
 
 A simulation and benchmarking platform for autonomous rover agents. Compare agents on the same missions, terrain, communication delays, and faults, with scoring and replay from run logs.
 
@@ -27,6 +27,12 @@ To drive in a browser, run:
 ```shell
 uv run roverloom play
 ```
+
+For the experimental source-build 3D tutorial, see [First 3D mission](docs/first-3d-mission.md) (macOS; fresh-machine playtest pending).
+
+## Experimental rally and garage
+
+The [rally guide](docs/rally.md) covers route choices, supply and sampling stops, limited boosts, seeded dust events, local ghosts, and a saved four-slot garage. Source implementation only: Unreal build and playtest are pending.
 
 ## Development priorities
 

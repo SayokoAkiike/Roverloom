@@ -1,4 +1,5 @@
 #include "RoverPlaygroundGameMode.h"
+#include "DrawDebugHelpers.h"
 
 #include "Components/DirectionalLightComponent.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
@@ -91,6 +92,12 @@ void ARoverPlaygroundGameMode::StartPlay()
 	SpawnLights();
 	SpawnRover();
 	SpawnScatter();
+	if (FParse::Param(FCommandLine::Get(), TEXT("RoverTutorial")))
+	{
+		// Visual guide for g3_reach_target only. Python remains the sole arrival judge.
+		const FVector Target = RoverloomFrames::SiteToUnrealPosition(FVector(8.0, 0.0, 0.0));
+		DrawDebugSphere(GetWorld(), Target, 200.0f, 32, FColor::Green, true, -1.0f, 0, 3.0f);
+	}
 	// Wheel ruts and dust, as looks only (see RoverEffects.h). -RoverDust=0 and -RoverRuts=0 turn them off.
 	int32 DustOn = 1;
 	int32 RutsOn = 1;
@@ -464,6 +471,29 @@ void ARoverPlaygroundGameMode::SpawnTerrain()
 	bTerrainSpawned = true;
 	// 200 m square, top at z = 0, as phase C's ground.
 	SpawnBlock(FVector(0.0, 0.0, -50.0), FRotator::ZeroRotator, FVector(20000.0, 20000.0, 100.0), Regolith);
+	if (FParse::Param(FCommandLine::Get(), TEXT("RoverRally")))
+	{
+		// A separate, generated rally ground; the original test course is unchanged.
+		AStaticMeshActor* Sand = Cast<AStaticMeshActor>(SpawnBlock(FVector(500, 400, 1), FRotator::ZeroRotator, FVector(800, 600, 1), FLinearColor(0.65f, 0.42f, 0.22f)));
+		if (Sand) Sand->GetStaticMeshComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		const FVector Gates[] = {FVector(5,-3,0), FVector(5,7,0), FVector(14,0,0), FVector(22,0,0), FVector(0,0,0)};
+		for (const FVector& SiteGate : Gates)
+		{
+			const FVector Gate = RoverloomFrames::SiteToUnrealPosition(SiteGate);
+			for (double Side : {-250.0, 250.0})
+			{
+				SpawnBlock(Gate + FVector(0,Side,120), FRotator::ZeroRotator, FVector(25,25,240), FLinearColor(0.15f,0.65f,0.7f));
+			}
+		}
+		// A small outpost and distant landmarks make the route legible.
+		SpawnBlock(FVector(1400,-900,180), FRotator::ZeroRotator, FVector(350,250,360), FLinearColor(0.75f,0.75f,0.7f));
+		SpawnBlock(FVector(1400,-900,450), FRotator::ZeroRotator, FVector(20,20,300), FLinearColor(0.25f,0.3f,0.32f));
+		for (int32 I = 0; I < 12; ++I)
+		{
+			SpawnBlock(FVector(-2500 + I*650, 3000, 300), FRotator(0,I*17,0), FVector(750,500,600), Rock, TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+		}
+		return;
+	}
 	// Straight ahead: a 25 cm step, half a wheel diameter, as phase C's cstep_25.
 	SpawnBlock(FVector(1500.0, 0.0, 12.5), FRotator::ZeroRotator, FVector(600.0, 800.0, 25.0), Outcrop);
 	// Unreal +Y is to the rover's right at the start. 10 degrees on the right, 15 on the left.
