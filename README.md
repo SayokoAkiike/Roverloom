@@ -1,5 +1,7 @@
 # Roverloom
 
+Developed and maintained by [QUODVIS株式会社](https://quodvis.co).
+
 A simulation and benchmarking platform for autonomous rover agents. Compare agents on the same missions, terrain, communication delays, and faults, with scoring and replay from run logs.
 
 ![Six-wheeled Roverloom rover on Gale crater terrain in Unreal Engine](docs/images/game/hero.jpg)
@@ -70,7 +72,9 @@ uv run python ../scripts/check_repo.py
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) and the [architecture](docs/architecture.md). External contributions are not yet accepted while licensing is being finalized.
 
-## License
+## Governance and license
+
+QUODVIS leads the roadmap, reviews proposed changes, and maintains official releases. We are preparing Roverloom for a company-led open-source release; external contributions will open after the project license and contribution terms are published. Third-party software and assets remain subject to their respective licenses.
 
 A project license has not been selected; this repository is not yet an open-source release. See the [licensing review](docs/licensing-review.md) and [asset credits](docs/assets-and-sources.md).
 
