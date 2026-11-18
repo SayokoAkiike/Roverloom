@@ -1,4 +1,5 @@
 #include "RoverPawn.h"
+#include "DrawDebugHelpers.h"
 
 #include "Camera/CameraActor.h"
 #include "Camera/CameraComponent.h"
@@ -128,6 +129,18 @@ ARoverPawn::ARoverPawn()
 		FVector(0.08, 0.08, (MastTopZ - MastBase.Z) / 100.0)));
 	Parts.Add(MakePart(TEXT("MastHead"), Cube, FVector(MastBase.X, 0.0, MastTopZ + 4.0), FRotator::ZeroRotator, FVector(0.16, 0.36, 0.12)));
 	Parts.Add(MakePart(TEXT("Panel"), Cube, FVector(-45.0, 0.0, BodySizeCm.Z / 2.0 + 12.0), FRotator::ZeroRotator, FVector(2.2, 1.8, 0.03)));
+	// Original procedural panel cells and hubs, with no project art or collision changes.
+	for (int32 X = 0; X < 8; ++X)
+	{
+		Parts.Add(MakePart(*FString::Printf(TEXT("PanelCell%d"), X), Cube,
+			FVector(-135.0 + X * 25.0, 0.0, BodySizeCm.Z / 2.0 + 14.0), FRotator::ZeroRotator, FVector(0.012, 1.7, 0.012)));
+	}
+	for (int32 I = 0; I < NumWheels; ++I)
+	{
+		const FVector Mount = WheelMountCm(I);
+		Parts.Add(MakePart(*FString::Printf(TEXT("Hub%d"), I), Cylinder,
+			Mount + FVector(0.0, Mount.Y < 0 ? -12.0 : 12.0, 0.0), FRotator(0.0, 0.0, 90.0), FVector(0.14, 0.14, 0.04)));
+	}
 	// V2 slots stay empty and hidden unless ApplyModelV2 finds the meshes at BeginPlay.
 	ModelBody = MakePart(TEXT("ModelBody"), nullptr, FVector::ZeroVector, FRotator::ZeroRotator, FVector::OneVector);
 	ModelBody->SetVisibility(false);
@@ -193,6 +206,7 @@ const TCHAR* ARoverPawn::CameraName(ERoverCamera InCamera)
 void ARoverPawn::BeginPlay()
 {
 	Super::BeginPlay();
+	bRally = FParse::Param(FCommandLine::Get(), TEXT("RoverRally"));
 	StartTransform = FTransform(GetActorQuat(), GetActorLocation());
 	FParse::Value(FCommandLine::Get(), TEXT("RoverShotDir="), ShotDir);
 	FParse::Value(FCommandLine::Get(), TEXT("RoverBench="), BenchSeconds);
@@ -379,7 +393,18 @@ void ARoverPawn::SpawnRig()
 	}
 	// Phase C's six-wheel rig: free rotation, sphere sweeps, 853.5 kg, friction 0.6. Solver options stay at defaults.
 	Rig->Build(BodySizeCm, MassKg, Setups, false, false, true, Friction, RigMaterial);
-	Tint(Rig->GetBody(), FLinearColor(0.75f, 0.72f, 0.66f));
+	FLinearColor Paint(0.75f, 0.72f, 0.66f);
+	FString PaintText;
+	if (FParse::Value(FCommandLine::Get(), TEXT("RoverPaint="), PaintText, false))
+	{
+		TArray<FString> Channels;
+		PaintText.ParseIntoArray(Channels, TEXT(","));
+		if (Channels.Num() == 3)
+		{
+			Paint = FLinearColor(FMath::Clamp(FCString::Atof(*Channels[0]), 0.0f, 1.0f), FMath::Clamp(FCString::Atof(*Channels[1]), 0.0f, 1.0f), FMath::Clamp(FCString::Atof(*Channels[2]), 0.0f, 1.0f));
+		}
+	}
+	Tint(Rig->GetBody(), Paint, 0.7f);
 	if (bModelV2)
 	{
 		// The V2 body mesh replaces the rig's box on screen. Hiding it changes rendering only, not collision or physics.
@@ -419,6 +444,7 @@ void ARoverPawn::Tick(float DeltaSeconds)
 		if (bRigReady)
 		{
 			ReadyTimeS = GetWorld()->GetTimeSeconds();
+			if (MissionClockStartS < 0.0) MissionClockStartS = ReadyTimeS;
 			bLoggedSettle = false;
 			UE_LOG(LogRoverloom, Display, TEXT("Rover rig ready at %.2f s: %d wheels, drive model P (provisional)"), ReadyTimeS, Rig->NumWheels());
 			LogRenderSettings(TEXT("start"));
@@ -456,7 +482,13 @@ void ARoverPawn::Tick(float DeltaSeconds)
 		Router->SetActive(KeyboardSource); // A held key takes the rover back from an agent, starting from a stop
 		Status.bClamped = Router->Submit(KeyboardSource, Requested, NowS).bClamped;
 	}
-	const FAction Applied = Router->Current(NowS);
+	FAction Applied = Router->Current(NowS);
+	if (bRally)
+	{
+		const double Scale = RallyStateReceivedS >= 0.0 && NowS - RallyStateReceivedS <= 2.0 ? RallyDriveScale : 0.0;
+		Applied.LinearVelocityMps *= Scale;
+		if (Scale <= 0.0) Applied.YawRateRadps = 0.0;
+	}
 	TArray<double> Targets;
 	SkidSteerTargets(Applied, Targets, RoverloomRover::DriveTrackScale);
 	Rig->SetTargets(Targets, Applied.IsStop() ? RoverloomWheel::EWheelMode::Brake : RoverloomWheel::EWheelMode::Drive);
@@ -522,6 +554,7 @@ void ARoverPawn::MissionLinkStart()
 
 void ARoverPawn::MissionLinkDrop(const TCHAR* Why)
 {
+	RallyDriveScale = 0.0;
 	if (LinkClient)
 	{
 		LinkClient->Close();
@@ -580,8 +613,8 @@ void ARoverPawn::MissionLinkTick(double NowS)
 	{
 		LinkLastSendS = NowS;
 		const FVector P = Status.SitePositionM;
-		const FString Line = FString::Printf(TEXT("{\"type\":\"telemetry\",\"body\":{\"time_s\":%.3f,\"position_m\":[%.4f,%.4f,%.4f],\"forward_mps\":%.4f,\"resets\":%d}}\n"),
-			NowS - ReadyTimeS, P.X, P.Y, P.Z, Status.ForwardMps, Status.Resets);
+		const FString Line = FString::Printf(TEXT("{\"type\":\"telemetry\",\"body\":{\"time_s\":%.3f,\"position_m\":[%.4f,%.4f,%.4f],\"forward_mps\":%.4f,\"resets\":%d,\"boost_requested\":%s}}\n"),
+			NowS - MissionClockStartS, P.X, P.Y, P.Z, Status.ForwardMps, Status.Resets, (GetWorld()->GetFirstPlayerController() && GetWorld()->GetFirstPlayerController()->IsInputKeyDown(EKeys::SpaceBar)) ? TEXT("true") : TEXT("false"));
 		const FTCHARToUTF8 Utf8(*Line);
 		int32 Sent = 0;
 		if (!LinkClient->Send(reinterpret_cast<const uint8*>(Utf8.Get()), Utf8.Length(), Sent) || Sent != Utf8.Length())
@@ -645,11 +678,35 @@ void ARoverPawn::MissionLinkTick(double NowS)
 		{
 			continue;
 		}
+		if (bRally)
+		{
+			RallyStateReceivedS = NowS;
+			double Scale = 0.0;
+			(*Body)->TryGetNumberField(TEXT("drive_scale"), Scale);
+			RallyDriveScale = FMath::IsFinite(Scale) ? FMath::Clamp(Scale, 0.0, 1.5) : 0.0;
+			const TArray<TSharedPtr<FJsonValue>>* Targets = nullptr;
+			if ((*Body)->TryGetArrayField(TEXT("targets"), Targets))
+			{
+				for (int32 I = 0; I < FMath::Min(Targets->Num(), 2); ++I)
+				{
+					const TArray<TSharedPtr<FJsonValue>>& P = (*Targets)[I]->AsArray();
+					if (P.Num() == 2) DrawDebugSphere(GetWorld(), RoverloomFrames::SiteToUnrealPosition(FVector(P[0]->AsNumber(), P[1]->AsNumber(), 0)), 200, 24, FColor::Green, false, 0.15f, 0, 3);
+				}
+			}
+			const TArray<TSharedPtr<FJsonValue>>* Ghost = nullptr;
+			if ((*Body)->TryGetArrayField(TEXT("ghost_position_m"), Ghost) && Ghost->Num() == 3)
+			{
+				const FVector P = RoverloomFrames::SiteToUnrealPosition(FVector((*Ghost)[0]->AsNumber(), (*Ghost)[1]->AsNumber(), (*Ghost)[2]->AsNumber()));
+				DrawDebugBox(GetWorld(), P, FVector(100, 75, 20), FColor::Cyan, false, 0.15f, 0, 3);
+			}
+		}
 		const FString Outcome = (*Body)->GetStringField(TEXT("outcome"));
 		Status.bMissionEnded = Outcome != TEXT("running");
 		Status.MissionLine = FString::Printf(TEXT("Mission (Python): %s   targets %d/%d   %s   t %.1f s"),
 			*(*Body)->GetStringField(TEXT("scenario")), static_cast<int32>((*Body)->GetNumberField(TEXT("targets_reached"))),
 			static_cast<int32>((*Body)->GetNumberField(TEXT("targets_total"))), *Outcome.ToUpper(), (*Body)->GetNumberField(TEXT("time_s")));
+		FString RallyLine;
+		if (bRally && (*Body)->TryGetStringField(TEXT("rally_line"), RallyLine)) Status.RallyLine = RallyLine;
 		const FString Key = FString::Printf(TEXT("%d %s"), static_cast<int32>((*Body)->GetNumberField(TEXT("targets_reached"))), *Outcome);
 		if (Key != LinkLastLogged)
 		{

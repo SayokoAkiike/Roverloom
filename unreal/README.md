@@ -1,10 +1,10 @@
 # Unreal project
 
-A C++ project skeleton for UE 5.8, and a physics spike. **It has no terrain, bridge, logs, content, or working rover.** The
-spike has [failed R0 twice](../docs/results/unreal-physics-spike/README.md). Results are in the [checklist](../docs/macos-checklist.md#unreal-results-on-this-mac).
+A UE 5.8 C++ project with a generated practice ground, keyboard-controlled rover, cameras, HUD, and an experimental Python mission link. The drive model is provisional and unvalidated. The Gale landscape and imported art are outside Git.
 
-Planned contents and rules are in [unreal-integration.md](../docs/unreal-integration.md) and
-[unreal-contract.md](../docs/unreal-contract.md). Python keeps mission evaluation, scoring, and agents.
+Start with [First 3D mission](../docs/first-3d-mission.md) for the same-machine build/launch candidate. It needs no project art assets; a fresh-machine Unreal build and playtest of that launcher are still pending. Earlier keyboard-play evidence is in [G4a](../docs/results/g4a-manual/README.md).
+
+Python owns mission verdicts. Real-time Unreal runs are not scored or ranked. See [the contract](../docs/unreal-contract.md).
 
 ## Build on a Mac
 

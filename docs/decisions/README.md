@@ -21,3 +21,4 @@ accepted records. Supersede them with a new one.
 | [0014](0014-chaos-rigid-body-rover-spike.md) | Chaos rigid bodies and joints for the rover physics spike | Proposed; R0 failed twice |
 | [0015](0015-vork-for-concept-renders.md) | vork for concept renders, kept apart from game screenshots | Accepted |
 | [0016](0016-gale-terrain-in-lightweight-backend.md) | Measured Gale heightfield as an optional terrain source | Accepted as direction; no scenario yet |
+| [0017](0017-experimental-rally.md) | Separate experimental rally rules from benchmark scoring | Accepted as a source prototype; Unreal verification pending |

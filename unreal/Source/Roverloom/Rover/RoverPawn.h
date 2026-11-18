@@ -51,6 +51,7 @@ struct FRoverStatus
 	double FocusShare = 0.0;
 	// G3: the Mission Core's verdict, shown as received; Unreal never judges the mission itself.
 	FString MissionLine;
+	FString RallyLine;
 	bool bMissionEnded = false;
 };
 
@@ -162,6 +163,10 @@ private:
 	TUniquePtr<RoverloomCommand::FCommandRouter> Router;
 	FTransform StartTransform;
 	bool bRigReady = false;
+	bool bRally = false;
+	double RallyDriveScale = 0.0;
+	double RallyStateReceivedS = -1.0;
+	double MissionClockStartS = -1.0;
 	double DriveInput = 0.0; // -1..1, W positive
 	double TurnInput = 0.0;  // -1..1, A positive (left, as the contract)
 	bool bKeyboardHeld = false;
