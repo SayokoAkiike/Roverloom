@@ -438,3 +438,35 @@ def test_older_rule_entries_are_kept_but_not_ranked(tmp_path):
     board.add(a)
     saved = json.loads(path.read_text())
     assert {e["player"] for e in saved["entries"]} == {"Old", a["player"]}
+
+
+def test_rivals_overtaking_from_behind_go_round_the_solar_deck():
+    """Reported on the Mac: rivals passing from behind were drawn through the player's rover. The
+    player drives at 70% (gear 2); every rival that passes stays clear of the deck."""
+    from roverloom.race import overlap
+
+    r = Race(garage(), COURSES["noctis_sprint"], npcs=5, difficulty="hard", laps=1)
+    agent = BUILTIN_AGENTS["pursuit"]()
+    agent.reset(r.brief())
+    r.step({"time_s": 0.0, "position_m": [r.you.x, r.you.y, 0.0], "yaw_rad": r.you.yaw})
+    t, touching, passed = 0.0, 0, set()
+    while r.outcome == "running" and t < 240:
+        act = agent.act(r.observation()) if r.time_s >= 0 else RaceAction(0.0, 0.0)
+        r._move(r.you, RaceAction(act.linear_velocity_mps * 0.7, act.yaw_rate_radps), 0.1)
+        t = round(t + 0.1, 6)
+        r.step(
+            {
+                "time_s": t,
+                "position_m": [r.you.x, r.you.y, 0.0],
+                "yaw_rad": r.you.yaw,
+                "forward_mps": r.you.speed,
+            },
+            boost=False,
+        )
+        hx, hy = math.cos(r.you.yaw), math.sin(r.you.yaw)
+        for o in r.racers[1:]:
+            touching += overlap(r.you, o, gap=-0.05) is not None
+            if (o.x - r.you.x) * hx + (o.y - r.you.y) * hy > 3.0:
+                passed.add(o.id)
+    assert len(passed) >= 3
+    assert touching == 0
