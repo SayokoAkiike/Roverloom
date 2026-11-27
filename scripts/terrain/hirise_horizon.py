@@ -26,10 +26,26 @@ from osgeo import gdal
 gdal.UseExceptions()
 
 REPO = Path(__file__).resolve().parents[2]
+SITES = json.loads(Path(__file__).with_name("sites.json").read_text())
+NAME = "gale"
 DATA = REPO / "unreal/Saved/Terrain/gale"
 SOURCE = DATA / "DTEEC_063319_1745_052242_1745_A01.tif"
 SITE = DATA / "gale_site.json"
 CENTER = (8139385.0, -327230.0)  # Same as hirise_site.py
+GSD_M = 1.0126
+
+
+def configure(name: str) -> None:
+    global NAME, DATA, SOURCE, SITE, CENTER, GSD_M
+    site = SITES[name]
+    NAME = name
+    DATA = REPO / "unreal/Saved/Terrain" / name
+    SOURCE = DATA / f"{site['product']}.tif"
+    SITE = DATA / f"{name}_site.json"
+    CENTER = (float(site["center_projected_m"][0]), float(site["center_projected_m"][1]))
+    GSD_M = float(site["source_gsd_m"])
+
+
 SAMPLES = 1009  # A valid Landscape size
 UNREAL_Z_SPAN_M = 512.0
 
@@ -50,18 +66,23 @@ def cut(target: Path, half: float, spacing: float) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--site", choices=sorted(k for k in SITES if not k.startswith("_")), default="gale"
+    )
     parser.add_argument("--report", type=Path, help="write horizon.json here")
     parser.add_argument(
         "--half-m",
         type=float,
-        default=2800.0,
+        default=None,
         help="half the side of the square, in meters. The DTM reaches 2.8 km east and west of the site and 3.0 km south",
     )
     args = parser.parse_args()
+    configure(args.site)
+    args.half_m = args.half_m or float(SITES[args.site]["horizon_half_m"])
     spacing = 2 * args.half_m / SAMPLES
 
     site = json.loads(SITE.read_text())
-    tif = DATA / "gale_horizon.tif"
+    tif = DATA / f"{NAME}_horizon.tif"
     cut(tif, args.half_m, spacing)
     dataset = gdal.Open(str(tif), gdal.GA_Update)
     band = dataset.GetRasterBand(1)
@@ -80,13 +101,13 @@ def main() -> None:
     low, high = float(heights.min()), float(heights.max())
     # The 16-bit range spans the horizon's own min..max, so the Z offset places it against the site.
     scaled = np.round((heights - low) / (high - low) * 65535.0).astype("<u2")
-    (DATA / "gale_horizon.r16").write_bytes(scaled.tobytes())
+    (DATA / f"{NAME}_horizon.r16").write_bytes(scaled.tobytes())
 
     info = {
         "samples": SAMPLES,
         "spacing_m": round(spacing, 4),
         "extent_m": round((SAMPLES - 1) * spacing, 1),
-        "resampling": "average, from about 1.0126 m",
+        "resampling": f"average, from about {GSD_M} m",
         "measured_samples": int(heights.size - filled),
         "measured_fraction": round(1 - filled / heights.size, 4),
         "filled_samples": filled,

@@ -322,3 +322,35 @@ def _distance_to_path(path, p):
         t = max(0.0, min(1.0, ((p[0] - ax) * dx + (p[1] - ay) * dy) / max(dx * dx + dy * dy, 1e-9)))
         best = min(best, math.dist(p, (ax + dx * t, ay + dy * t)))
     return best
+
+
+@pytest.mark.parametrize(
+    "name", ["noctis_spur", "noctis_sprint", "amazonis_rim", "amazonis_sprint"]
+)
+def test_new_stage_courses_are_point_to_point_flag_courses(name):
+    course = COURSES[name]
+    assert course.ground in ("noctis", "amazonis") and course.style == "flags"
+    assert course.start_point == course.path[0] and course.path[-1] == course.checkpoints[-1]
+    for flag in course.checkpoints:
+        assert min(math.dist(flag, p) for p in course.path) < 0.01
+    for pad in course.pads:  # pads lie on the path
+        assert _distance_to_path(course.path, pad) < 0.5
+    r = Race(garage(), course, npcs=2, backend="headless", controller="agent:cap")
+    result = simulate(r, BUILTIN_AGENTS["cap"]())
+    assert result["outcome"] == "success" and result["racers"] == 3
+
+
+def test_stage_levels_resolve_from_sites_json():
+    import importlib.util
+    from pathlib import Path
+
+    spec = importlib.util.spec_from_file_location(
+        "play_3d", Path(__file__).parents[2] / "scripts" / "play_3d.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    assert module.stage_level("generated") is None
+    for site in ("gale", "noctis", "amazonis"):
+        level, umap = module.stage_level(site)
+        assert level.startswith("/Game/Licensed/") and umap.suffix == ".umap"
+    assert {c.ground for c in COURSES.values()} <= {"generated", "gale", "noctis", "amazonis"}

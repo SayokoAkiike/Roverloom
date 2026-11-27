@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import math
 import os
 import platform
 import socket
@@ -116,6 +117,19 @@ def supervise(
             stop(child)
 
 
+# Stones per stage, in percent of the Gale scatter. Amazonis is a dust-mantled plain with few rocks.
+STAGE_ROCKS = {"gale": 100, "noctis": 70, "amazonis": 25}
+
+
+def stage_level(name: str) -> tuple[str, Path] | None:
+    """The Unreal level and its .umap for a real-terrain stage (scripts/terrain/sites.json)."""
+    if name == "generated":
+        return None
+    sites = json.loads((ROOT / "scripts" / "terrain" / "sites.json").read_text(encoding="utf-8"))
+    level = sites[name]["level"]
+    return level, ROOT / "unreal" / "Content" / (level.removeprefix("/Game/") + ".umap")
+
+
 def write_course(out: Path, course: str) -> None:
     """Unreal reads the course before Python connects, so write it before launching."""
     from roverloom.contract import dump_json
@@ -151,7 +165,9 @@ def main(argv: list[str] | None = None) -> int:
     race.add_argument("--ghosts", type=int, default=0, help="add your best saved runs as ghosts")
     race.add_argument("--name", default="You")
     race.add_argument("--agent", default="none", help="none, pursuit, cap or external (Advanced)")
-    race.add_argument("--map", choices=("generated", "gale"), default="generated")
+    race.add_argument(
+        "--map", choices=("generated", "gale", "noctis", "amazonis"), default="generated"
+    )
     race.add_argument("--light", default="afternoon", help="noon, afternoon, sunset or default")
     race.add_argument("--res", default="1280x720")
     race.add_argument("--profile", choices=("dev", "capture"), default="dev")
@@ -177,21 +193,22 @@ def main(argv: list[str] | None = None) -> int:
             raise RuntimeError("--ghost requires --rally; races use --ghosts N")
         if args.garage and not (args.rally or args.race):
             raise RuntimeError("--garage requires --rally or --race")
-        gale = ROOT / "unreal" / "Content" / "Licensed" / "Gale" / "Gale.umap"
         if args.race:
             from roverloom.race import COURSES
             from roverloom.rally import load_garage as load_race_garage
 
             if args.course not in COURSES:
                 raise RuntimeError(f"unknown course; choose {', '.join(COURSES)}")
-            if COURSES[args.course].ground == "gale" and args.map != "gale":
-                print(f"{args.course} is routed on the Gale terrain: using --map gale.", flush=True)
-                args.map = "gale"
-            if args.map == "gale" and not gale.exists():
+            ground = COURSES[args.course].ground
+            if ground != "generated":
+                args.map = ground  # Courses routed on a real site race on that site's level
+            level = stage_level(args.map)
+            if level and not level[1].exists():
                 raise RuntimeError(
-                    "The Gale level is not built on this Mac yet. Run once (about an hour):\n"
+                    f"The {args.map} level is not built on this Mac yet."
+                    " Run once (about an hour):\n"
                     "  uv run --project python python scripts/setup_gale.py"
-                    ' --ue-root "<your UE_5.8>"\n'
+                    f' --site {args.map} --ue-root "<your UE_5.8>"\n'
                     "or use --course crater_loop on the generated ground (docs/race.md)."
                 )
             race_design = load_race_garage(args.garage)
@@ -255,8 +272,18 @@ def main(argv: list[str] | None = None) -> int:
             game = [a for a in game if not a.startswith(("-ResX=", "-ResY=", "-RoverProfile="))]
             # The V2 rover with PBR materials if imported; otherwise the pawn uses greybox.
             game = [a for a in game if a != "-RoverModel=greybox"]
-            if args.map == "gale":
-                game[2] = "/Game/Licensed/Gale/Gale?game=/Script/Roverloom.RoverPlaygroundGameMode"
+            level = stage_level(args.map)
+            if level:
+                game[2] = f"{level[0]}?game=/Script/Roverloom.RoverPlaygroundGameMode"
+            course = COURSES[args.course]
+            if course.start_point:
+                sx, sy = course.start
+                ax, ay = course.path[1]
+                yaw = -math.degrees(
+                    math.atan2(ay - sy, ax - sx)
+                )  # Unreal yaw: the site's y is Unreal's -y
+                game += [f"-RoverStartM={sx},{sy}", f"-RoverStartYawDeg={yaw:.1f}"]
+            game += [f"-RoverRockScale={STAGE_ROCKS.get(args.map, 100)}"]
             game += [
                 "-RoverRally",
                 "-RoverRace",

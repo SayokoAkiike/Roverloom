@@ -2,12 +2,13 @@
 
 Follows the terrain data pipeline in docs/unreal-production-plan.md. Raw downloads and the
 heightfield stay outside Git, under unreal/Saved/Terrain/. The metadata and small previews are
-written for docs/results/terrain-gale/.
+written for docs/results/terrain-<site>/. Sites are listed in sites.json; the default is gale.
 
 Needs GDAL's Python bindings and NumPy, for example Homebrew's `gdal` with its python3:
 
     python3 scripts/terrain/hirise_site.py --download
     python3 scripts/terrain/hirise_site.py --previews docs/results/terrain-gale
+    python3 scripts/terrain/hirise_site.py --site noctis --download
 
 Heights are relative to the Mars aeroid, in meters, as in the source. Detail finer than the
 DTM's post spacing is not in the heightfield; anything finer in a scene is generated.
@@ -28,18 +29,32 @@ from osgeo import gdal
 gdal.UseExceptions()
 
 REPO = Path(__file__).resolve().parents[2]
-PRODUCT = "DTEEC_063319_1745_052242_1745_A01"
-PAIR = "ESP_063319_1745_ESP_052242_1745"
-BASE_URL = f"https://astrogeo-ard.s3-us-west-2.amazonaws.com/mars/mro/hirise/controlled/dtm/{PAIR}"
-STAC_URL = (
-    f"https://stac.astrogeology.usgs.gov/api/collections/mro_hirise_socet_dtms/items/{PRODUCT}"
-)
-FILES = [f"{PRODUCT}.tif", f"{PRODUCT}.jpg", "provenance.txt"]
-SOURCE_SHA256 = "300913c849583dea1e7c3428d47327549a859e571d5af6e468f9f4e4c712bcae"
+SITES = json.loads((Path(__file__).with_name("sites.json")).read_text())
+NAME = "gale"
+PRODUCT = PAIR = BASE_URL = STAC_URL = SOURCE_SHA256 = ""
+FILES: list[str] = []
+CENTER = (0.0, 0.0)
+SOURCE_GSD_M = 1.0
 
-# Site center in the product's equirectangular meters, chosen on 2026-11-16 from a slope
-# search at 4 m: 93% of the square under 15 degrees, about 88 m of relief, no nodata.
-CENTER = (8139385.0, -327230.0)
+
+def configure(name: str) -> None:
+    """Point the module at one site of sites.json. The default, gale, reproduces the original."""
+    global NAME, PRODUCT, PAIR, BASE_URL, STAC_URL, SOURCE_SHA256, FILES, CENTER, SOURCE_GSD_M
+    site = SITES[name]
+    NAME, PRODUCT, PAIR = name, site["product"], site["pair"]
+    BASE_URL = (
+        f"https://astrogeo-ard.s3-us-west-2.amazonaws.com/mars/mro/hirise/controlled/dtm/{PAIR}"
+    )
+    STAC_URL = (
+        f"https://stac.astrogeology.usgs.gov/api/collections/mro_hirise_socet_dtms/items/{PRODUCT}"
+    )
+    FILES = [f"{PRODUCT}.tif", f"{PRODUCT}.jpg"] + (["provenance.txt"] if name == "gale" else [])
+    SOURCE_SHA256 = site["sha256"]
+    CENTER = (float(site["center_projected_m"][0]), float(site["center_projected_m"][1]))
+    SOURCE_GSD_M = float(site["source_gsd_m"])
+
+
+configure("gale")
 SAMPLES = 1009  # a valid Landscape size: 8 components of 2 x 63 quads, plus one
 SPACING_M = 1.0
 UNREAL_Z_SPAN_M = 512.0  # Landscape at 100% Z scale spans about 512 m; verify at import
@@ -83,7 +98,7 @@ def slope_at_baseline(height: np.ndarray, spacing: float, baseline_m: float) -> 
 def crop(source: Path, out: Path) -> Path:
     half = (SAMPLES - 1) * SPACING_M / 2 + SPACING_M / 2
     x, y = CENTER
-    target = out / "gale_site.tif"
+    target = out / f"{NAME}_site.tif"
     gdal.Warp(
         str(target),
         str(source),
@@ -217,12 +232,17 @@ def locator_jpeg(source: Path, target: Path) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--data", type=Path, default=REPO / "unreal/Saved/Terrain/gale")
+    parser.add_argument(
+        "--site", choices=sorted(k for k in SITES if not k.startswith("_")), default="gale"
+    )
+    parser.add_argument("--data", type=Path, help="default: unreal/Saved/Terrain/<site>")
     parser.add_argument(
         "--download", action="store_true", help="fetch the DTM from USGS if missing"
     )
     parser.add_argument("--previews", type=Path, help="write metadata and preview images here")
     args = parser.parse_args()
+    configure(args.site)
+    args.data = args.data or REPO / "unreal/Saved/Terrain" / args.site
 
     if args.download:
         download(args.data)
@@ -236,13 +256,15 @@ def main() -> None:
     site = gdal.Open(str(cropped))
     height = site.GetRasterBand(1).ReadAsArray().astype(np.float64)
     site = None
-    r16 = args.data / "gale_site.r16"
+    r16 = args.data / f"{NAME}_site.r16"
     low, high = write_r16(height, r16)
     slope = slope_deg(height, SPACING_M)
     slope4 = slope_at_baseline(height, SPACING_M, BASELINE_M)
     check = import_check(source, r16, low, high)
 
+    extra = {} if NAME == "gale" else {"site": NAME, "rationale": SITES[NAME]["rationale"]}
     metadata = {
+        **extra,
         "product": PRODUCT,
         "stac_item": STAC_URL,
         "source_url": f"{BASE_URL}/{PRODUCT}.tif",
@@ -258,7 +280,7 @@ def main() -> None:
         "samples": SAMPLES,
         "spacing_m": SPACING_M,
         "extent_m": (SAMPLES - 1) * SPACING_M,
-        "resampling": "cubic, from about 1.0126 m",
+        "resampling": f"cubic, from about {SOURCE_GSD_M} m",
         "nodata_filled_samples": filled,
         "height_min_m": round(low, 3),
         "height_max_m": round(high, 3),
@@ -277,7 +299,12 @@ def main() -> None:
             "max_deg": round(float(slope4.max()), 2),
         },
         "import_check": check,
-        "measured_vs_generated": "Shape at about 1 m is measured; anything finer is generated",
+        "measured_vs_generated": (
+            "Shape at about 1 m is measured; anything finer is generated"
+            if SOURCE_GSD_M < 1.5
+            else f"Shape at about {SOURCE_GSD_M:.0f} m is measured; "
+            "the 1 m posts and anything finer are interpolated or generated"
+        ),
     }
     print(json.dumps(metadata, indent=2))
     r16.with_suffix(".json").write_text(json.dumps(metadata, indent=2) + "\n")

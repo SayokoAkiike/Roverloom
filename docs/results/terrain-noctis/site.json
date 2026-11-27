@@ -1,0 +1,47 @@
+{
+  "site": "noctis",
+  "rationale": "Layered floor of Noctis Labyrinthus (USGS item description)",
+  "product": "DTEEC_027526_1685_027592_1685_A01",
+  "stac_item": "https://stac.astrogeology.usgs.gov/api/collections/mro_hirise_socet_dtms/items/DTEEC_027526_1685_027592_1685_A01",
+  "source_url": "https://astrogeo-ard.s3-us-west-2.amazonaws.com/mars/mro/hirise/controlled/dtm/ESP_027526_1685_ESP_027592_1685/DTEEC_027526_1685_027592_1685_A01.tif",
+  "source_sha256": "5492caefc229c457fc3598dd7519ded16fb2714c3ebed4832479ac689600f9a7",
+  "license": "CC0-1.0",
+  "credit": "NASA/JPL/University of Arizona; DTM distributed by USGS",
+  "projection": "Mars (2015) sphere, equirectangular, clon 0 (IAU_2015:49910)",
+  "center_projected_m": [
+    -5711656.0,
+    -670160.0
+  ],
+  "center_lon_lat_deg": [
+    -96.35909,
+    -11.306
+  ],
+  "samples": 1009,
+  "spacing_m": 1.0,
+  "extent_m": 1008.0,
+  "resampling": "cubic, from about 1.0138 m",
+  "nodata_filled_samples": 0,
+  "height_min_m": 3091.423,
+  "height_max_m": 3165.587,
+  "height_reference": "Mars aeroid; heightfield is relative to height_min_m",
+  "r16": "uint16 little-endian, row 0 north, 0 = height_min_m, 65535 = height_max_m",
+  "unreal_z_scale_percent": 14.485,
+  "unreal_xy_scale_percent": 100.0,
+  "slope_1m": {
+    "under_15_deg_fraction": 0.8803,
+    "p95_deg": 19.6,
+    "note": "Dominated by stereo noise; resolving power is coarser than the spacing"
+  },
+  "slope_4m": {
+    "under_15_deg_fraction": 0.9427,
+    "p95_deg": 15.59,
+    "max_deg": 37.62
+  },
+  "import_check": {
+    "pairs": 200,
+    "median_abs_error_m": 0.009,
+    "max_abs_error_m": 0.069,
+    "quantization_step_m": 0.0011
+  },
+  "measured_vs_generated": "Shape at about 1 m is measured; anything finer is generated"
+}

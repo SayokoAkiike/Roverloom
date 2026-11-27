@@ -395,7 +395,7 @@ void ARoverPlaygroundGameMode::BindLandscape()
 	FParse::Value(FCommandLine::Get(), TEXT("RoverFar="), FarOn);
 	for (TActorIterator<ALandscapeProxy> It(GetWorld()); It; ++It)
 	{
-		if (FarOn == 0 && It->GetActorLabel() == TEXT("GaleFar"))
+		if (FarOn == 0 && It->GetActorLabel().EndsWith(TEXT("Far"))) // GaleFar, NoctisFar, AmazonisFar
 		{
 			It->SetActorHiddenInGame(true);
 			continue;
@@ -618,9 +618,9 @@ void ARoverPlaygroundGameMode::SpawnRaceCourse()
 		UE_LOG(LogRoverloom, Error, TEXT("Race: no valid -RoverCourseFile; the course is not drawn"));
 		return;
 	}
-	if (Course.Ground == TEXT("gale") && !bHasLandscape)
+	if (Course.Ground != TEXT("generated") && !bHasLandscape)
 	{
-		UE_LOG(LogRoverloom, Warning, TEXT("Race: course '%s' was routed on the Gale level, which is not loaded"), *Course.Name);
+		UE_LOG(LogRoverloom, Warning, TEXT("Race: course '%s' was routed on the %s level, which is not loaded"), *Course.Name, *Course.Ground);
 	}
 	// Expedition-style markers in a restrained palette, so they read against the regolith without looking like a neon kart
 	// track. Every marker has no collision. Sizes are in centimetres.

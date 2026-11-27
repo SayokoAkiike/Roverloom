@@ -1,0 +1,15 @@
+{
+  "source": "ESP_025827_2025_RED_D_01_ORTHO.tif",
+  "source_sha256": "ab08789fcbfdad7fb4cded855d2ec9c0f6a5133e363a3e9b98cf9d2cb9dcd5d1",
+  "license": "CC0-1.0 (HiRISE products are public domain); NASA/JPL/University of Arizona, distributed by USGS",
+  "method": "albedo = photo / (a * cos i + b), with the sun direction fitted to the DTM's Lambert shading; normalised to mean 1, clipped to 0.35..1.9; cast shadows (under 45 % of the median) and gaps set to the mean",
+  "fitted_sun_azimuth_deg_from_north": 276.0,
+  "fitted_sun_elevation_deg": 42.0,
+  "fit_r2": 0.661,
+  "ambient_share_fitted": 0.287,
+  "ambient_share_used": 0.287,
+  "site_shadow_or_missing_fraction": 0.003,
+  "horizon_shadow_or_missing_fraction": 0.2062,
+  "output": "1024 x 1024 8-bit PNG, 128 = mean brightness",
+  "caveat": "A relative brightness from one greyscale photo with an approximate shading model. Not a measured albedo or colour."
+}

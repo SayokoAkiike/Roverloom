@@ -1,0 +1,67 @@
+{
+  "_note": "Terrain sites for the Unreal levels. Products are public HiRISE DTMs (CC0-1.0, NASA/JPL/University of Arizona, distributed by USGS) on the astrogeo-ard bucket. center_projected_m is in the product's equirectangular metres on the Mars 3,396,190 m sphere. origin_m is where the rover starts, relative to the site Landscape's center, as (east, north). See docs/stages.md.",
+  "gale": {
+    "title": "Gale crater floor",
+    "product": "DTEEC_063319_1745_052242_1745_A01",
+    "pair": "ESP_063319_1745_ESP_052242_1745",
+    "sha256": "300913c849583dea1e7c3428d47327549a859e571d5af6e468f9f4e4c712bcae",
+    "rationale": "",
+    "center_projected_m": [
+      8139385.0,
+      -327230.0
+    ],
+    "source_gsd_m": 1.0126,
+    "horizon_half_m": 2800.0,
+    "origin_m": [
+      -2.0,
+      -38.0
+    ],
+    "level": "/Game/Licensed/Gale/Gale",
+    "material": "/Game/Licensed/Gale/M_GaleLandscape",
+    "report": "docs/results/terrain-gale"
+  },
+  "noctis": {
+    "title": "Noctis Labyrinthus trough floor",
+    "product": "DTEEC_027526_1685_027592_1685_A01",
+    "pair": "ESP_027526_1685_ESP_027592_1685",
+    "sha256": "5492caefc229c457fc3598dd7519ded16fb2714c3ebed4832479ac689600f9a7",
+    "rationale": "Layered floor of Noctis Labyrinthus (USGS item description)",
+    "center_projected_m": [
+      -5711656.0,
+      -670160.0
+    ],
+    "source_gsd_m": 1.0138,
+    "horizon_half_m": 2800.0,
+    "origin_m": [
+      0.0,
+      0.0
+    ],
+    "level": "/Game/Licensed/Noctis/Noctis",
+    "material": "/Game/Licensed/Noctis/M_NoctisLandscape",
+    "report": "docs/results/terrain-noctis",
+    "ortho": "ESP_027526_1685_RED_C_01_ORTHO",
+    "ortho_sha256": "9cfe61ecc5d38f3455fae73dd2240d4dd0fdce747b811e977ce20f214d614b10"
+  },
+  "amazonis": {
+    "title": "Amazonis Planitia plains beside a pit chain",
+    "product": "DTEED_025827_2025_025893_2025_A01",
+    "pair": "ESP_025827_2025_ESP_025893_2025",
+    "sha256": "d8c55a6811086e19b78be9818bc34aeb85f0a8862dc8c61905aed65f508db314",
+    "rationale": "Pits and channels in Amazonis Planitia (USGS item description)",
+    "center_projected_m": [
+      -9320215.0,
+      1316061.0
+    ],
+    "source_gsd_m": 2.0453,
+    "horizon_half_m": 2500.0,
+    "origin_m": [
+      0.0,
+      0.0
+    ],
+    "level": "/Game/Licensed/Amazonis/Amazonis",
+    "material": "/Game/Licensed/Amazonis/M_AmazonisLandscape",
+    "report": "docs/results/terrain-amazonis",
+    "ortho": "ESP_025827_2025_RED_D_01_ORTHO",
+    "ortho_sha256": "ab08789fcbfdad7fb4cded855d2ec9c0f6a5133e363a3e9b98cf9d2cb9dcd5d1"
+  }
+}

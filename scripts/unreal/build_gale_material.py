@@ -1,6 +1,11 @@
-"""Build M_GaleLandscape: four Poly Haven layers on slope, drift, gravel, and noise, with ripples and micro relief. Editor Python.
+"""Build a site's Landscape material: four Poly Haven layers on slope, drift, gravel, and noise, with ripples and micro relief.
 
     UnrealEditor unreal/Roverloom.uproject -run=pythonscript -script="scripts/unreal/build_gale_material.py" -unattended -nullrhi
+    UnrealEditor unreal/Roverloom.uproject -run=pythonscript -script="scripts/unreal/build_gale_material.py noctis" -unattended -nullrhi
+
+Without a site argument it builds M_GaleLandscape exactly as before. For another site of scripts/terrain/sites.json it builds
+that site's material with its own look (LOOKS below) and, when hirise_albedo.py has run, multiplies the colour by the ground
+brightness from the HiRISE orthoimage: the real pattern of light and dark ground, from one greyscale photo.
 
 Needs import_polyhaven.py first. The result is /Game/Licensed/Gale/M_GaleLandscape, which Git ignores. There are no painted
 layers: the weights come from the surface itself, so the same material fits any heightfield.
@@ -23,7 +28,9 @@ The Earth textures are stand-ins, and the colors do the rest. Nothing here is a 
 
 # ruff: noqa: E501  (long prose lines in the docstring and log messages; wrapping them would not help the reader)
 
+import json
 import sys
+from pathlib import Path
 
 import unreal  # type: ignore[import-not-found]
 
@@ -39,6 +46,47 @@ TINTS = [
     (0.62, 0.42, 0.34),
     (0.70, 0.48, 0.36),
 ]  # Sand is a light ochre, gravel a dark brown
+# Per-site looks. Colours are chosen by eye against HiRISE colour products and published descriptions, never measured.
+#  tints/patch: as above. drift_bias: more (positive) or fewer wind-drifted fines. gravel_bias: the same for gravel.
+#  bands_cm: thickness of horizontal layering painted on steep rock by world height (0 = none). albedo: strength of the
+#  HiRISE brightness map (0..1).
+LOOKS = {
+    "gale": {
+        "tints": TINTS,
+        "patch": ((1.12, 0.78, 0.60), (1.0, 0.98, 0.84)),
+        "drift_bias": 0.0,
+        "gravel_bias": 0.0,
+        "bands_cm": 0.0,
+        "albedo": 0.0,
+    },
+    # Noctis Labyrinthus: light-toned layered deposits (pale buff to yellowish) exposed on slopes, darker basaltic sand on the
+    # floor, and wind-blown ridges. HiRISE captions: PSP_005400_1685, ESP_014353_1685, ESP_027526_1685.
+    "noctis": {
+        "tints": [(1.05, 0.70, 0.48), (0.62, 0.50, 0.44), (1.30, 1.06, 0.78), (0.80, 0.58, 0.44)],
+        "patch": ((1.10, 0.84, 0.66), (1.04, 1.0, 0.86)),
+        "drift_bias": 0.05,
+        "gravel_bias": -0.05,
+        "bands_cm": 420.0,
+        "albedo": 0.85,
+    },
+    # Amazonis Planitia: smooth, dust-mantled lava plains, bright and uniform butterscotch, few rocks; the pit walls darker.
+    # HiRISE captions: ESP_025893_2025, ESP_026249_2025.
+    "amazonis": {
+        "tints": [(1.22, 0.80, 0.52), (1.34, 0.92, 0.60), (0.66, 0.46, 0.36), (0.86, 0.60, 0.44)],
+        "patch": ((1.08, 0.84, 0.64), (1.02, 0.96, 0.82)),
+        "drift_bias": 0.18,
+        "gravel_bias": -0.2,
+        "bands_cm": 0.0,
+        "albedo": 0.5,
+    },
+}
+SITE = next((a for a in sys.argv[1:] if not a.startswith("-")), "gale")
+LOOK = LOOKS[SITE]
+SITE_INFO = json.loads(
+    (Path(unreal.Paths.project_dir()).parent / "scripts/terrain/sites.json").read_text()
+)[SITE]
+FOLDER, NAME = SITE_INFO["material"].rsplit("/", 1)
+TINTS = LOOK["tints"]
 NEAR_CM = 220.0  # One fine tile
 FAR_CM = 5200.0  # One coarse tile, unrelated to the fine one
 MICRO_CM = 37.0  # Micro relief, for the first few meters
@@ -169,15 +217,84 @@ def weighted_sum(items):
     return total
 
 
+def apply_albedo(base, world):
+    """Multiply by the HiRISE brightness map (hirise_albedo.py) over the site and the horizon squares, if it exists."""
+    if not LOOK["albedo"]:
+        return base
+    terrain = Path(unreal.Paths.project_dir(), "Saved/Terrain", SITE)
+    textures = {}
+    for key, file in (("site", f"{SITE}_albedo.png"), ("horizon", f"{SITE}_horizon_albedo.png")):
+        if not (terrain / file).exists():
+            unreal.log_warning(
+                f"{file} is missing: run scripts/terrain/hirise_albedo.py --site {SITE}"
+            )
+            return base
+        task = unreal.AssetImportTask()
+        task.set_editor_property("filename", str(terrain / file))
+        task.set_editor_property("destination_path", FOLDER)
+        task.set_editor_property(
+            "destination_name", f"T_{SITE.capitalize()}Albedo{'' if key == 'site' else 'Horizon'}"
+        )
+        task.set_editor_property("replace_existing", True)
+        task.set_editor_property("automated", True)
+        task.set_editor_property("save", False)
+        tools.import_asset_tasks([task])
+        texture = unreal.EditorAssetLibrary.load_asset(
+            f"{FOLDER}/{task.get_editor_property('destination_name')}"
+        )
+        texture.set_editor_property("srgb", False)
+        texture.set_editor_property(
+            "compression_settings", unreal.TextureCompressionSettings.TC_GRAYSCALE
+        )
+        texture.set_editor_property("address_x", unreal.TextureAddress.TA_CLAMP)
+        texture.set_editor_property("address_y", unreal.TextureAddress.TA_CLAMP)
+        unreal.EditorAssetLibrary.save_loaded_asset(texture)
+        textures[key] = texture
+    repo = Path(unreal.Paths.project_dir()).parent
+    horizon = json.loads((repo / SITE_INFO["report"] / "horizon.json").read_text())
+    east, north = SITE_INFO["origin_m"]
+    wx, wy = mask(world, "r"), mask(world, "g")
+
+    def uv_over(extent_m):
+        # World cm to the square's 0..1, row 0 north (Unreal Y is the site's -north)
+        u = div(add(div(wx, const(100.0)), const(extent_m / 2 + east)), const(extent_m))
+        v = div(add(div(wy, const(100.0)), const(extent_m / 2 - north)), const(extent_m))
+        out = node(unreal.MaterialExpressionAppendVector)
+        link(u, out, "A")
+        link(v, out, "B")
+        return out, u, v
+
+    def brightness(texture, uv):
+        n = node(unreal.MaterialExpressionTextureSample)
+        n.set_editor_property("texture", texture)
+        n.set_editor_property(
+            "sampler_type", unreal.MaterialSamplerType.SAMPLERTYPE_LINEAR_GRAYSCALE
+        )
+        n.set_editor_property(
+            "sampler_source", unreal.SamplerSourceMode.SSM_CLAMP_WORLD_GROUP_SETTINGS
+        )
+        link(uv, n, "UVs")
+        return mul(mask(n, "r"), const(255.0 / 128.0))  # 128 is the mean, 1.0
+
+    site_uv, su, sv = uv_over(1008.0)
+    horizon_uv, _, _ = uv_over(horizon["extent_m"])
+    inside = mul(
+        mul(saturate(mul(su, const(50.0))), saturate(mul(sub(const(1.0), su), const(50.0)))),
+        mul(saturate(mul(sv, const(50.0))), saturate(mul(sub(const(1.0), sv), const(50.0)))),
+    )  # 1 inside the site square, fading over its outer 2 %
+    measured = lerp(
+        brightness(textures["horizon"], horizon_uv), brightness(textures["site"], site_uv), inside
+    )
+    return mul(base, lerp(const(1.0), measured, const(LOOK["albedo"])))
+
+
 def main() -> int:
     global material
-    if unreal.EditorAssetLibrary.does_asset_exist(f"{FOLDER}/M_GaleLandscape"):
-        material = unreal.EditorAssetLibrary.load_asset(f"{FOLDER}/M_GaleLandscape")
+    if unreal.EditorAssetLibrary.does_asset_exist(f"{FOLDER}/{NAME}"):
+        material = unreal.EditorAssetLibrary.load_asset(f"{FOLDER}/{NAME}")
         mel.delete_all_material_expressions(material)  # Rebuilt in place: no asset is deleted
     else:
-        material = tools.create_asset(
-            "M_GaleLandscape", FOLDER, unreal.Material, unreal.MaterialFactoryNew()
-        )
+        material = tools.create_asset(NAME, FOLDER, unreal.Material, unreal.MaterialFactoryNew())
 
     world = node(unreal.MaterialExpressionWorldPosition, -2400, 0)
     wx, wy = mask(world, "r"), mask(world, "g")
@@ -215,9 +332,14 @@ def main() -> int:
     )  # Never on flat ground
     flat = sub(const(1.0), w_bedrock)
 
-    drift = mul(saturate(mul(sub(drift_noise, const(0.5)), const(5.0))), mul(gentle, flat))
+    drift_at = 0.5 - LOOK["drift_bias"]
+    drift = mul(saturate(mul(sub(drift_noise, const(drift_at)), const(5.0))), mul(gentle, flat))
     gravel_patch = mul(
-        mul(saturate(mul(sub(patch_noise, const(0.5)), const(5.0))), sub(const(1.0), drift)), flat
+        mul(
+            saturate(mul(sub(patch_noise, const(0.5 - LOOK["gravel_bias"])), const(5.0))),
+            sub(const(1.0), drift),
+        ),
+        flat,
     )
     gravel_patch = mul(gravel_patch, add(const(0.6), mul(fine_noise, const(0.4))))  # Ragged edges
     # Stones in the edges of the drifts: gravelly sand
@@ -258,8 +380,17 @@ def main() -> int:
     )  # Patches of lighter and darker ground
     base = mul(base, brightness)
     # Patches swing between reddish and ochre, over hundreds of meters
-    patch_tint = lerp(const3(1.12, 0.78, 0.60), const3(1.0, 0.98, 0.84), macro_noise)
+    patch_tint = lerp(const3(*LOOK["patch"][0]), const3(*LOOK["patch"][1]), macro_noise)
     base = mul(base, patch_tint)
+    if LOOK["bands_cm"]:
+        # Layered beds on steep rock: brightness bands by world height, a few metres thick, their thickness and phase
+        # wandering with noise so that they read as strata, not stripes
+        wz = mask(world, "b")
+        phase = add(div(wz, const(LOOK["bands_cm"])), mul(sub(low_noise, const(0.5)), const(1.6)))
+        band = add(const(0.82), mul(cycles("cos", phase), const(0.18)))
+        fine_band = add(const(0.94), mul(cycles("cos", mul(phase, const(3.7))), const(0.06)))
+        base = lerp(base, mul(base, mul(band, fine_band)), weights[2])
+    base = apply_albedo(base, world)
     # Real pebbles for the first few metres, around the wheels, where no stone instances may lie: the gravel texture again at 26 cm a
     # tile, laid over the gravelly ground and the drift edges, and fading out by about 10 m
     pebble_depth = sub(const(1.0), saturate(mul(depth, const(1.0 / 1000.0))))

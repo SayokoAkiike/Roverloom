@@ -1,0 +1,47 @@
+{
+  "site": "amazonis",
+  "rationale": "Pits and channels in Amazonis Planitia (USGS item description)",
+  "product": "DTEED_025827_2025_025893_2025_A01",
+  "stac_item": "https://stac.astrogeology.usgs.gov/api/collections/mro_hirise_socet_dtms/items/DTEED_025827_2025_025893_2025_A01",
+  "source_url": "https://astrogeo-ard.s3-us-west-2.amazonaws.com/mars/mro/hirise/controlled/dtm/ESP_025827_2025_ESP_025893_2025/DTEED_025827_2025_025893_2025_A01.tif",
+  "source_sha256": "d8c55a6811086e19b78be9818bc34aeb85f0a8862dc8c61905aed65f508db314",
+  "license": "CC0-1.0",
+  "credit": "NASA/JPL/University of Arizona; DTM distributed by USGS",
+  "projection": "Mars (2015) sphere, equirectangular, clon 0 (IAU_2015:49910)",
+  "center_projected_m": [
+    -9320215.0,
+    1316061.0
+  ],
+  "center_lon_lat_deg": [
+    -157.23766,
+    22.20275
+  ],
+  "samples": 1009,
+  "spacing_m": 1.0,
+  "extent_m": 1008.0,
+  "resampling": "cubic, from about 2.0453 m",
+  "nodata_filled_samples": 0,
+  "height_min_m": -3982.346,
+  "height_max_m": -3881.15,
+  "height_reference": "Mars aeroid; heightfield is relative to height_min_m",
+  "r16": "uint16 little-endian, row 0 north, 0 = height_min_m, 65535 = height_max_m",
+  "unreal_z_scale_percent": 19.765,
+  "unreal_xy_scale_percent": 100.0,
+  "slope_1m": {
+    "under_15_deg_fraction": 0.9667,
+    "p95_deg": 11.62,
+    "note": "Dominated by stereo noise; resolving power is coarser than the spacing"
+  },
+  "slope_4m": {
+    "under_15_deg_fraction": 0.9686,
+    "p95_deg": 11.05,
+    "max_deg": 76.24
+  },
+  "import_check": {
+    "pairs": 200,
+    "median_abs_error_m": 0.005,
+    "max_abs_error_m": 0.229,
+    "quantization_step_m": 0.0015
+  },
+  "measured_vs_generated": "Shape at about 2 m is measured; the 1 m posts and anything finer are interpolated or generated"
+}

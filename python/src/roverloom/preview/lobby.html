@@ -90,7 +90,7 @@ td.t{font-variant-numeric:tabular-nums;font-weight:600}
       <label>Rivals (NPC)<select id="npcs"></select></label>
       <label>Difficulty<select id="difficulty"></select></label>
       <label>Ghosts<select id="ghosts"><option>0</option><option>1</option><option>2</option><option>3</option></select></label>
-      <label>Ground<select id="map-sel"><option value="generated">Generated crater floor</option><option value="gale">Gale site (if installed)</option></select></label>
+      <label>Ground<select id="map-sel"><option value="generated">Generated crater floor</option><option value="gale">Gale crater (real terrain)</option><option value="noctis">Noctis Labyrinthus (real terrain)</option><option value="amazonis">Amazonis Planitia (real terrain)</option></select></label>
       <label>Light<select id="light"><option value="afternoon">Afternoon</option><option value="noon">Noon</option><option value="sunset">Sunset</option></select></label>
       <label>Your name<input id="name" value="You" maxlength="24"></label>
     </div>
@@ -124,7 +124,7 @@ const AGENT_NOTES={pursuit:"A classical pure-pursuit controller. A baseline to b
 let mode="grandprix";
 function fill(sel,items){$(sel).innerHTML=items.map(([v,t])=>`<option value="${v}">${t}</option>`).join("")}
 fill("paint",Object.keys(PAINT).map(k=>[k,k[0].toUpperCase()+k.slice(1)]));
-fill("course",Object.entries(DATA.courses).map(([k,c])=>[k,`${c.name} (${Math.round(c.lap_length_m)} m${c.ground==="gale"?", Gale terrain":""})`]));
+fill("course",Object.entries(DATA.courses).map(([k,c])=>[k,`${c.name} (${Math.round(c.lap_length_m)} m${c.ground!=="generated"?", "+({gale:"Gale",noctis:"Noctis",amazonis:"Amazonis"}[c.ground]||c.ground):""})`]));
 fill("npcs",[0,1,2,3,4,5].map(n=>[n,n?`${n}: ${DATA.npcs.slice(0,n).join(", ")}`:"None"]));
 $("npcs").value="3";
 fill("difficulty",DATA.difficulties.map(d=>[d,d[0].toUpperCase()+d.slice(1)]));$("difficulty").value="standard";
@@ -136,7 +136,7 @@ function rover(){const d=design(),s=stats(d);$("body").setAttribute("fill",PAINT
  const rows=[["Cruise pace",s.pace,1,`${Math.round(s.pace*100)}%`],["Pace in sand",s.sand,1,`${Math.round(s.sand*100)}%`],["Battery",s.battery,120,s.battery],["Dust warning",s.warning,8,`${s.warning} s`]];
  $("stats").innerHTML=rows.map(([n,v,m,t])=>`<div class="stat"><span>${n}</span><div class="bar"><i style="width:${v/m*100}%"></i></div><span>${t}</span></div>`).join("")}
 function course(reset){const c=DATA.courses[$("course").value];const laps=reset?"":$("laps").value;fill("laps",[1,2,3,4,5].map(n=>[n,`${n}${n==c.laps?" (default)":""}`]));$("laps").value=laps&&+laps?laps:c.laps;
- const gale=c.ground==="gale";$("map-sel").value=gale?"gale":$("map-sel").value;$("map-sel").disabled=gale;
+ const gale=c.ground&&c.ground!=="generated";if(gale)$("map-sel").value=c.ground;$("map-sel").disabled=!!gale;
  const pts=c.checkpoints;const line=c.line||[pts[pts.length-1],...pts];const xs=line.map(p=>p[0]).concat(c.supply?[c.supply[0]]:[]),ys=line.map(p=>p[1]).concat(c.supply?[c.supply[1]]:[]);
  const minx=Math.min(...xs)-3,maxx=Math.max(...xs)+3,miny=Math.min(...ys)-3,maxy=Math.max(...ys)+3;const k=Math.min(400/(maxx-minx),220/(maxy-miny));
  const ox=(400-(maxx-minx)*k)/2,oy=(220-(maxy-miny)*k)/2;const X=x=>ox+(x-minx)*k,Y=y=>220-oy-(y-miny)*k;
@@ -149,11 +149,11 @@ function course(reset){const c=DATA.courses[$("course").value];const laps=reset?
  for(const p of c.pads)svg+=`<rect x="${X(p[0])-5}" y="${Y(p[1])-5}" width="10" height="10" fill="#5fd0d2" transform="rotate(45 ${X(p[0])} ${Y(p[1])})"/>`;
  if(c.supply)svg+=`<rect x="${X(c.supply[0])-7}" y="${Y(c.supply[1])-7}" width="14" height="14" fill="#f2b23a" rx="3"/>`;
  svg+=`<text x="12" y="210" font-size="11" fill="#9aa7ad">● finish   ①… ${gale?"flags":"gates"}   ◆ boost pad   ■ supply${c.sand.length?"   ▭ sand":""}</text>`;
- $("course-note").textContent=gale?"Routed on the real Gale crater terrain (HiRISE). Needs the Gale level on this Mac: run scripts/setup_gale.py once.":"Generated ground: works without any downloads.";$("map").innerHTML=svg}
+ $("course-note").textContent=gale?({gale:"Gale crater floor",noctis:"Noctis Labyrinthus: a trough floor with layered rock and wind-blown ridges",amazonis:"Amazonis Planitia: smooth dusty plains to the rim of a deep pit"}[c.ground])+". Real HiRISE terrain; build it once with scripts/setup_gale.py --site "+c.ground+".":"Generated ground: works without any downloads.";$("map").innerHTML=svg}
 function q(v){return /^[\w./~-]+$/.test(v)?v:`"${v.replace(/(["\\$`])/g,"\\$1")}"`}
 function command(){const agent=mode==="advanced"?$("agent").value:"none";const ghosts=mode==="timeattack"?Math.max(1,+$("ghosts").value):+$("ghosts").value;
  const parts=["uv run --project python python scripts/play_3d.py --race","--garage ~/Downloads/garage.json",`--course ${$("course").value}`,`--laps ${$("laps").value}`,`--npcs ${mode==="timeattack"?0:$("npcs").value}`,`--ghosts ${ghosts}`,`--difficulty ${$("difficulty").value}`,`--name ${q($("name").value||"You")}`];
- if(agent!=="none")parts.push(`--agent ${agent}`);if($("map-sel").value!=="generated"&&DATA.courses[$("course").value].ground!=="gale")parts.push(`--map ${$("map-sel").value}`);if($("light").value!=="afternoon")parts.push(`--light ${$("light").value}`);
+ if(agent!=="none")parts.push(`--agent ${agent}`);if($("map-sel").value!=="generated"&&DATA.courses[$("course").value].ground==="generated")parts.push(`--map ${$("map-sel").value}`);if($("light").value!=="afternoon")parts.push(`--light ${$("light").value}`);
  parts.push(`--ue-root "/Users/Shared/Epic Games/UE_5.8" --build`);$("command").textContent=parts.join(" \\\n  ");
  $("agent-command").textContent=agent==="external"?"# In a second Terminal, once the race is waiting for your agent:\nuv run --project python python -m roverloom.race_agent_example --name \"My Agent\"":"# Or race this agent without Unreal, on the race model:\nuv run --project python python -m roverloom.race_cli headless --agent "+agent+" --course "+$("course").value+" --npcs "+$("npcs").value;
  $("agent-note").textContent=AGENT_NOTES[$("agent").value]||"";document.body.classList.toggle("adv",mode==="advanced")}

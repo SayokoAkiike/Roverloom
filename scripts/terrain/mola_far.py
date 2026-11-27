@@ -34,7 +34,10 @@ from osgeo import gdal
 gdal.UseExceptions()
 
 REPO = Path(__file__).resolve().parents[2]
+SITES = json.loads(Path(__file__).with_name("sites.json").read_text())
+NAME = "gale"
 DATA = REPO / "unreal/Saved/Terrain/gale"
+REPORT = REPO / "docs/results/terrain-gale"
 URL = "/vsicurl/https://planetarymaps.usgs.gov/mosaic/Mars_MGS_MOLA_DEM_mosaic_global_463m.tif"
 CENTER = (
     8139385.0,
@@ -45,6 +48,16 @@ HALF_M = 100_000.0
 SAMPLES = 1009
 UNREAL_Z_SPAN_M = 512.0
 HORIZON_HALF_M = 2800.0  # The HiRISE horizon heightfield's half width (hirise_horizon.py)
+
+
+def configure(name: str) -> None:
+    global NAME, DATA, REPORT, CENTER, HORIZON_HALF_M
+    site = SITES[name]
+    NAME = name
+    DATA = REPO / "unreal/Saved/Terrain" / name
+    REPORT = REPO / site["report"]
+    CENTER = (float(site["center_projected_m"][0]), float(site["center_projected_m"][1]))
+    HORIZON_HALF_M = float(site["horizon_half_m"])
 
 
 def lonlat(x: float, y: float) -> tuple[float, float]:
@@ -68,19 +81,23 @@ def window(half: float, size: int) -> np.ndarray:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--site", choices=sorted(k for k in SITES if not k.startswith("_")), default="gale"
+    )
     parser.add_argument("--report", type=Path, help="write far.json here")
     args = parser.parse_args()
+    configure(args.site)
 
     far = window(HALF_M, SAMPLES)
     spacing = 2 * HALF_M / SAMPLES
-    site = json.loads((DATA / "gale_site.json").read_text())
-    horizon_info = json.loads((REPO / "docs/results/terrain-gale/horizon.json").read_text())
+    site = json.loads((DATA / f"{NAME}_site.json").read_text())
+    horizon_info = json.loads((REPORT / "horizon.json").read_text())
 
     # Compare with the HiRISE horizon heightfield over its own area, on the same datum
     hz_size = SAMPLES
     mola_at_horizon = window(HORIZON_HALF_M, hz_size)
     raw = (
-        np.frombuffer((DATA / "gale_horizon.r16").read_bytes(), dtype="<u2")
+        np.frombuffer((DATA / f"{NAME}_horizon.r16").read_bytes(), dtype="<u2")
         .reshape(hz_size, hz_size)
         .astype(np.float64)
     )
@@ -136,22 +153,39 @@ def main() -> None:
     shaped = far + weight * (correction - drop)
 
     low, high = float(shaped.min()), float(shaped.max())
-    (DATA / "gale_far.r16").write_bytes(
+    (DATA / f"{NAME}_far.r16").write_bytes(
         np.round((shaped - low) / (high - low) * 65535.0).astype("<u2").tobytes()
     )
 
-    # Aeolis Mons (Mount Sharp): the highest point within 20 km of where it is known to lie (about 5.08 S, 137.85 E)
-    sharp_x = math.radians(137.85) * RADIUS_M
-    sharp_y = math.radians(-5.08) * RADIUS_M
-    near_sharp = np.hypot(east - (sharp_x - CENTER[0]), north - (sharp_y - CENTER[1])) < 20000.0
-    masked = np.where(near_sharp, far, -1e9)
-    peak_row, peak_col = np.unravel_index(int(np.argmax(masked)), far.shape)
-    px = CENTER[0] + float(east[peak_row, peak_col])
-    py = CENTER[1] + float(north[peak_row, peak_col])
-    peak_lon, peak_lat = lonlat(px, py)
-    east_km, north_km = (px - CENTER[0]) / 1000.0, (py - CENTER[1]) / 1000.0
-    peak_height = float(far[peak_row, peak_col])
     highest_row, highest_col = np.unravel_index(int(np.argmax(far)), far.shape)
+    landmark: dict[str, object] = {}
+    if NAME == "gale":
+        # Aeolis Mons (Mount Sharp): the highest point within 20 km of where it is known to lie (about 5.08 S, 137.85 E)
+        sharp_x = math.radians(137.85) * RADIUS_M
+        sharp_y = math.radians(-5.08) * RADIUS_M
+        near_sharp = np.hypot(east - (sharp_x - CENTER[0]), north - (sharp_y - CENTER[1])) < 20000.0
+        masked = np.where(near_sharp, far, -1e9)
+        peak_row, peak_col = np.unravel_index(int(np.argmax(masked)), far.shape)
+        px = CENTER[0] + float(east[peak_row, peak_col])
+        py = CENTER[1] + float(north[peak_row, peak_col])
+        peak_lon, peak_lat = lonlat(px, py)
+        east_km, north_km = (px - CENTER[0]) / 1000.0, (py - CENTER[1]) / 1000.0
+        peak_height = float(far[peak_row, peak_col])
+        landmark = {
+            "aeolis_mons_peak_height_m": round(peak_height, 1),
+            "aeolis_mons_peak_elevation_angle_deg": round(
+                math.degrees(
+                    math.atan2(
+                        peak_height - site["height_min_m"], math.hypot(east_km, north_km) * 1000.0
+                    )
+                ),
+                2,
+            ),
+            "aeolis_mons_peak_east_km": round(east_km, 1),
+            "aeolis_mons_peak_north_km": round(north_km, 1),
+            "aeolis_mons_peak_lon_lat_deg": [round(peak_lon, 3), round(peak_lat, 3)],
+            "aeolis_mons_peak_distance_km": round(math.hypot(east_km, north_km), 1),
+        }
     info = {
         "source": "MGS MOLA DEM mosaic, global, 463 m (MEGDR, 2003-03-21), USGS Astrogeology",
         "source_url": "https://astrogeology.usgs.gov/search/map/mars_mgs_mola_dem_463m",
@@ -166,24 +200,12 @@ def main() -> None:
         "measured_note": "MOLA's gridded map is interpolated between laser tracks; every sample here is interpolated at least once",
         "height_min_m": round(low, 1),
         "height_max_m": round(high, 1),
-        "aeolis_mons_peak_height_m": round(peak_height, 1),
-        "aeolis_mons_peak_elevation_angle_deg": round(
-            math.degrees(
-                math.atan2(
-                    peak_height - site["height_min_m"], math.hypot(east_km, north_km) * 1000.0
-                )
-            ),
-            2,
-        ),
         "highest_point_in_window_m": round(float(far.max()), 1),
         "highest_point_east_north_km": [
             round(float(east[highest_row, highest_col]) / 1000.0, 1),
             round(float(north[highest_row, highest_col]) / 1000.0, 1),
         ],
-        "aeolis_mons_peak_east_km": round(east_km, 1),
-        "aeolis_mons_peak_north_km": round(north_km, 1),
-        "aeolis_mons_peak_lon_lat_deg": [round(peak_lon, 3), round(peak_lat, 3)],
-        "aeolis_mons_peak_distance_km": round(math.hypot(east_km, north_km), 1),
+        **landmark,
         "site_origin_height_m": site["height_min_m"],
         "mola_minus_hirise_over_horizon_field": stats,
         "blend": "far field follows the HiRISE horizon field 12 m beneath it inside it; the correction fades from 4 km to 12 km (generated)",
@@ -198,6 +220,8 @@ def main() -> None:
         "unreal_z_offset_m_above_site_datum": round(low - site["height_min_m"], 1),
     }
     print(json.dumps(info, indent=2))
+    # Beside the heightfield too, so that a level can be built without writing into docs/
+    (DATA / f"{NAME}_far.json").write_text(json.dumps(info, indent=2) + "\n")
     if args.report:
         args.report.mkdir(parents=True, exist_ok=True)
         (args.report / "far.json").write_text(json.dumps(info, indent=2) + "\n")
