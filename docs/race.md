@@ -48,9 +48,11 @@ uv run --project python python scripts/play_3d.py --race --garage ~/Downloads/ga
 - **Supply pad** (amber, beside the hut) recharges the battery while you are on it.
 - **Dust storms** come in the last four seconds of some 20-second slots, chosen by the seed. Everyone slows to 75%.
   The scout sensor warns eight seconds ahead instead of four.
-- **Rivals do not pass through you or each other.** Rovers count as discs 3 m across. A rival overtakes a slower rover
-  on the side with more room; when two touch, the rival is pushed clear, and if you drove into it you slow to 60% for
-  0.8 s ("Bump!"). A rover parked on a gate cannot block it: touching it counts as passing. Ghosts still pass through.
+- **Rivals do not pass through you or each other.** Rovers touch as rectangles the size of the drawn models: yours
+  from the sample arm 1.14 m ahead to the solar deck 1.75 m behind, 2.55 m wide; a rival 2.5 m long and 2.3 m wide.
+  A rival overtakes a slower rover on the side with more room; when two touch, the rival is pushed clear, and if you
+  drove into it you slow to 60% for 0.8 s ("Bump!"). A rover parked on a gate cannot block it: touching it counts as
+  passing. Ghosts still pass through.
   This is race logic in Python, not Unreal physics: your rover's physics body does not touch the rivals' models.
 
 ## Modes

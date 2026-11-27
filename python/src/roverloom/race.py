@@ -17,8 +17,8 @@ from typing import Any, Protocol
 from roverloom.contract import ContractError, JsonDict, dump_json, load_json_file
 from roverloom.rally import PAINTS, garage, stats
 
-RULESET = "race-0.2"  # 0.2: rovers do not overlap; bumps; blocked gates
-MODEL_VERSION = "race-drive-0.2"  # NPC and headless kinematics, not Unreal physics
+RULESET = "race-0.3"  # 0.2: rovers do not overlap; bumps; blocked gates. 0.3: rover-shaped contact
+MODEL_VERSION = "race-drive-0.3"  # NPC and headless kinematics, not Unreal physics
 AGENT_PROTOCOL = "race-agent-1"
 MAX_SPEED_MPS = 0.5  # pathfinder_6w limits, as RoverDrive.h
 MAX_YAW_RADPS = 0.4918
@@ -29,9 +29,14 @@ BOOST_S = 3.0
 BOOST_SCALE = 1.5
 MAX_BOOSTS = 3
 PAD_COOLDOWN_S = 6.0
-# Rovers as discs for contact: about 3 m long and 2.3 m wide, so centres closer than this touch.
-# Ghosts are records of earlier runs and pass through; NPCs and the player do not.
-CONTACT_M = 3.0
+# Rovers touch as rectangles the size of the models drawn in Unreal, (front, rear, half width) in
+# metres from the rover's centre, plus a small gap. The player's V2 model: sample arm 1.14 m ahead,
+# solar deck 1.75 m behind and 2.55 m wide. Rivals' look-alike model: wheels 1.23 m ahead and
+# behind, 1.16 m out. Ghosts are records of earlier runs and pass through; NPCs and the player
+# do not.
+PLAYER_FOOTPRINT_M = (1.14, 1.75, 1.28)
+NPC_FOOTPRINT_M = (1.23, 1.23, 1.16)
+CONTACT_GAP_M = 0.15
 BUMP_S = 0.8  # the player's slow-down after running into a rival
 BUMP_SCALE = 0.6
 DIFFICULTIES = {"easy": (0.0, 0.78), "standard": (0.2, 0.9), "hard": (0.4, 0.98)}
@@ -342,6 +347,36 @@ class Racer:
     @property
     def color(self) -> list[float]:
         return color_of(str(self.design.get("paint", "ivory")))
+
+    @property
+    def footprint(self) -> tuple[float, float, float]:
+        return PLAYER_FOOTPRINT_M if self.kind == "you" else NPC_FOOTPRINT_M
+
+
+def overlap(a: Racer, b: Racer, gap: float = CONTACT_GAP_M) -> tuple[float, float, float] | None:
+    """How far b must move, and along which unit vector, so that the two rectangles no longer
+    overlap (with `gap` between them). None when they are already apart. Separating axes."""
+    boxes = []
+    for r in (a, b):
+        front, rear, half = r.footprint
+        hx, hy = math.cos(r.yaw), math.sin(r.yaw)
+        shift = (front - rear) / 2
+        centre = (r.x + hx * shift, r.y + hy * shift)
+        boxes.append((centre, (hx, hy), (front + rear) / 2 + gap / 2, half + gap / 2))
+    (ca, fa, la, wa), (cb, fb, lb, wb) = boxes
+    dx, dy = cb[0] - ca[0], cb[1] - ca[1]
+    best: tuple[float, float, float] | None = None
+    for ux, uy in (fa, (-fa[1], fa[0]), fb, (-fb[1], fb[0])):
+        ra = la * abs(fa[0] * ux + fa[1] * uy) + wa * abs(-fa[1] * ux + fa[0] * uy)
+        rb = lb * abs(fb[0] * ux + fb[1] * uy) + wb * abs(-fb[1] * ux + fb[0] * uy)
+        dist = dx * ux + dy * uy
+        depth = ra + rb - abs(dist)
+        if depth <= 0:
+            return None
+        if best is None or depth < best[0]:
+            sign = 1.0 if dist >= 0 else -1.0
+            best = (depth, ux * sign, uy * sign)
+    return best
 
 
 @dataclass(frozen=True)
@@ -690,12 +725,12 @@ class Race:
         d = math.dist((r.x, r.y), cp)
         if d <= radius:
             return True
-        if r.kind == "ghost" or d > radius + CONTACT_M + 0.1:
+        if r.kind == "ghost" or d > radius + 2 * PLAYER_FOOTPRINT_M[1] + 0.5:
             return False
         return any(
             o is not r
             and math.dist((o.x, o.y), cp) <= radius
-            and math.dist((o.x, o.y), (r.x, r.y)) <= CONTACT_M + 0.1
+            and overlap(o, r, gap=CONTACT_GAP_M + 0.3) is not None
             for o in self._solid()
         )
 
@@ -739,7 +774,14 @@ class Race:
         """Follow the course path, a little to one side, with seeded wobble. Ignores the player."""
         prof = self.profiles[r.id]
         path = self.course.path
-        while math.dist((r.x, r.y), path[r.path_i]) < 2.0:
+        # Next path point: reached within 2 m, or passed (beyond the end of its segment), so that a
+        # rival that went round a rover parked on the path carries on.
+        for _ in range(len(path)):
+            a, b = path[r.path_i - 1], path[r.path_i]
+            sx, sy = b[0] - a[0], b[1] - a[1]
+            passed = (r.x - b[0]) * sx + (r.y - b[1]) * sy > 0
+            if math.dist((r.x, r.y), b) >= 2.0 and not passed:
+                break
             r.path_i += 1
             if r.path_i == len(path):
                 r.path_i = 1  # loops start again after the start point
@@ -753,15 +795,18 @@ class Race:
         # room. Not near a gate, so that rivals still pass through it; rovers abreast at the same
         # speed keep their lines.
         hx, hy = math.cos(r.yaw), math.sin(r.yaw)
-        if math.dist((r.x, r.y), b) > 5.0:
+        gate = self.course.checkpoints[r.next_cp]
+        if math.dist((r.x, r.y), gate) > self.course.gate_radius_m + 3.0:
             for o in self._solid():
                 if o is r or (o is not self.you and o.speed > r.speed - 0.05):
                     continue
                 ox, oy = o.x - r.x, o.y - r.y
                 ahead, lateral = ox * hx + oy * hy, -ox * hy + oy * hx
-                if 1.0 < ahead < 6.0 and abs(lateral) < CONTACT_M:
+                width = r.footprint[2] + o.footprint[2] + CONTACT_GAP_M
+                reach = r.footprint[0] + max(o.footprint[:2])
+                if 0.5 < ahead < reach + 4.0 and abs(lateral) < width + 0.3:
                     away = -1.0 if lateral > 0 else 1.0  # rival on the left: go right
-                    clear = CONTACT_M + 0.4
+                    clear = width + 0.6
                     target = (o.x + hx - hy * away * clear, o.y + hy + hx * away * clear)
                     break
         obs = {"position_m": [r.x, r.y], "yaw_rad": r.yaw}
@@ -780,19 +825,14 @@ class Race:
         solid = self._solid()
         for i, a in enumerate(solid):
             for b in solid[i + 1 :]:
-                dx, dy = b.x - a.x, b.y - a.y
-                d = math.hypot(dx, dy)
-                if d >= CONTACT_M:
+                hit = overlap(a, b)
+                if hit is None:
                     continue
-                if d < 1e-6:
-                    dx, dy, d = math.cos(a.yaw), math.sin(a.yaw), 1.0
-                    dx, dy = -dx, -dy
-                ux, uy = dx / d, dy / d
-                overlap = CONTACT_M - d
+                depth, ux, uy = hit  # b moves along (ux, uy), a the other way
                 if a is self.you or b is self.you:
                     other, sign = (b, 1.0) if a is self.you else (a, -1.0)
-                    other.x += ux * overlap * sign
-                    other.y += uy * overlap * sign
+                    other.x += ux * depth * sign
+                    other.y += uy * depth * sign
                     # Only the part of its motion towards the player is lost
                     toward = -(math.cos(other.yaw) * ux + math.sin(other.yaw) * uy) * sign
                     if toward > 0.3:
@@ -804,8 +844,8 @@ class Race:
                         self.you.bump_until = self.time_s + BUMP_S
                         self._say(self.you, f"Bump! {other.name}")
                 else:
-                    a.x, a.y = a.x - ux * overlap / 2, a.y - uy * overlap / 2
-                    b.x, b.y = b.x + ux * overlap / 2, b.y + uy * overlap / 2
+                    a.x, a.y = a.x - ux * depth / 2, a.y - uy * depth / 2
+                    b.x, b.y = b.x + ux * depth / 2, b.y + uy * depth / 2
                     for r, sgn in ((a, 1.0), (b, -1.0)):
                         if (math.cos(r.yaw) * ux + math.sin(r.yaw) * uy) * sgn > 0.3:
                             r.speed *= 0.8

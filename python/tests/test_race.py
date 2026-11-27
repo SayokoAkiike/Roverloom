@@ -357,13 +357,13 @@ def test_stage_levels_resolve_from_sites_json():
 
 
 def test_rivals_never_overlap_the_player_or_each_other():
-    from roverloom.race import CONTACT_M
+    from roverloom.race import overlap
 
     r = Race(garage(), LOOP, npcs=5, difficulty="hard", laps=1, backend="headless")
     agent = BUILTIN_AGENTS["pursuit"]()
     agent.reset(r.brief())
     r.step({"time_s": 0.0, "position_m": [r.you.x, r.you.y, 0.0], "yaw_rad": r.you.yaw})
-    t, worst = 0.0, 1e9
+    t, touching = 0.0, []
     while r.outcome == "running" and t < 300:
         act = agent.act(r.observation()) if r.time_s >= 0 else RaceAction(0.0, 0.0)
         r._move(r.you, act, 0.1)
@@ -380,8 +380,33 @@ def test_rivals_never_overlap_the_player_or_each_other():
         solid = [x for x in r.racers if x.kind != "ghost"]
         for i, a in enumerate(solid):
             for b in solid[i + 1 :]:
-                worst = min(worst, math.dist((a.x, a.y), (b.x, b.y)))
-    assert worst >= CONTACT_M - 0.05
+                if overlap(a, b, gap=-0.05) is not None:
+                    touching.append((t, a.name, b.name))
+    assert touching == []
+
+
+def test_contact_follows_the_rover_shapes_not_a_disc():
+    """The player's solar deck reaches 1.75 m behind and 1.28 m out: a rival 2.8 m behind or on the
+    deck's corner touches it; one 3 m ahead, beyond the sample arm, does not."""
+    from roverloom.race import overlap
+
+    r = Race(garage(), LOOP, npcs=1, laps=1)
+    you, npc = r.you, r.racers[1]
+    you.x, you.y, you.yaw = 0.0, 0.0, 0.0
+    npc.yaw = 0.0
+    for at, touches in (
+        ((-2.8, 0.0), True),
+        ((-2.3, 2.0), True),
+        ((2.4, 0.0), True),
+        ((3.0, 0.0), False),
+        ((0.0, 2.6), False),
+    ):
+        npc.x, npc.y = at
+        assert (overlap(you, npc) is not None) is touches, at
+    npc.x, npc.y = -2.8, 0.0
+    r._separate()
+    assert overlap(you, npc, gap=0.0) is None
+    assert (you.x, you.y) == (0.0, 0.0)  # the player is never moved
 
 
 def test_driving_into_a_rival_bumps_and_pushes_it():
