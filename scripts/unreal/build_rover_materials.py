@@ -6,7 +6,7 @@ Output: materials under /Game/Licensed/Gale/Rover/ (Git ignores them), set on th
 procedural: the meshes' UVs are not relied on, so the patterns use the mesh's own coordinates (a world-to-local transform), and nothing here
 needs a texture. Visual only: no collision and no physics value is touched.
 
-    Body      cream painted panels with seams every 50 cm
+    Body      painted panels with seams every 50 cm; the colour is the parameter Paint (cream by default)
     Foil      thermal blanket: gold foil, crinkled by noise in the normal
     Aluminum  brushed aluminium: a noise stretched along one axis, in the roughness
     Dark      dark anodised metal
@@ -172,7 +172,15 @@ def build(name, kind, low_range):
                 const(70.0),
             )
         )
-        base = mul(const3(0.78, 0.75, 0.68), sub(const(1.0), mul(seam, const(0.4))))
+        # The panel colour is the parameter "Paint", so the game can paint each rover (the player's choice, the rivals' colours)
+        paint = node(unreal.MaterialExpressionVectorParameter)
+        paint.set_editor_property("parameter_name", "Paint")
+        paint.set_editor_property("default_value", unreal.LinearColor(0.78, 0.75, 0.68, 1.0))
+        rgb = node(unreal.MaterialExpressionComponentMask)
+        for name in ("r", "g", "b", "a"):
+            rgb.set_editor_property(name, name != "a")
+        link(paint, rgb, "")
+        base = mul(rgb, sub(const(1.0), mul(seam, const(0.4))))
         metallic = const(0.25)
         rough = add(const(0.42), mul(n_mid, const(0.14)))
     elif kind == "foil":

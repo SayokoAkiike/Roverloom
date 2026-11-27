@@ -40,6 +40,31 @@ NAME = "gale"
 DATA = REPO / "unreal/Saved/Terrain/gale"
 REPORT = REPO / "docs/results/terrain-gale"
 URL = "/vsicurl/https://planetarymaps.usgs.gov/mosaic/Mars_MGS_MOLA_DEM_mosaic_global_463m.tif"
+# Per site (sites.json "far_dem"): MOLA alone, or the HRSC and MOLA blend at 200 m, which draws steep walls (Noctis)
+# far more sharply. The blend's HRSC part is CC BY-SA 3.0 IGO; its product page is in DEMS below.
+DEMS = {
+    "mola": {
+        "url": URL,
+        "source": "MGS MOLA DEM mosaic, global, 463 m (MEGDR, 2003-03-21), USGS Astrogeology",
+        "source_url": "https://astrogeology.usgs.gov/search/map/mars_mgs_mola_dem_463m",
+        "license": "CC0 (public domain) per the product page, read 2026-11-16",
+        "credit": "NASA/GSFC/MOLA Science Team; USGS Astrogeology",
+        "reference": "Smith et al. 2001, J. Geophys. Res. 106(E10), 23689-23722",
+        "source_pixel_m": 463.09,
+    },
+    "blend": {
+        "url": "/vsicurl/https://planetarymaps.usgs.gov/mosaic/Mars/HRSC_MOLA_Blend/Mars_HRSC_MOLA_BlendDEM_Global_200mp_v2.tif",
+        "source": "Mars MGS MOLA - MEX HRSC Blended DEM Global 200m v2, USGS Astrogeology",
+        "source_url": "https://astrogeology.usgs.gov/search/map/mars_mgs_mola_mex_hrsc_blended_dem_global_200m",
+        "license": "Product page lists MOLA as CC0 and HRSC as CC BY-SA 3.0 IGO, read 2026-11-27; see the page",
+        "credit": "Fergason, Hare and Laura (2018), USGS Astrogeology; NASA/GSFC/MOLA Science Team; ESA/DLR/FU Berlin (HRSC)",
+        "reference": "Fergason, R.L., Hare, T.M., Laura, J. (2018), HRSC and MOLA Blended Digital Elevation Model at 200m v2, Astrogeology PDS Annex, USGS",
+        "source_pixel_m": 200.0,
+    },
+}
+DEM = "mola"
+# The MOLA mosaic's projection, which a site's equirectangular cut uses
+EQC = "+proj=eqc +lat_ts=0 +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +R=3396190 +units=m +no_defs"
 CENTER = (
     8139385.0,
     -327230.0,
@@ -52,8 +77,9 @@ HORIZON_HALF_M = 2800.0  # The HiRISE horizon heightfield's half width (hirise_h
 
 
 def configure(name: str) -> None:
-    global NAME, DATA, REPORT, CENTER, HORIZON_HALF_M
+    global NAME, DATA, REPORT, CENTER, HORIZON_HALF_M, DEM
     site = SITES[name]
+    DEM = site.get("far_dem", "mola")
     NAME = name
     DATA = REPO / "unreal/Saved/Terrain" / name
     REPORT = REPO / site["report"]
@@ -67,18 +93,49 @@ def lonlat(x: float, y: float) -> tuple[float, float]:
 
 def window(half: float, size: int) -> np.ndarray:
     x, y = CENTER
+    options = local_frame.warp_options(SITES[NAME]) or {"dstSRS": EQC}
     dataset = gdal.Warp(
         "",
-        URL,
+        DEMS[DEM]["url"],
         format="MEM",
         outputBounds=(x - half, y - half, x + half, y + half),
         width=size,
         height=size,
         resampleAlg="cubic",
         outputType=gdal.GDT_Float32,
-        **local_frame.warp_options(SITES[NAME]),
+        srcNodata=-32768,
+        **options,
     )
     return dataset.GetRasterBand(1).ReadAsArray().astype(np.float64)
+
+
+# The staged backdrop (--staged). From a trough floor the walls hide everything beyond them, and the region's
+# landmarks lie hundreds of kilometres away, below the horizon. As staging, not as a view anyone could have, the
+# region's real terrain is drawn STAGE_SQUEEZE times closer beyond STAGE_RING_M, its relief STAGE_HEIGHT times as high
+# (squeezed sideways alone, a volcano would stand as a spike). It is seen from above the walls, for example with the
+# free camera.
+STAGE_SQUEEZE = 20.0
+STAGE_HEIGHT = 0.5
+STAGE_RING_M = (22000.0, 32000.0)
+
+
+def stage_backdrop(shaped: np.ndarray, r: np.ndarray) -> tuple[dict[str, object], np.ndarray]:
+    squeezed = window(HALF_M * STAGE_SQUEEZE, SAMPLES)
+    ring = (r > STAGE_RING_M[0]) & (r < STAGE_RING_M[1])
+    base = float(np.median(shaped[ring]))
+    backdrop = base + STAGE_HEIGHT * (squeezed - float(np.median(squeezed[ring])))
+    w = np.clip((r - STAGE_RING_M[0]) / (STAGE_RING_M[1] - STAGE_RING_M[0]), 0.0, 1.0)
+    w = w * w * (3 - 2 * w)
+    info = {
+        "label": "staging: not a real view",
+        "squeeze": STAGE_SQUEEZE,
+        "height_scale": STAGE_HEIGHT,
+        "measured_terrain_to_km": STAGE_RING_M[0] / 1000.0,
+        "staged_terrain_from_km": STAGE_RING_M[1] / 1000.0,
+        "covers_real_km": round(HALF_M * STAGE_SQUEEZE / 1000.0),
+        "note": "beyond the blend the terrain is the real region, drawn closer and lower than it is",
+    }
+    return info, shaped * (1 - w) + backdrop * w
 
 
 def main() -> None:
@@ -87,6 +144,11 @@ def main() -> None:
         "--site", choices=sorted(k for k in SITES if not k.startswith("_")), default="gale"
     )
     parser.add_argument("--report", type=Path, help="write far.json here")
+    parser.add_argument(
+        "--staged",
+        action="store_true",
+        help="beyond the nearby walls, draw the region's real terrain 20 times closer and half as high (staging)",
+    )
     args = parser.parse_args()
     configure(args.site)
 
@@ -153,6 +215,13 @@ def main() -> None:
     weight = weight * weight * (3 - 2 * weight)  # Smoothstep: 1 within 4 km, 0 beyond 12 km
     drop = 12.0
     shaped = far + weight * (correction - drop)
+    # Mars curves away: a point d from the centre lies d^2 / 2R below the centre's tangent plane (33 m at 15 km,
+    # 1.5 km at 100 km). The level is flat, so the far field is lowered by that much; the HiRISE fields (under 3 km
+    # across) are left as measured.
+    staged: dict[str, object] = {}
+    if args.staged:
+        staged, shaped = stage_backdrop(shaped, r)
+    shaped = shaped - r * r / (2 * RADIUS_M)
 
     low, high = float(shaped.min()), float(shaped.max())
     (DATA / f"{NAME}_far.r16").write_bytes(
@@ -189,17 +258,15 @@ def main() -> None:
             "aeolis_mons_peak_distance_km": round(math.hypot(east_km, north_km), 1),
         }
     info = {
-        "source": "MGS MOLA DEM mosaic, global, 463 m (MEGDR, 2003-03-21), USGS Astrogeology",
-        "source_url": "https://astrogeology.usgs.gov/search/map/mars_mgs_mola_dem_463m",
-        "license": "CC0 (public domain) per the product page, read 2026-11-16",
-        "credit": "NASA/GSFC/MOLA Science Team; USGS Astrogeology",
-        "reference": "Smith et al. 2001, J. Geophys. Res. 106(E10), 23689-23722",
-        "source_pixel_m": 463.09,
+        "dem": DEM,
+        **{k: v for k, v in DEMS[DEM].items() if k != "url"},
+        "curvature": "lowered by d^2 / 2R from the centre, R = 3,396,190 m (drawn on a flat level)",
+        "curvature_drop_at_edge_m": round(HALF_M**2 / (2 * RADIUS_M), 1),
         "samples": SAMPLES,
         "spacing_m": round(spacing, 2),
         "extent_m": round((SAMPLES - 1) * spacing, 0),
-        "resampling": "cubic, from 463 m to about 198 m: interpolated, not new detail",
-        "measured_note": "MOLA's gridded map is interpolated between laser tracks; every sample here is interpolated at least once",
+        "resampling": f"cubic, from {DEMS[DEM]['source_pixel_m']:.0f} m to about {spacing:.0f} m",
+        "measured_note": "gridded maps are interpolated between measurements; every sample here is interpolated at least once",
         "height_min_m": round(low, 1),
         "height_max_m": round(high, 1),
         "highest_point_in_window_m": round(float(far.max()), 1),
@@ -208,6 +275,7 @@ def main() -> None:
             round(float(north[highest_row, highest_col]) / 1000.0, 1),
         ],
         **landmark,
+        **({"staged_backdrop": staged} if staged else {}),
         "site_origin_height_m": site["height_min_m"],
         "mola_minus_hirise_over_horizon_field": stats,
         "blend": "far field follows the HiRISE horizon field 12 m beneath it inside it; the correction fades from 4 km to 12 km (generated)",

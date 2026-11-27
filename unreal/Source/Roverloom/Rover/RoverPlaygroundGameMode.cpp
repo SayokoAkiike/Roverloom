@@ -169,18 +169,38 @@ void ARoverPlaygroundGameMode::SpawnScatter()
 		TEXT("/Game/Licensed/PolyHaven/namaqualand_boulder_02/namaqualand_boulder_02_1k.namaqualand_boulder_02_1k"),
 		TEXT("/Game/Licensed/PolyHaven/namaqualand_boulder_04/namaqualand_boulder_04_1k.namaqualand_boulder_04_1k"),
 	};
-	constexpr int32 MeshCount = UE_ARRAY_COUNT(MeshPaths);
+	constexpr int32 MainCount = UE_ARRAY_COUNT(MeshPaths);
+	// More shapes for small stones only (never solid in a race), if they were downloaded; without them the four above serve
+	static const TCHAR* StonePaths[] = {
+		TEXT("/Game/Licensed/PolyHaven/namaqualand_boulder_03/namaqualand_boulder_03_1k.namaqualand_boulder_03_1k"),
+		TEXT("/Game/Licensed/PolyHaven/namaqualand_boulder_05/namaqualand_boulder_05_1k.namaqualand_boulder_05_1k"),
+		TEXT("/Game/Licensed/PolyHaven/rock_07/rock_07_1k.rock_07_1k"),
+		TEXT("/Game/Licensed/PolyHaven/stone_01/stone_01_1k.stone_01_1k"),
+		TEXT("/Game/Licensed/PolyHaven/moon_rock_01/moon_rock_01_1k.moon_rock_01_1k"),
+		TEXT("/Game/Licensed/PolyHaven/moon_rock_03/moon_rock_03_1k.moon_rock_03_1k"),
+	};
+	constexpr int32 MeshCount = MainCount + UE_ARRAY_COUNT(StonePaths);
 	UStaticMesh* Meshes[MeshCount] = {};
+	TArray<int32> Stones; // indices of the extra shapes that loaded
 	bool MeshSolid[MeshCount] = {};
 	const bool bSolidRocks = FParse::Param(FCommandLine::Get(), TEXT("RoverRace"));
 	double BaseRadiusCm[MeshCount] = {};
 	FVector LocalCenter[MeshCount];
 	for (int32 M = 0; M < MeshCount; ++M)
 	{
-		Meshes[M] = LoadObject<UStaticMesh>(nullptr, MeshPaths[M], nullptr, LOAD_NoWarn | LOAD_Quiet);
+		const TCHAR* Path = M < MainCount ? MeshPaths[M] : StonePaths[M - MainCount];
+		Meshes[M] = LoadObject<UStaticMesh>(nullptr, Path, nullptr, LOAD_NoWarn | LOAD_Quiet);
+		if (!Meshes[M] && M >= MainCount)
+		{
+			continue;
+		}
+		if (M >= MainCount)
+		{
+			Stones.Add(M);
+		}
 		if (!Meshes[M])
 		{
-			UE_LOG(LogRoverloom, Display, TEXT("Rock scatter: %s not found (the Poly Haven rocks are outside Git); none placed"), MeshPaths[M]);
+			UE_LOG(LogRoverloom, Display, TEXT("Rock scatter: %s not found (the Poly Haven rocks are outside Git); none placed"), Path);
 			return;
 		}
 		const FBoxSphereBounds Bounds = Meshes[M]->GetBounds();
@@ -188,10 +208,10 @@ void ARoverPlaygroundGameMode::SpawnScatter()
 		LocalCenter[M] = Bounds.Origin;
 		const UBodySetup* Setup = Meshes[M]->GetBodySetup();
 		MeshSolid[M] = Setup && Setup->AggGeom.GetElementCount() > 0;
-		if (bSolidRocks && !MeshSolid[M])
+		if (bSolidRocks && !MeshSolid[M] && M < MainCount)
 		{
 			UE_LOG(LogRoverloom, Warning, TEXT("Rock scatter: %s has no collision, so its rocks are not solid. Run scripts/setup_gale.py once (build_rock_collision)."),
-				MeshPaths[M]);
+				Path);
 		}
 	}
 
@@ -321,6 +341,11 @@ void ARoverPlaygroundGameMode::SpawnScatter()
 			if (RadiusM < 0.12)
 			{
 				Mesh = MeshDraw < 0.6 ? 0 : (MeshDraw < 0.85 ? 1 : (MeshDraw < 0.93 ? 2 : 3));
+				// Half the small stones take one of the extra shapes, chosen from the same draw so no rock moves
+				if (Stones.Num() > 0 && MeshDraw >= 0.3 && MeshDraw < 0.8)
+				{
+					Mesh = Stones[FMath::Min(Stones.Num() - 1, static_cast<int32>((MeshDraw - 0.3) / 0.5 * Stones.Num()))];
+				}
 			}
 			else if (RadiusM < 0.5)
 			{
@@ -804,7 +829,7 @@ void ARoverPlaygroundGameMode::SpawnLights()
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-	// Light presets, chosen with -RoverLight=noon|afternoon|sunset. Each is a whole look: where the sun is and what color its light
+	// Light presets, chosen with -RoverLight=noon|afternoon|sunset|winter|polar|canyon. Each is a whole look: where the sun is and what color its light
 	// is, what the dust in the air does to the sky, the haze, the sky light, and the fixed exposure of the camera (the same for the
 	// whole run, as a camera would have it). Values were set by eye against renders. They are artistic presets (mars_inspired), not
 	// a model of the real sky. The default, without -RoverLight, is the original look.
@@ -858,6 +883,13 @@ void ARoverPlaygroundGameMode::SpawnLights()
 		// Polar spring at 80 N: a pale sun about 13 degrees up and ahead of the start, so that the dunes and the dark streaks on the
 		// frost stand against the light. A clear, cold sky with little dust. Colours by eye (mars_inspired)
 		Look = {13.0, 135.0, 3.2f, FLinearColor(1.0f, 0.93f, 0.82f), 11.3f, 0.02f, FLinearColor(0.80f, 0.70f, 0.62f), 0.8f, 0.0006f, 0.8f, FLinearColor(0.50f, 0.56f, 0.68f), 0.004f, FLinearColor::Black, 7.0f};
+	}
+	else if (Preset == TEXT("canyon"))
+	{
+		// Noctis Labyrinthus: an afternoon sun from the west-south-west lights the trough walls 2 to 4 km high, 8 to 15 km away, while
+		// the floor lies in their long shadows late in the day. A butterscotch dust haze fills the trough and thins slowly with height
+		// (see HazeFalloff), so the far walls fade into it by distance. Colours by eye (mars_inspired), not a model of the real sky
+		Look = {24.0, 70.0, 4.3f, FLinearColor(1.0f, 0.84f, 0.62f), 10.8f, 0.045f, FLinearColor(0.95f, 0.56f, 0.30f), 0.65f, 0.0005f, 0.85f, FLinearColor(0.70f, 0.52f, 0.40f), 0.006f, FLinearColor::Black, 8.0f};
 	}
 	else if (Preset == TEXT("sunset_blue"))
 	{
@@ -1015,7 +1047,9 @@ void ARoverPlaygroundGameMode::SpawnLights()
 			// -RoverFogColor=r,g,b, -RoverFogDensity=F, and -RoverFogFalloff=F tune the haze from the command line
 			FLinearColor HazeColor = Look.FogColor;
 			double HazeDensity = Look.FogDensity;
-			double HazeFalloff = 0.12; // The haze thins slowly with height, so a mountain 5 km high is fogged top to bottom
+			// The haze thins slowly with height, so a mountain 5 km high is fogged top to bottom. In the canyon it thins slower still,
+			// so that wall tops 3 to 4 km above the floor fade with distance as their feet do
+			double HazeFalloff = Preset == TEXT("canyon") ? 0.03 : 0.12;
 			FString HazeText;
 			if (FParse::Value(FCommandLine::Get(), TEXT("RoverFogColor="), HazeText, false))
 			{

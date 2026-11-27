@@ -46,6 +46,11 @@ def test_lobby_modes_command_and_mobile_layout(browser, tmp_path):
     assert page.locator("#light").input_value() == "winter"
     assert "--light" not in page.locator("#command").inner_text()
     assert page.locator("#stage-detail").inner_text().count("ESP_074942_2295") == 1
+    # The close-up map lists nearby features with distances, never the stage's own region
+    page.locator("[data-stage=noctis]").click()
+    near = page.locator(".closeup ul").inner_text()
+    assert "Tharsis Montes" in near and "km" in near and "Noctis" not in near
+    page.locator("[data-stage=lyot]").click()
     # The globe is drawn from the relief: not one flat colour
     colours = page.evaluate(
         """() => { const c = document.getElementById('globe');

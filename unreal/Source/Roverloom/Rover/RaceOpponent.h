@@ -22,6 +22,7 @@ class ARaceOpponent : public AActor
 public:
 	ARaceOpponent();
 
+	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
 	virtual void Destroyed() override;
 
@@ -54,6 +55,16 @@ private:
 	UPROPERTY()
 	TArray<TObjectPtr<UStaticMeshComponent>> Meshes;
 	TArray<double> WheelSpin;
+	// The V2 model's parts (ModelV2.h), hidden unless its meshes exist; then they replace the look-alike's body and wheels
+	UPROPERTY()
+	TObjectPtr<UStaticMeshComponent> ModelBody;
+	UPROPERTY()
+	TArray<TObjectPtr<UStaticMeshComponent>> ModelStruts;
+	UPROPERTY()
+	TArray<TObjectPtr<UStaticMeshComponent>> ModelAxles;
+	bool bModelV2 = false;
+	// Wheel I's centre at height CenterZCm in the rover's frame, turned SpinDeg about its axle
+	void PlaceWheel(int32 I, double CenterZCm, double SpinDeg);
 
 	FVector TargetCm = FVector::ZeroVector;
 	double TargetYawDeg = 0.0;

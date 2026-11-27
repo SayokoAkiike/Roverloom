@@ -18,7 +18,19 @@ SOURCE = os.path.join(
 )  # The cwd is the editor's, not ours
 DEST = "/Game/Licensed/PolyHaven"
 TEXTURES = ["dry_ground_01", "dense_sand", "rock_boulder_cracked", "rocks_ground_03"]
-ROCKS = ["namaqualand_boulder_02", "namaqualand_boulder_04", "namaqualand_boulder_06", "rock_09"]
+ROCKS = [
+    # The first four are also the race's solid rocks (build_rock_collision.py); the rest are small stones only, for variety
+    "namaqualand_boulder_02",
+    "namaqualand_boulder_04",
+    "namaqualand_boulder_06",
+    "rock_09",
+    "namaqualand_boulder_03",
+    "namaqualand_boulder_05",
+    "rock_07",
+    "stone_01",
+    "moon_rock_01",
+    "moon_rock_03",
+]
 tools = unreal.AssetToolsHelpers.get_asset_tools()
 
 

@@ -47,7 +47,8 @@ What the HiRISE team and NASA wrote about these places, which the stage looks fo
 | --- | --- | --- |
 | Ground shape, 1 km around the course | HiRISE DTM, resampled to 1 m posts | Shape at the DTM's post spacing is measured. Amazonis's posts are 2 m, so its 1 m posts are interpolated |
 | Ground shape, about 5 km around | The same DTM, averaged | Measured where the strip has data; 17 % (Noctis) and 16 % (Amazonis) of the square is outside the strip and filled by interpolation. See `horizon.json` |
-| Distant relief, 200 km | MOLA 463 m DEM, as for Gale (`mola_far.py --site`) | Interpolated map; not yet made for these stages |
+| Distant relief, 200 km | MOLA 463 m DEM (`mola_far.py --site`); for Noctis the HRSC and MOLA blended DEM at 200 m (`far_dem` in `sites.json`). Lowered by d²/2R for the curve of Mars | Interpolated maps. The curvature drop is computed (33 m at 15 km, 1.5 km at 100 km) |
+| Staged backdrop (optional, Noctis) | `mola_far.py --staged`: beyond 22 to 32 km, the region's real terrain drawn 20 times closer and half as high | **Staging, not a real view.** See [Noctis: what can be seen](#noctis-what-can-be-seen) |
 | Light and dark pattern on the ground | HiRISE RED orthoimage, with its shading divided out (`hirise_albedo.py`) | A relative brightness from one greyscale photo. The sun direction is fitted to the DTM's shading; see `albedo.json`. Not a measured albedo or colour |
 | Colours, layering bands on rock, sky, haze, rocks | `build_gale_material.py` (`LOOKS`), the game's light presets | Chosen by eye, `mars_inspired` |
 | Where frost lies (Lyot, Olympia) | Rules in `LOOKS`: frost on dune sand except steep slip faces, the north half whiter (Lyot); frost over the ground except where dark dune sand has cleared in spots, kept on slip faces (Olympia) | The rules follow the HiRISE captions above; where the dune sand is comes from the measured brightness map. The amounts and colours are chosen by eye. No frost is measured |
@@ -106,7 +107,37 @@ uv run --project python python scripts/play_3d.py --race --course noctis_sprint 
 
 The launcher picks the stage's level, puts the rover at the course start, and sets the number of stones per stage
 (Amazonis has a quarter of Gale's, the polar dunes a tenth), and the stage's own light: `winter` for Lyot, `polar` for the
-polar dunes, unless `--light` is given.
+polar dunes, `canyon` for Noctis, unless `--light` is given.
+
+## Noctis: what can be seen
+
+The course lies on a trough floor. MOLA and the HRSC blend put walls 2.3 to 3.7 km high 8 to 15 km away on every side,
+and from 2 m above the floor the view ends at them. Valles Marineris's main canyon and the Tharsis volcanoes are
+hundreds of kilometres to 1,400 km away: below the horizon even from the plateau above the walls, where the skyline is 8
+to 32 km away. These figures come from sight lines over the two DEMs, with the curve of Mars, computed in a cloud
+session on 2026-11-27. Published views of the region:
+[ESA perspective view (2007)](https://www.esa.int/ESA_Multimedia/Images/2007/11/Noctis_Labyrinthus_perspective_view),
+[ESA perspective view (2016)](https://esa.int/ESA_Multimedia/Images/2016/01/Perspective_view_in_Noctis_Labyrinthus),
+[DLR topographic map](https://www.dlr.de/en/images/2016/1/topographical-overview-map-of-noctis-labyrinthus_21804).
+
+So the stage shows the walls: the far field uses the 200 m blended DEM, which draws their spurs and gullies more sharply
+than MOLA alone, lowered for the curve of Mars, and the `canyon` light preset lights them from the west-south-west
+through a haze that thins slowly with height. The lobby's map shows where the region lies between Tharsis and Valles
+Marineris. As staging, `--staged-backdrop` draws the region's real terrain 20 times closer and half as high beyond the
+walls: the Tharsis volcanoes rise to the north-west and the canyon runs east. From the floor nothing changes; it is seen
+from above the walls with the free camera (C).
+
+The blended DEM's product page lists its HRSC part as CC BY-SA 3.0 IGO
+([USGS product page](https://astrogeology.usgs.gov/search/map/mars_mgs_mola_mex_hrsc_blended_dem_global_200m)). The
+heightfields stay out of Git under `unreal/Saved/Terrain/`; `far.json` records the source and credit.
+
+```shell
+uv run --project python python scripts/setup_gale.py --site noctis --far-only --ue-root "/Users/Shared/Epic Games/UE_5.8"
+```
+
+```shell
+uv run --project python python scripts/setup_gale.py --site noctis --far-only --staged-backdrop --ue-root "/Users/Shared/Epic Games/UE_5.8"
+```
 
 ## Concept renders with vork
 

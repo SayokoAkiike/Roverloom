@@ -28,7 +28,19 @@ TEXTURES = ["dry_ground_01", "dense_sand", "rock_boulder_cracked", "rocks_ground
 TEXTURE_MAPS = ["Diffuse", "nor_gl", "arm"]
 TEXTURE_SIZE = "2k"
 # Scatter rocks, as FBX with their textures, at 1k.
-MODELS = ["namaqualand_boulder_02", "namaqualand_boulder_04", "namaqualand_boulder_06", "rock_09"]
+MODELS = [
+    # The first four are also the race's solid rocks (build_rock_collision.py); the rest are small stones only, for variety
+    "namaqualand_boulder_02",
+    "namaqualand_boulder_04",
+    "namaqualand_boulder_06",
+    "rock_09",
+    "namaqualand_boulder_03",
+    "namaqualand_boulder_05",
+    "rock_07",
+    "stone_01",
+    "moon_rock_01",
+    "moon_rock_03",
+]
 MODEL_SIZE = "1k"
 
 

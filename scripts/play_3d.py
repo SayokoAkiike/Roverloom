@@ -120,8 +120,9 @@ def supervise(
 # Stones per stage, in percent of the Gale scatter. Amazonis is a dust-mantled plain with few rocks.
 STAGE_ROCKS = {"gale": 100, "noctis": 70, "amazonis": 25, "lyot": 40, "olympia": 10}
 # A stage's own light when --light is not given: Lyot in northern winter, the sun low in the south,
-# the polar dunes under a pale, low polar sun (RoverPlaygroundGameMode's light presets).
-STAGE_LIGHT = {"lyot": "winter", "olympia": "polar"}
+# the polar dunes under a pale, low polar sun, Noctis with its trough walls lit through dust haze
+# (RoverPlaygroundGameMode's light presets).
+STAGE_LIGHT = {"lyot": "winter", "olympia": "polar", "noctis": "canyon"}
 
 
 def stage_level(name: str) -> tuple[str, Path] | None:
@@ -184,7 +185,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     race.add_argument(
         "--light",
-        help="noon, afternoon, sunset, winter, polar or default "
+        help="noon, afternoon, sunset, winter, polar, canyon or default "
         "(default: the stage's own, else afternoon)",
     )
     race.add_argument("--res", default="1280x720")

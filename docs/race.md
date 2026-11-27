@@ -63,6 +63,10 @@ uv run --project python python scripts/play_3d.py --race --garage ~/Downloads/ga
   its path. Ghosts are records and still pass through. Without Unreal (`headless`) there is no physics engine: rivals
   are kinematic and are kept apart by a contact rule (rover-sized rectangles, "Bump!").
 
+When the V2 rover meshes are imported (`setup_gale.py` does this if Blender is installed), rivals and ghosts are drawn
+with the same model as your rover, each in its own paint, and your rover's panels take the paint from `garage.json`.
+Without them, the basic shapes are drawn. The drawing never changes collision: every rover collides as the rig's box.
+
 ## Modes
 
 | Mode | What it is | Start command option |

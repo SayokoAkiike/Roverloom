@@ -90,7 +90,7 @@ def terrain(python: str, site: str, force: bool) -> None:
         (
             ["scripts/terrain/mola_far.py", *pick],
             data / f"{site}_far.r16",
-            "MOLA far field (200 km)",
+            "far field (200 km, MOLA or HRSC blend)",
         ),
     ]
     if "ortho" in SITES[site]:
@@ -106,6 +106,18 @@ def terrain(python: str, site: str, force: bool) -> None:
             print(f"== {what}: {output.name} exists, skipped")
             continue
         run([python, *args], f"{site}: {what}")
+
+
+def polyhaven_complete() -> bool:
+    """True when downloaded.json lists a file for every asset polyhaven_fetch.py asks for."""
+    log = CONTENT / "PolyHaven" / "downloaded.json"
+    if not log.exists():
+        return False
+    sys.path.insert(0, str(ROOT / "scripts" / "assets"))
+    import polyhaven_fetch
+
+    text = log.read_text(encoding="utf-8")
+    return all(f'"{name}/' in text for name in [*polyhaven_fetch.MODELS, *polyhaven_fetch.TEXTURES])
 
 
 def editor(ue_root: Path, script: str, *extra: str) -> None:
@@ -155,6 +167,16 @@ def main() -> int:
         action="store_true",
         help="rebuild only the sites' ground materials (after a change to build_gale_material.py)",
     )
+    parser.add_argument(
+        "--far-only",
+        action="store_true",
+        help="recut the far field and rebuild the level (after a change to mola_far.py or sites.json)",
+    )
+    parser.add_argument(
+        "--staged-backdrop",
+        action="store_true",
+        help="with --far-only: draw the region's landmarks closer beyond the walls (staging, not a real view)",
+    )
     args = parser.parse_args()
     if not args.ue_root:
         print("Pass --ue-root with your UE 5.8 directory.", file=sys.stderr)
@@ -168,6 +190,20 @@ def main() -> int:
             )  # rebuilt in place; the levels keep using it
         print(f"Ready: {', '.join(sites)} materials rebuilt.")
         return 0
+    if args.far_only:
+        python = gdal_python()
+        if not python:
+            print("GDAL for Python is missing: brew install gdal", file=sys.stderr)
+            return 2
+        staged = ["--staged"] if args.staged_backdrop else []
+        for site in sites:
+            run(
+                [python, "scripts/terrain/mola_far.py", "--site", site, *staged],
+                f"{site}: far field",
+            )
+            editor(ue_root, "build_gale_level", site)
+        print(f"Ready: {', '.join(sites)} far fields and levels rebuilt.")
+        return 0
     try:
         python = gdal_python()
         if not python:
@@ -178,16 +214,18 @@ def main() -> int:
             return 2
         for site in sites:
             terrain(python, site, args.force)
-        if args.force or not (CONTENT / "PolyHaven" / "downloaded.json").exists():
+        fetched = False
+        if args.force or not polyhaven_complete():
             run(
                 [sys.executable, "scripts/assets/polyhaven_fetch.py"],
                 "Poly Haven rocks and textures",
             )
+            fetched = True
         else:
-            print("== Poly Haven: downloaded.json exists, skipped")
+            print("== Poly Haven: every listed asset is downloaded, skipped")
         # Once a step runs, every later Unreal step runs too: its output may have been built from
         # missing or older inputs (a material made before its textures were imported, for example).
-        rerun = args.force
+        rerun = args.force or fetched
         for script, output in SHARED_STEPS:
             if output.exists() and not rerun:
                 print(f"== Unreal: {script}: {output.name} exists, skipped")

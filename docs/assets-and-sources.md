@@ -64,7 +64,8 @@ site's terms prohibit scraping, so the list is fixed and short. Credit is given 
 | `dense_sand` (2k) | https://polyhaven.com/a/dense_sand | Landscape layer: sand |
 | `rock_boulder_cracked` (2k) | https://polyhaven.com/a/rock_boulder_cracked | Landscape layer: bedrock |
 | `rocks_ground_03` (2k) | https://polyhaven.com/a/rocks_ground_03 | Landscape layer: gravel |
-| `namaqualand_boulder_02`, `_04`, `_06`, `rock_09` (1k FBX with textures) | https://polyhaven.com/a/namaqualand_boulder_02 and the others by id | Scattered rocks, visual only, no collision |
+| `namaqualand_boulder_02`, `_04`, `_06`, `rock_09` (1k FBX with textures) | https://polyhaven.com/a/namaqualand_boulder_02 and the others by id | Scattered rocks; solid in races above 15 cm radius (`build_rock_collision.py`) |
+| `namaqualand_boulder_03`, `_05`, `rock_07`, `stone_01`, `moon_rock_01`, `moon_rock_03` (1k FBX with textures), added 2026-11-27 | https://polyhaven.com/a/rock_07 and the others by id | Extra shapes for small stones only (under 12 cm), never solid |
 
 These are Earth rocks and soil used as stand-ins for Martian surfaces. They are not Martian materials and their look says
 nothing about regolith properties. No Poly Haven HDRI is used: the sky is Unreal's Sky Atmosphere, tuned by hand.

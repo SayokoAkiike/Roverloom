@@ -63,11 +63,16 @@ STAGES: dict[str, dict[str, Any]] = {
         "about": {
             "en": (
                 "Layered rock on a trough floor some 3 km below its rims; walls 2 to 4 km high "
-                "stand 8 to 15 km away on every side (MOLA)."
+                "stand 8 to 15 km away on every side (MOLA and HRSC heights). Tharsis and the "
+                "main canyon of Valles Marineris are hundreds of kilometres away, below the "
+                "horizon. An optional staged backdrop draws them closer: fly the free camera "
+                "above the walls to see it."
             ),
             "ja": (
                 "高原から約3 km下の谷底。層状の岩が露出し、8〜15 km先には高さ2〜4 kmの崖が四方を囲"
-                "む（MOLAの標高データより）。"
+                "む（MOLAとHRSCの標高データより）。タルシスの火山やマリネリス峡谷の本体は数百km先"
+                "で、地平線の下にあり見えない。演出用の遠景を入れると、それらを実際より近くに描く。"
+                "フリーカメラで崖の上に出ると見える。"
             ),
         },
         "hirise": "ESP_027526_1685",
@@ -149,6 +154,26 @@ LANDMARKS = [
     ("Planum Australe", -84.0, 160.0),
 ]
 
+# Smaller named features, for the lobby's close-up map round a stage.
+# Approximate centres (IAU names).
+NEARBY = [
+    ("Arsia Mons", -8.3, -120.5),
+    ("Pavonis Mons", 0.8, -112.8),
+    ("Ascraeus Mons", 11.8, -104.5),
+    ("Syria Planum", -12.0, -104.0),
+    ("Noctis Labyrinthus", -6.9, -102.2),
+    ("Ius Chasma", -7.0, -85.8),
+    ("Melas Chasma", -10.5, -72.9),
+    ("Coprates Chasma", -13.4, -61.4),
+    ("Aeolis Mons", -5.1, 137.8),
+    ("Elysium Planitia", 2.0, 155.0),
+    ("Apollinaris Mons", -9.3, 174.4),
+    ("Amazonis Planitia", 24.8, -164.0),
+    ("Olympus Mons", 18.6, -133.8),
+    ("Lyot", 50.8, 29.3),
+    ("Planum Boreum", 86.0, 0.0),
+]
+
 
 def stage_documents() -> list[dict[str, Any]]:
     """Every stage with its place, courses and texts, for the lobby page."""
@@ -181,7 +206,7 @@ def _report_center(report: str) -> list[float]:
 
 
 def _light(stage: str) -> str:
-    return {"lyot": "winter", "olympia": "polar"}.get(stage, "afternoon")
+    return {"lyot": "winter", "olympia": "polar", "noctis": "canyon"}.get(stage, "afternoon")
 
 
 def relief() -> dict[str, Any]:

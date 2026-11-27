@@ -40,7 +40,8 @@
     "material": "/Game/Licensed/Noctis/M_NoctisLandscape",
     "report": "docs/results/terrain-noctis",
     "ortho": "ESP_027526_1685_RED_C_01_ORTHO",
-    "ortho_sha256": "9cfe61ecc5d38f3455fae73dd2240d4dd0fdce747b811e977ce20f214d614b10"
+    "ortho_sha256": "9cfe61ecc5d38f3455fae73dd2240d4dd0fdce747b811e977ce20f214d614b10",
+    "far_dem": "blend"
   },
   "amazonis": {
     "title": "Amazonis Planitia plains beside a pit chain",

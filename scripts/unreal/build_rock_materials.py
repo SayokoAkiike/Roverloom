@@ -1,4 +1,4 @@
-"""Give the four imported Poly Haven rocks a material: their own diffuse map, kept rough, pulled toward a Mars-like tan.
+"""Give the imported Poly Haven rocks a material: their own diffuse map, kept rough, pulled toward a Mars-like tan.
 Unreal Editor Python.
 
     UnrealEditor unreal/Roverloom.uproject -run=pythonscript -script="scripts/unreal/build_rock_materials.py" -unattended -nullrhi
@@ -17,7 +17,19 @@ import unreal  # type: ignore[import-not-found]
 mel = unreal.MaterialEditingLibrary
 tools = unreal.AssetToolsHelpers.get_asset_tools()
 FOLDER = "/Game/Licensed/Gale"
-ROCKS = ["namaqualand_boulder_02", "namaqualand_boulder_04", "namaqualand_boulder_06", "rock_09"]
+ROCKS = [
+    # The first four are also the race's solid rocks (build_rock_collision.py); the rest are small stones only, for variety
+    "namaqualand_boulder_02",
+    "namaqualand_boulder_04",
+    "namaqualand_boulder_06",
+    "rock_09",
+    "namaqualand_boulder_03",
+    "namaqualand_boulder_05",
+    "rock_07",
+    "stone_01",
+    "moon_rock_01",
+    "moon_rock_03",
+]
 
 
 def main() -> int:

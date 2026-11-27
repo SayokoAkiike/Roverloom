@@ -11,6 +11,7 @@
 #include "../Roverloom.h"
 #include "../WheelSpike/WheelRig.h"
 #include "Greybox.h"
+#include "ModelV2.h"
 #include "RoverDrive.h"
 
 namespace
@@ -53,6 +54,67 @@ ARaceOpponent::ARaceOpponent()
 			FRotator(0, 0, 90), FVector(2 * R, 2 * R, 25)));
 		WheelSpin.Add(0.0);
 	}
+	const FVector Unit(100.0); // AddPart scales by size / 100: the V2 meshes are drawn at their own size
+	ModelBody = AddPart(this, Root, TEXT("ModelBody"), nullptr, FVector::ZeroVector, FRotator::ZeroRotator, Unit);
+	ModelBody->SetVisibility(false);
+	for (int32 I = 0; I < RoverloomRover::NumWheels; ++I)
+	{
+		ModelStruts.Add(AddPart(this, Root, *FString::Printf(TEXT("ModelStrut%d"), I), nullptr, FVector::ZeroVector, FRotator::ZeroRotator, Unit));
+		ModelAxles.Add(AddPart(this, Root, *FString::Printf(TEXT("ModelAxle%d"), I), nullptr, FVector::ZeroVector, FRotator::ZeroRotator, Unit));
+		ModelStruts[I]->SetVisibility(false);
+		ModelAxles[I]->SetVisibility(false);
+	}
+}
+
+void ARaceOpponent::BeginPlay()
+{
+	Super::BeginPlay();
+	RoverloomModelV2::FMeshes Model;
+	if (!RoverloomModelV2::Load(Model))
+	{
+		return;
+	}
+	// The same meshes as the player's V2 rover; the look-alike's boxes and cylinders are hidden. Visual only: no collision.
+	bModelV2 = true;
+	bPainted = false; // paint again, on the V2 body, at the next SetTarget
+	for (int32 I = 0; I < 4; ++I)
+	{
+		Meshes[I]->SetVisibility(false);
+	}
+	ModelBody->SetStaticMesh(Model.Body);
+	ModelBody->SetVisibility(true);
+	for (int32 I = 0; I < RoverloomRover::NumWheels; ++I)
+	{
+		UStaticMeshComponent* Wheel = Meshes[4 + I];
+		Wheel->SetStaticMesh(Model.Wheel);
+		Wheel->SetRelativeScale3D(FVector::OneVector);
+		Wheel->EmptyOverrideMaterials();
+		ModelStruts[I]->SetStaticMesh(Model.Strut);
+		ModelStruts[I]->SetVisibility(true);
+		ModelAxles[I]->SetStaticMesh(Model.Axle);
+		ModelAxles[I]->SetRelativeScale3D(RoverloomModelV2::AxleScale(Model.Axle, RoverloomRover::WheelMountCm(I).Y));
+		ModelAxles[I]->SetVisibility(true);
+		PlaceWheel(I, -RoverloomRover::RideHeightCm + RoverloomRover::WheelRadiusCm, 0.0);
+	}
+}
+
+void ARaceOpponent::PlaceWheel(int32 I, double CenterZCm, double SpinDeg)
+{
+	const FVector Mount = RoverloomRover::WheelMountCm(I);
+	const FVector Center(Mount.X, Mount.Y, CenterZCm);
+	const FQuat Spin(FRotator(-SpinDeg, 0.0, 0.0));
+	if (!bModelV2)
+	{
+		// The cylinder stands on Z: spin about the axle, then lay it on its side
+		Meshes[4 + I]->SetRelativeLocationAndRotation(Center, Spin * FQuat(FRotator(0.0, 0.0, 90.0)));
+		return;
+	}
+	// As ARoverPawn::UpdateWheels with the V2 model: the wheel's axle is along Y; a strut drops from the arm to the axle
+	const double Drop = FMath::Max(Mount.Z - CenterZCm, 1.0);
+	Meshes[4 + I]->SetRelativeLocationAndRotation(Center, Spin);
+	ModelStruts[I]->SetRelativeLocation(FVector(Mount.X, FMath::Sign(Mount.Y) * RoverloomModelV2::ArmYCm, Mount.Z - Drop / 2.0));
+	ModelStruts[I]->SetRelativeScale3D(FVector(1.0, 1.0, Drop / 100.0));
+	ModelAxles[I]->SetRelativeLocation(Center);
 }
 
 void ARaceOpponent::SetTarget(const FVector2D& SiteM, double SiteYawRad, const FLinearColor& Paint, bool bGhost)
@@ -72,9 +134,16 @@ void ARaceOpponent::SetTarget(const FVector2D& SiteM, double SiteYawRad, const F
 		const FLinearColor Body = bGhost ? FMath::Lerp(Paint, FLinearColor(0.85f, 0.9f, 0.95f), 0.55f) : Paint;
 		const FLinearColor Dark(0.06f, 0.06f, 0.07f);
 		const FLinearColor Light(0.72f, 0.7f, 0.66f);
-		for (int32 I = 0; I < Meshes.Num(); ++I)
+		if (bModelV2)
 		{
-			RoverloomGreybox::Paint(Meshes[I], I == 0 ? Body : I == 1 ? Dark : I < 4 ? Light : Dark, I == 0 ? 0.55f : 0.85f);
+			RoverloomModelV2::PaintBody(ModelBody, Body);
+		}
+		else
+		{
+			for (int32 I = 0; I < Meshes.Num(); ++I)
+			{
+				RoverloomGreybox::Paint(Meshes[I], I == 0 ? Body : I == 1 ? Dark : I < 4 ? Light : Dark, I == 0 ? 0.55f : 0.85f);
+			}
 		}
 	}
 }
@@ -279,8 +348,7 @@ void ARaceOpponent::TickPhysical(double DeltaSeconds)
 		const double Compression = Record.Contact.bHit ? FMath::Clamp(Record.Contact.CompressionCm, 0.0, RestCm) : 0.0;
 		const FVector Mount = RoverloomRover::WheelMountCm(I);
 		WheelSpin[I] = FMath::Fmod(WheelSpin[I] + FMath::RadiansToDegrees(Record.SpinRadps * DeltaSeconds), 360.0);
-		Meshes[4 + I]->SetRelativeLocationAndRotation(FVector(Mount.X, Mount.Y, Mount.Z - (RestCm - Compression)),
-			FQuat(FRotator(-WheelSpin[I], 0.0, 0.0)) * FQuat(FRotator(0.0, 0.0, 90.0)));
+		PlaceWheel(I, Mount.Z - (RestCm - Compression), WheelSpin[I]);
 	}
 }
 
@@ -327,8 +395,7 @@ void ARaceOpponent::Tick(float DeltaSeconds)
 	const double Moved = FVector::Dist2D(Now, Next);
 	for (int32 I = 0; I < WheelSpin.Num(); ++I)
 	{
-		WheelSpin[I] += FMath::RadiansToDegrees(Moved / RoverloomRover::WheelRadiusCm);
-		// As ARoverPawn::UpdateWheels: spin about the axle, then lay the cylinder on its side.
-		Meshes[4 + I]->SetRelativeRotation(FQuat(FRotator(-WheelSpin[I], 0.0, 0.0)) * FQuat(FRotator(0.0, 0.0, 90.0)));
+		WheelSpin[I] = FMath::Fmod(WheelSpin[I] + FMath::RadiansToDegrees(Moved / RoverloomRover::WheelRadiusCm), 360.0);
+		PlaceWheel(I, -RoverloomRover::RideHeightCm + RoverloomRover::WheelRadiusCm, WheelSpin[I]);
 	}
 }

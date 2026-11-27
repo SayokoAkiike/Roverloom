@@ -54,6 +54,10 @@ details.rules summary{cursor:pointer;padding:12px 0;font-weight:600}
 .detail p{margin:6px 0;color:#cfd6d3}
 .meta{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
 .chip{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:3px 10px;color:var(--dim)}
+.closeup{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:start;margin:10px 0}
+.closeup canvas{width:100%;border-radius:10px;border:1px solid var(--line);background:var(--ink)}
+.closeup ul{list-style:none;margin:0;padding:0;font-size:13px;color:var(--dim)}.closeup li{margin:3px 0}.closeup li b{color:var(--text);font-weight:600}
+@media(max-width:480px){.closeup{grid-template-columns:1fr}}
 .courses{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
 .courses button{font:inherit;font-size:13px;border:1px solid var(--line);background:#121a1f;color:var(--text);border-radius:10px;padding:8px 10px;cursor:pointer;text-align:left}
 .courses button small{display:block;color:var(--dim)}
@@ -175,7 +179,7 @@ dialog .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
       <label><span data-t="npcs">Rivals (NPC)</span><select id="npcs"></select></label>
       <label><span data-t="difficulty">Difficulty</span><select id="difficulty"></select></label>
       <label><span data-t="ghosts">Ghosts</span><select id="ghosts"><option>0</option><option>1</option><option>2</option><option>3</option></select></label>
-      <label><span data-t="light">Light</span><select id="light"><option value="afternoon">Afternoon</option><option value="noon">Noon</option><option value="sunset">Sunset</option><option value="winter">Winter (low sun)</option><option value="polar">Polar spring</option></select></label>
+      <label><span data-t="light">Light</span><select id="light"><option value="afternoon">Afternoon</option><option value="noon">Noon</option><option value="sunset">Sunset</option><option value="winter">Winter (low sun)</option><option value="polar">Polar spring</option><option value="canyon">Canyon haze</option></select></label>
       <label><span data-t="name">Your name</span><input id="name" value="You" maxlength="24"></label>
     </div>
     <div class="advanced">
@@ -221,7 +225,7 @@ rover:"ローバー",tires:"タイヤ",battery:"バッテリー",sensor:"セン�
 race:"レース",course:"コース",laps:"周回数",npcs:"ライバル（NPC）",difficulty:"難しさ",ghosts:"ゴースト",light:"光",name:"あなたの名前",driver:"ドライバー",start:"スタート",startnote:"ローバーのファイルを保存し、リポジトリの直下でターミナルからコマンドを実行します。ゲーム画面が開いたら、一度クリックしてから運転します。",
 k_drive:"前進・後退",k_turn:"旋回",k_speed:"速度",k_boost:"ブースト",k_cam:"カメラ",k_rescue:"救助（+30秒）",board:"ランキング",boardnote:"ローカルファイル runs/race/leaderboard.json。race_cli export <id> で記録を共有し、相手は race_cli import で取り込みます。Unrealとheadless、人間とエージェントは別々に順位付け。記録の検証はしていません。",
 w_title:"火星ローバーレースへようこそ",w1:"火星儀で本物の火星の場所を選びます。初めてなら「練習用クレーター」か「ゲール・クレーター」がおすすめ。",w2:"ローバーを組み立てます：タイヤ、バッテリー、センサー、塗装。どれも一長一短です。",w3:"スタートのコマンドをターミナルに貼り付け。旗を順番に通過して、先にゴールした人の勝ち。",w4:"ルールは「1分でわかるルール」をクリックすればいつでも見られます。",w_rules:"ルールを見る",w_ok:"はじめる",
-beginner:"初心者向け",courses:"コース",length:"m",flags:"旗",hirise:"HiRISE画像",selectHint:"コースを選ぶ",practice:"練習"}};
+beginner:"初心者向け",closeup:"ステージ周辺の拡大地図",nearbyHint:"近くの地形（直線距離）",courses:"コース",length:"m",flags:"旗",hirise:"HiRISE画像",selectHint:"コースを選ぶ",practice:"練習"}};
 const EN={beginner:"Beginner",courses:"Courses",length:"m",flags:"flags",hirise:"HiRISE image",selectHint:"Choose a course",practice:"Practice"};
 const RULES=[["🚩",{en:"Flags in order",ja:"旗を順番に"},{en:"Pass every flag or gate in order; the last one is the finish.",ja:"旗（ゲート）をすべて順番に通過。最後の旗がゴール。"}],
 ["🏁",{en:"Positions",ja:"順位"},{en:"By laps, then flags, then distance to the next flag.",ja:"周回数→通過した旗の数→次の旗までの距離で決まる。"}],
@@ -238,7 +242,7 @@ const L=o=>o?(o[lang]??o.en):"";
 function applyText(){document.documentElement.lang=lang;document.querySelectorAll("[data-t]").forEach(e=>{const k=e.dataset.t;if(!e.dataset.en)e.dataset.en=e.textContent;e.textContent=lang==="ja"&&T.ja[k]?T.ja[k]:e.dataset.en});
  document.querySelectorAll("[data-lang]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.lang===lang));
  $("rule-cards").innerHTML=RULES.map(([i,h,s])=>`<div class="card"><em>${i}</em><b>${L(h)}</b><span>${L(s)}</span></div>`).join("");
- stageList();stageDetail();course(false);drawView()}
+ stageList();stageDetail();drawCloseup();course(false);drawView()}
 // ---------------------------------------------------------------- relief texture
 const STAGES=DATA.stages||[];const stageById=Object.fromEntries(STAGES.map(s=>[s.id,s]));
 let stage=STAGES.find(s=>s.id==="gale")?"gale":(STAGES[0]||{}).id;
@@ -300,13 +304,31 @@ addEventListener("resize",()=>drawView());
 function stageList(){$("stages").innerHTML=STAGES.map(s=>`<button class="stage${s.lat==null?" practice":""}" data-stage="${s.id}" aria-pressed="${s.id===stage}"><i class="dot"></i><span><strong>${esc(L(s.name))}</strong><small>${esc(L(s.where))}</small></span>${s.beginner?`<span class="badge">${t("beginner","Beginner")}</span>`:""}</button>`).join("")}
 function stageDetail(){const s=stageById[stage];if(!s){$("stage-detail").innerHTML="";return}const cur=$("course").value;
  const pos=s.lat!=null?`${Math.abs(s.lat).toFixed(1)}°${s.lat>=0?"N":"S"} ${Math.abs(s.lon).toFixed(1)}°${s.lon>=0?"E":"W"}`:"";
- $("stage-detail").innerHTML=`<h3>${esc(L(s.name))}</h3><div class="meta">${pos?`<span class="chip">${pos}</span>`:""}<span class="chip">${esc(L(s.season))}</span>${s.product?`<span class="chip">${esc(s.product)}</span>`:""}</div><p>${esc(L(s.about))}</p>${s.hirise?`<p class="note">${t("hirise","HiRISE image")}: <a style="color:var(--teal)" href="https://hirise.lpl.arizona.edu/${s.hirise}" target="_blank" rel="noopener">${s.hirise}</a></p>`:""}
+ $("stage-detail").innerHTML=`<h3>${esc(L(s.name))}</h3><div class="meta">${pos?`<span class="chip">${pos}</span>`:""}<span class="chip">${esc(L(s.season))}</span>${s.product?`<span class="chip">${esc(s.product)}</span>`:""}</div><p>${esc(L(s.about))}</p>${s.lat!=null?`<div class="closeup"><canvas id="closeup" width="320" height="240" aria-label="${t("closeup","Close-up map round the stage")}"></canvas><div><p class="note" style="margin:0 0 4px">${t("nearbyHint","Nearby, as the crow flies")}</p><ul>${nearby(s).map(([n,km,dir])=>`<li><b>${esc(n)}</b> ${km.toLocaleString()} km ${dir}</li>`).join("")}</ul></div></div>`:""}${s.hirise?`<p class="note">${t("hirise","HiRISE image")}: <a style="color:var(--teal)" href="https://hirise.lpl.arizona.edu/${s.hirise}" target="_blank" rel="noopener">${s.hirise}</a></p>`:""}
  <div class="courses" role="group" aria-label="${t("selectHint","Choose a course")}">${s.courses.map(c=>`<button data-pick="${c.id}" aria-pressed="${c.id===cur}">${esc(c.name)}<small>${c.length_m} ${t("length","m")} · ${c.flags} ${t("flags","flags")}${c.laps>1?` · ×${c.laps}`:""}</small></button>`).join("")}</div>`}
-function choose(id,fly=true){stage=id;const s=stageById[id];fillCourses();if(s.light)$("light").value=s.light;else $("light").value="afternoon";course(true);stageList();stageDetail();if(fly)flyTo(s);rover();command();mark(1)}
+const RKM=3389.5;
+function gc(a,b){const[la1,lo1]=a.map(v=>v*D),[la2,lo2]=b.map(v=>v*D);const c=Math.sin(la1)*Math.sin(la2)+Math.cos(la1)*Math.cos(la2)*Math.cos(lo2-lo1);const d=Math.acos(Math.max(-1,Math.min(1,c)));
+ const y=Math.sin(lo2-lo1)*Math.cos(la2),x=Math.cos(la1)*Math.sin(la2)-Math.sin(la1)*Math.cos(la2)*Math.cos(lo2-lo1);return[d*RKM,(Math.atan2(y,x)/D+360)%360]}
+const DIRS={en:["N","NE","E","SE","S","SW","W","NW"],ja:["北","北東","東","南東","南","南西","西","北西"]};
+function nearby(s){const seen=new Set();return[...(DATA.nearby||[]),...(DATA.landmarks||[])].filter(([n])=>!seen.has(n)&&seen.add(n)).map(([n,la,lo])=>{const[km,b]=gc([s.lat,s.lon],[la,lo]);return[n,Math.round(km/10)*10,DIRS[lang][Math.round(b/45)%8]]}).filter(x=>x[1]>=20&&!(s.name.en||"").includes(x[0])).sort((a,b)=>a[1]-b[1]).slice(0,4)}
+const VIEW=.42;
+function drawCloseup(){const c=$("closeup");if(!c)return;const s=stageById[stage];if(!s||s.lat==null)return;const g=c.getContext("2d"),W=c.width,H=c.height,k=Math.min(W,H)/2/VIEW;
+ const p0=s.lat*D,l0=s.lon*D,sp=Math.sin(p0),cp=Math.cos(p0);const img=g.createImageData(W,H),d=img.data;
+ for(let py=0;py<H;py++)for(let px=0;px<W;px++){const x=(px-W/2)/k,y=(H/2-py)/k,rho=Math.hypot(x,y),o=(py*W+px)*4;const cc=Math.asin(Math.min(1,rho));
+  const lat=rho?Math.asin(Math.cos(cc)*sp+y*Math.sin(cc)*cp/rho):p0;const lon=l0+Math.atan2(x*Math.sin(cc),rho*Math.cos(cc)*cp-y*Math.sin(cc)*sp);
+  const col=sample(lat/D,((lon/D+540)%360)-180);d[o]=col[0];d[o+1]=col[1];d[o+2]=col[2];d[o+3]=255}
+ g.putImageData(img,0,0);
+ const proj=(la,lo)=>{const p=la*D,l=lo*D-l0;const cosc=sp*Math.sin(p)+cp*Math.cos(p)*Math.cos(l);return{x:W/2+k*Math.cos(p)*Math.sin(l),y:H/2-k*(cp*Math.sin(p)-sp*Math.cos(p)*Math.cos(l)),ok:cosc>0}};
+ g.font="10px system-ui,sans-serif";g.textAlign="center";const seen=new Set();
+ for(const[n,la,lo]of[...(DATA.nearby||[]),...(DATA.landmarks||[])]){if(seen.has(n))continue;seen.add(n);const q=proj(la,lo);if(!q.ok||q.x<20||q.x>W-20||q.y<10||q.y>H-24)continue;
+  if(Math.hypot(q.x-W/2,q.y-H/2)<16)continue;g.fillStyle="rgba(10,14,16,.6)";const w=g.measureText(n).width+6;g.fillRect(q.x-w/2,q.y-7,w,13);g.fillStyle="rgba(240,232,216,.9)";g.fillText(n,q.x,q.y+3)}
+ g.beginPath();g.arc(W/2,H/2,6,0,7);g.fillStyle="#f08c3a";g.fill();g.lineWidth=2;g.strokeStyle="#0f1418";g.stroke();
+ const bar=500*k/RKM;g.fillStyle="rgba(10,14,16,.7)";g.fillRect(8,H-22,bar+16,16);g.fillStyle="#eef0ec";g.fillRect(16,H-12,bar,2);g.textAlign="left";g.fillText("500 km",18,H-15)}
+function choose(id,fly=true){stage=id;const s=stageById[id];fillCourses();if(s.light)$("light").value=s.light;else $("light").value="afternoon";course(true);stageList();stageDetail();drawCloseup();if(fly)flyTo(s);rover();command();mark(1)}
 function fillCourses(){const s=stageById[stage];const ids=s?s.courses.map(c=>c.id):Object.keys(DATA.courses);const keep=$("course").value;
  fill("course",ids.filter(k=>DATA.courses[k]).map(k=>{const c=DATA.courses[k];return[k,`${c.name} (${Math.round(c.lap_length_m)} m)`]}));if(ids.includes(keep))$("course").value=keep}
 $("stages").addEventListener("click",e=>{const b=e.target.closest("[data-stage]");if(b)choose(b.dataset.stage)});
-$("stage-detail").addEventListener("click",e=>{const b=e.target.closest("[data-pick]");if(b){$("course").value=b.dataset.pick;course(true);stageDetail();command()}});
+$("stage-detail").addEventListener("click",e=>{const b=e.target.closest("[data-pick]");if(b){$("course").value=b.dataset.pick;course(true);stageDetail();drawCloseup();command()}});
 function mark(n){const g=$("g"+n);if(g)g.classList.add("done")}
 // ---------------------------------------------------------------- race settings (as before)
 const AGENT_NOTES={pursuit:"A classical pure-pursuit controller. A baseline to beat.",cap:"Code-as-policy: a plan of typed race skills, checked as data and run by a fixed executor. The plan comes from a rule-based stand-in for a language model; no model is called.",external:"Your own program, in any language, on 127.0.0.1:8101 (protocol race-agent-1). Start the race first, then your agent. See docs/race.md."};
@@ -350,7 +372,7 @@ function board(key){const boards=DATA.boards||{};const keys=Object.keys(boards);
  $("board").innerHTML=`<table><thead><tr><th>#</th><th>Player</th><th>Time</th><th>Driver</th><th>Rover</th><th>Id</th></tr></thead><tbody>${boards[key].map(r=>`<tr><td>${r.rank}</td><td>${esc(r.player)}</td><td class="t">${r.total}</td><td>${esc(r.controller)}</td><td><span style="color:${PAINT[r.design.paint]||"#ccc"}">■</span> ${r.design.tires} / ${r.design.battery} / ${r.design.sensor}</td><td><code>${r.entry_id.slice(0,8)}</code></td></tr>`).join("")}</tbody></table>`}
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
 document.querySelectorAll(".mode").forEach(b=>b.addEventListener("click",()=>{mode=b.dataset.mode;document.querySelectorAll(".mode").forEach(o=>o.setAttribute("aria-pressed",o===b));if(mode==="timeattack"&&+$("ghosts").value===0)$("ghosts").value="1";command()}));
-document.querySelectorAll("select,input").forEach(e=>e.addEventListener("input",()=>{if(e.id==="course"){course(true);stageDetail()}if(["tires","battery-sel","sensor","paint"].includes(e.id))mark(2);rover();command()}));
+document.querySelectorAll("select,input").forEach(e=>e.addEventListener("input",()=>{if(e.id==="course"){course(true);stageDetail();drawCloseup()}if(["tires","battery-sel","sensor","paint"].includes(e.id))mark(2);rover();command()}));
 document.querySelectorAll("[data-copy]").forEach(b=>b.addEventListener("click",async()=>{try{await navigator.clipboard.writeText($(b.dataset.copy).textContent);b.textContent="Copied"}catch{b.textContent="Select and copy"}mark(3);setTimeout(()=>b.textContent="Copy",1500)}));
 $("tabs").addEventListener("click",e=>{if(e.target.dataset.board)board(e.target.dataset.board)});
 $("save").addEventListener("click",()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(design(),null,2)+"\n"],{type:"application/json"}));a.download="garage.json";a.click();URL.revokeObjectURL(a.href);mark(2)});

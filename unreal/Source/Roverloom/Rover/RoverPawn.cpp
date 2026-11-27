@@ -45,6 +45,7 @@
 #include "../Roverloom.h"
 #include "../WheelSpike/WheelRig.h"
 #include "Greybox.h"
+#include "ModelV2.h"
 #include "RoverDrive.h"
 
 using namespace RoverloomCommand;
@@ -424,6 +425,7 @@ void ARoverPawn::SpawnRig()
 	{
 		// The V2 body mesh replaces the rig's box on screen. Hiding it changes rendering only, not collision or physics.
 		Rig->GetBody()->SetVisibility(false);
+		RoverloomModelV2::PaintBody(ModelBody, Paint); // the garage's paint on the V2 panels
 	}
 	bRigReady = false;
 	WheelAnglesRad.Init(0.0, NumWheels);

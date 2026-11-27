@@ -366,7 +366,13 @@ def test_stage_levels_resolve_from_sites_json():
         assert level.startswith("/Game/Licensed/") and umap.suffix == ".umap"
     assert {c.ground for c in COURSES.values()} <= {"generated"} | stages
     # Each new stage has its own light, and the far-north stages are cut in a local frame
-    assert module.STAGE_LIGHT == {"lyot": "winter", "olympia": "polar"}
+    assert module.STAGE_LIGHT == {"lyot": "winter", "olympia": "polar", "noctis": "canyon"}
+    # The lobby offers the same light per stage as the launcher uses
+    from roverloom.stages import stage_documents
+
+    for doc in stage_documents():
+        if doc["id"] != "generated":
+            assert doc["light"] == module.STAGE_LIGHT.get(doc["id"], "afternoon")
     sites = json.loads((Path(__file__).parents[2] / "scripts/terrain/sites.json").read_text())
     for site in ("lyot", "olympia"):
         assert sites[site]["center_projected_m"] == [0.0, 0.0] and "center_lonlat" in sites[site]

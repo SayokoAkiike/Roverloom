@@ -37,7 +37,7 @@ from roverloom.race import (
     summary,
 )
 from roverloom.rally import load_garage
-from roverloom.stages import LANDMARKS, relief, stage_documents
+from roverloom.stages import LANDMARKS, NEARBY, relief, stage_documents
 from roverloom.unreal_link import connect
 
 AGENT_PORT = 8101
@@ -343,6 +343,7 @@ def lobby(args: argparse.Namespace) -> int:
         "protocol": AGENT_PROTOCOL,
         "stages": stage_documents(),
         "landmarks": LANDMARKS,
+        "nearby": NEARBY,
         "relief": relief(),
     }
     html = page.read_text(encoding="utf-8").replace(
