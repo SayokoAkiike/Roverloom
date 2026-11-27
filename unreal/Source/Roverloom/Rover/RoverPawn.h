@@ -216,6 +216,13 @@ private:
 	double RaceDrawLastS = -1.0;
 	double RaceShotLastS = -1.0;
 	int32 RaceShots = 0;
+	// -RoverLookShots=<dir>: from the race start, a screenshot every LookEveryS seconds, two from the chase camera and then
+	// one from the mast camera, for checking a stage's look without anyone at the keyboard (scripts/look_check.py)
+	void LogLookShots(double NowS);
+	FString LookShotDir;
+	double LookEveryS = 6.0;
+	int32 LookShots = 0;
+	bool bLookCameraSet = false;
 
 	TUniquePtr<RoverloomCommand::FCommandRouter> Router;
 	FTransform StartTransform;

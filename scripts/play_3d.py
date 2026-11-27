@@ -197,7 +197,17 @@ def main(argv: list[str] | None = None) -> int:
         help="contact check: the agent drives at 35%% so rivals overtake, the screen is "
         "recorded, the race stops after 80 s, and a report is printed",
     )
+    race.add_argument(
+        "--look",
+        type=int,
+        metavar="SECONDS",
+        help="look check: the agent drives, the screen is recorded, the game saves a screenshot "
+        "every 6 s (look-*.png), and the race stops unranked after SECONDS",
+    )
     args = parser.parse_args(argv)
+    if args.look:
+        args.race = args.demo = True
+        args.record = args.record or args.look + 60  # the level loads before the race starts
     if args.diagnose:
         args.race = args.demo = True
         args.difficulty = "hard"
@@ -346,6 +356,9 @@ def main(argv: list[str] | None = None) -> int:
             if args.diagnose:
                 link += ["--agent-speed", "0.35", "--stop-after", "80"]
                 game += [f"-RoverRaceDiagnose={out}"]
+            if args.look:
+                link += ["--stop-after", str(args.look)]
+                game += [f"-RoverLookShots={out}", "-RoverLookEvery=6"]
             if args.garage:
                 link += ["--garage", str(args.garage.resolve())]
             write_course(out, args.course)

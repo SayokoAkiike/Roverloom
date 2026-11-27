@@ -193,6 +193,19 @@ uv run --project python python scripts/play_3d.py --race --course gale_sprint --
 `--profile capture` uses the higher render settings; it ran at 15.6 fps on the Gale level on the M4 Mac mini, so use
 `dev` (the default) for driving.
 
+## Look check
+
+One command races each new stage hands-free, records the screen, and lays the game's own screenshots on one sheet:
+
+```shell
+uv run --project python --with pillow python scripts/look_check.py --ue-root "/Users/Shared/Epic Games/UE_5.8" --build
+```
+
+For each course (`ghost_forest` and `lyot_slalom` unless `--courses` is given), `play_3d.py --look 70` lets the pursuit
+agent drive against three rivals, records `race.mov`, and has the game save a screenshot every 6 s, two from the chase
+camera and then one from the mast camera (`look-*.png`); the race stops unranked. The sheet is saved as
+`runs/look/look-<time>.jpg` and opened. Pillow is fetched for that run only. Not yet run on a Mac.
+
 ## Contact check
 
 If rivals look as if they drive through your rover, one command records a run and checks it:

@@ -215,6 +215,9 @@ void ARoverPawn::BeginPlay()
 	StartTransform = FTransform(GetActorQuat(), GetActorLocation());
 	FParse::Value(FCommandLine::Get(), TEXT("RoverShotDir="), ShotDir);
 	FParse::Value(FCommandLine::Get(), TEXT("RoverRaceDiagnose="), RaceDiagnoseDir);
+	FParse::Value(FCommandLine::Get(), TEXT("RoverLookShots="), LookShotDir);
+	FParse::Value(FCommandLine::Get(), TEXT("RoverLookEvery="), LookEveryS);
+	LookEveryS = FMath::Clamp(LookEveryS, 2.0, 60.0);
 	FParse::Value(FCommandLine::Get(), TEXT("RoverBench="), BenchSeconds);
 	FString DrivePreset;
 	if (FParse::Value(FCommandLine::Get(), TEXT("RoverDrive="), DrivePreset))
@@ -558,6 +561,33 @@ void ARoverPawn::Tick(float DeltaSeconds)
 	DriveScriptSample(NowS, StepDt);
 	LogAndCapture(NowS);
 	LogRaceDraw(NowS);
+	LogLookShots(NowS);
+}
+
+void ARoverPawn::LogLookShots(double NowS)
+{
+	constexpr int32 MaxLookShots = 16;
+	if (LookShotDir.IsEmpty() || !Status.bRace || MissionClockStartS < 0.0 || LookShots >= MaxLookShots)
+	{
+		return;
+	}
+	const double RaceS = NowS - MissionClockStartS - 3.0; // Python's race clock starts after its 3 s countdown
+	const double Due = 2.0 + LookShots * LookEveryS;
+	const ERoverCamera Want = LookShots % 3 == 2 ? ERoverCamera::Mast : ERoverCamera::Chase;
+	if (!bLookCameraSet && RaceS >= Due - 0.8)
+	{
+		SetCamera(Want); // a frame or two to render before the capture
+		bLookCameraSet = true;
+	}
+	if (bLookCameraSet && RaceS >= Due)
+	{
+		const FString Name = FString::Printf(TEXT("look-%02d-t%03.0f-%s.png"), LookShots + 1, RaceS,
+			Want == ERoverCamera::Mast ? TEXT("mast") : TEXT("chase"));
+		FScreenshotRequest::RequestScreenshot(FPaths::Combine(LookShotDir, Name), true, false);
+		UE_LOG(LogRoverloom, Display, TEXT("Look shot %s"), *Name);
+		++LookShots;
+		bLookCameraSet = false;
+	}
 }
 
 void ARoverPawn::LogRaceDraw(double NowS)
