@@ -563,3 +563,4 @@ def test_diagnostic_link_run_reports_contacts(tmp_path):
     (out / "unreal.log").write_text("\n".join(log))
     text = report(out)
     assert "behind (2.0 m back" in text and "Unreal drew them overlapping" in text
+    assert race_cli.main(["diagnose", str(out)]) == 0

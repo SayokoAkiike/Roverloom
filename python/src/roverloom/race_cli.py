@@ -354,7 +354,8 @@ def lobby(args: argparse.Namespace) -> int:
 def diagnose(args: argparse.Namespace) -> int:
     from roverloom.race_diagnose import newest_run, report
 
-    run = Path(args.run) if args.run else newest_run(Path("runs") / "first-3d")
+    repo_runs = Path(__file__).resolve().parents[3] / "runs" / "first-3d"
+    run = Path(args.run_dir) if args.run_dir else newest_run(repo_runs)
     print(report(run))
     return 0
 
@@ -394,7 +395,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--stop-after", type=float, help="end the race unranked after this many seconds")
     p.set_defaults(run=link)
     p = sub.add_parser("diagnose", help="check a run for rovers that overlap")
-    p.add_argument("run", nargs="?", help="run directory (default: the newest under runs/first-3d)")
+    p.add_argument(
+        "run_dir", nargs="?", help="run directory (default: the newest under runs/first-3d)"
+    )
     p.set_defaults(run=diagnose)
     p = sub.add_parser("headless", help="race an agent without Unreal, on the race model")
     add_race_options(p)
