@@ -182,6 +182,12 @@ def main() -> int:
                 continue
             editor(ue_root, script)
             rerun = True
+        # Rock collision for races. Not a cascade: levels and materials do not depend on it.
+        marker = ROOT / "unreal" / "Saved" / "Roverloom" / "rock_collision.json"
+        if marker.exists() and not rerun:
+            print("== Unreal: build_rock_collision: rock_collision.json exists, skipped")
+        else:
+            editor(ue_root, "build_rock_collision")
         for site in sites:
             site_rerun = rerun
             for script, output in (

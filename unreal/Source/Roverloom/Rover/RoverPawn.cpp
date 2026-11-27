@@ -678,8 +678,9 @@ void ARoverPawn::MissionLinkTick(double NowS)
 			double RivalYaw = 0.0, RivalMps = 0.0;
 			if (Pair.Value && Pair.Value->IsPhysical() && Pair.Value->GetSitePose(RivalM, RivalYaw, RivalMps))
 			{
-				Rivals += FString::Printf(TEXT("%s{\"id\":\"%s\",\"position_m\":[%.4f,%.4f],\"yaw_rad\":%.5f,\"forward_mps\":%.4f}"),
-					Rivals.IsEmpty() ? TEXT("") : TEXT(","), *Pair.Key, RivalM.X, RivalM.Y, RivalYaw, RivalMps);
+				const double* Clear = Pair.Value->GetClearance(); // left, ahead, right
+				Rivals += FString::Printf(TEXT("%s{\"id\":\"%s\",\"position_m\":[%.4f,%.4f],\"yaw_rad\":%.5f,\"forward_mps\":%.4f,\"clear_m\":[%.2f,%.2f,%.2f]}"),
+					Rivals.IsEmpty() ? TEXT("") : TEXT(","), *Pair.Key, RivalM.X, RivalM.Y, RivalYaw, RivalMps, Clear[0], Clear[1], Clear[2]);
 			}
 		}
 		const FString Line = FString::Printf(TEXT("{\"type\":\"telemetry\",\"body\":{\"time_s\":%.3f,\"position_m\":[%.4f,%.4f,%.4f],\"yaw_rad\":%.5f,\"forward_mps\":%.4f,\"resets\":%d,\"boost_requested\":%s,\"opponents\":[%s]}}\n"),

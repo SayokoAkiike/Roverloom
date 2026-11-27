@@ -20,7 +20,7 @@ from roverloom.rally import PAINTS, garage, stats
 RULESET = (
     "race-0.4"  # 0.2: no overlap; bumps; blocked gates. 0.3: rover-shaped. 0.4: physical rivals
 )
-MODEL_VERSION = "race-drive-0.4"  # NPC and headless kinematics, not Unreal physics
+MODEL_VERSION = "race-drive-0.5"  # NPC and headless kinematics, not Unreal physics
 AGENT_PROTOCOL = "race-agent-1"
 MAX_SPEED_MPS = 0.5  # pathfinder_6w limits, as RoverDrive.h
 MAX_YAW_RADPS = 0.4918
@@ -43,7 +43,12 @@ CONTACT_GAP_M = 0.15
 # places them, so they collide with the player, each other, solid props and rocks. A rival that
 # makes no headway for this long while driving is put back on its path.
 STUCK_S = 6.0
-FLAG_POLE_CLEAR_M = 1.6  # rivals aim this far beside a flag's pole, inside the arrival radius
+# A physical rival sees ahead (Unreal reports the free distance 30 degrees left, ahead and 30
+# degrees right): it steers to the freer side when an obstacle is nearer than this, and backs off
+# when one is nearer than AVOID_STOP_M. No prop or rock position is known to Python.
+AVOID_M = 3.0
+AVOID_STOP_M = 0.9
+AVOID_HOLD_S = 1.5  # once it has chosen a side, it keeps to it this long, to get past
 BUMP_S = 0.8  # the player's slow-down after running into a rival (headless rule)
 BUMP_SCALE = 0.6
 DIFFICULTIES = {"easy": (0.0, 0.78), "standard": (0.2, 0.9), "hard": (0.4, 0.98)}
@@ -354,6 +359,11 @@ class Racer:
     reset_pose: tuple[float, float, float] | None = None
     reset_id: int = 0
     stuck_since: float | None = None
+    # Physical rivals: free metres left, ahead and right, and how they are going round something
+    clear: tuple[float, float, float] | None = None
+    avoid_side: float = 0.0  # +1 left, -1 right
+    avoid_until: float = -math.inf
+    anchor: tuple[float, float, float] | None = None  # (x, y, time) where it last made headway
 
     @property
     def color(self) -> list[float]:
@@ -801,11 +811,6 @@ class Race:
         dx, dy = b[0] - a[0], b[1] - a[1]
         norm = math.hypot(dx, dy) or 1.0
         side = prof.line_m * (0.5 if self.course.style == "flags" else 1.0)
-        if self.course.style == "flags" and any(
-            math.dist(b, cp) < 0.3 for cp in self.course.checkpoints[:-1]
-        ):
-            # A solid pin pole stands on the flag: pass beside it, still inside the arrival radius
-            side = math.copysign(FLAG_POLE_CLEAR_M, side or 1.0)
         target = (b[0] - dy / norm * side, b[1] + dx / norm * side)
         pace = DIFFICULTIES[self.difficulty][1] * prof.pace
         # Overtaking: a slower rover (or the player) close ahead is passed on the side with more
@@ -831,7 +836,34 @@ class Race:
         act = steer(obs, target, pace)
         far = math.dist((r.x, r.y), b) > 5
         boost = far and abs(act.yaw_rate_radps) < 0.1 and r.charge > prof.boost_charge
-        return RaceAction(act.linear_velocity_mps, act.yaw_rate_radps + wobble, boost)
+        act = RaceAction(act.linear_velocity_mps, act.yaw_rate_radps + wobble, boost)
+        return self._avoid(r, act)
+
+    def _avoid(self, r: Racer, act: RaceAction) -> RaceAction:
+        """Steer round what the rival sees ahead, whatever it is: a post, a rock, a rover. It picks
+        the freer side and keeps to it for AVOID_HOLD_S, so that it gets past instead of turning
+        back into the obstacle."""
+        if r.clear is None:
+            return act
+        t = self.time_s
+        left, ahead, right = r.clear
+        blocked = min(ahead, left + 0.6, right + 0.6) < AVOID_M
+        if blocked:
+            if t >= r.avoid_until or r.avoid_side == 0.0:
+                r.avoid_side = 1.0 if left >= right else -1.0  # positive yaw turns left
+            r.avoid_until = t + AVOID_HOLD_S
+        elif t >= r.avoid_until:
+            r.avoid_side = 0.0
+            return act
+        turn = r.avoid_side
+        if ahead < AVOID_STOP_M:
+            # Too close to pass: back away while turning to the chosen side
+            return RaceAction(-0.15, turn * MAX_YAW_RADPS, False)
+        if not blocked:
+            # Clear now: carry on straight a little longer, then the path takes it back
+            return RaceAction(act.linear_velocity_mps * 0.8, 0.0, False)
+        slow = max(0.25, min(1.0, (ahead - AVOID_STOP_M) / (AVOID_M - AVOID_STOP_M)))
+        return RaceAction(act.linear_velocity_mps * slow, turn * MAX_YAW_RADPS, False)
 
     def _read_rivals(self, rows: list[Any]) -> None:
         """Physical rivals' poses, as Unreal's physics has them."""
@@ -851,6 +883,13 @@ class Race:
             ):
                 continue
             r.x, r.y, r.yaw, r.speed = (float(q) for q in values)
+            clear = row.get("clear_m")
+            if (
+                isinstance(clear, list)
+                and len(clear) == 3
+                and all(isinstance(q, (int, float)) and math.isfinite(q) for q in clear)
+            ):
+                r.clear = (float(clear[0]), float(clear[1]), float(clear[2]))
 
     def _drive_rivals(self, dt: float) -> None:
         """Steer each physical rival; its rules (charge, boosts, pads, gates) use its real pose."""
@@ -867,29 +906,42 @@ class Race:
             self._unstick(r)
 
     def _unstick(self, r: Racer) -> None:
-        """A rival that drives but makes no headway (on a rock, against a post) is put back on
-        its path, beside the last path point, facing along it."""
+        """A rival that makes no headway (on a rock, against a post, going round and round) is put
+        back on its path, beside the last path point, facing along it: under 1 m in STUCK_S
+        while driving, or in 2 * STUCK_S whatever it does."""
         t = self.time_s
-        if r.command[0] <= 0.1 or abs(r.speed) > 0.05:
+        if r.anchor is None or math.dist((r.x, r.y), r.anchor[:2]) > 1.0:
+            r.anchor = (r.x, r.y, t)
             r.stuck_since = None
             return
-        if r.stuck_since is None:
-            r.stuck_since = t
+        if r.command[0] > 0.1 and abs(r.speed) <= 0.05:
+            if r.stuck_since is None:
+                r.stuck_since = t
+        else:
+            r.stuck_since = None
+        held = r.stuck_since is not None and t - r.stuck_since >= STUCK_S
+        if not held and t - r.anchor[2] < 2 * STUCK_S:
             return
-        if t - r.stuck_since < STUCK_S:
-            return
+        # The nearest point of the path segment it is on, 2 m further along: past whatever held
+        # it, and never back to the start of a long segment
         path = self.course.path
         a, b = path[max(0, r.path_i - 1)], path[r.path_i]
-        yaw = math.atan2(b[1] - a[1], b[0] - a[0])
-        x, y = a
+        sx, sy = b[0] - a[0], b[1] - a[1]
+        seg = math.hypot(sx, sy) or 1.0
+        along = max(0.0, min(seg, ((r.x - a[0]) * sx + (r.y - a[1]) * sy) / seg + 2.0))
+        yaw = math.atan2(sy, sx)
+        cx, cy = a[0] + sx / seg * along, a[1] + sy / seg * along
+        x, y = cx, cy
         for shift in (0.0, 2.5, -2.5, 5.0, -5.0):  # beside it if another rover is there
-            x, y = a[0] - math.sin(yaw) * shift, a[1] + math.cos(yaw) * shift
+            x, y = cx - math.sin(yaw) * shift, cy + math.cos(yaw) * shift
             if all(math.dist((x, y), (o.x, o.y)) > 3.5 for o in self._solid() if o is not r):
                 break
         r.x, r.y, r.yaw, r.speed = x, y, yaw, 0.0
         r.reset_pose = (round(x, 3), round(y, 3), round(yaw, 4))
         r.reset_id += 1
         r.stuck_since = None
+        r.anchor = (x, y, t)
+        r.avoid_side, r.avoid_until = 0.0, -math.inf
         self._say(r, "Back on course")
 
     def _solid(self) -> list[Racer]:

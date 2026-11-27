@@ -36,6 +36,11 @@ public:
 	void ResetTo(const FVector2D& SiteM, double SiteYawRad);
 	// The rig's pose and forward speed in the site frame; false until the rig simulates.
 	bool GetSitePose(FVector2D& OutM, double& OutYawRad, double& OutForwardMps) const;
+	// What the rival sees ahead: free distance in metres to the nearest obstacle 30 degrees left, straight ahead and 30
+	// degrees right, up to SenseRangeM. An obstacle is anything solid with a steep face (a post, rock, building or another
+	// rover); ground it can drive up is not. Python steers with it, so no prop or rock position is known in advance.
+	static constexpr double SenseRangeM = 5.0;
+	const double* GetClearance() const { return Clearance; }
 
 	FString DisplayName;
 	int32 Position = 0;
@@ -68,4 +73,7 @@ private:
 	double CommandMps = 0.0;
 	double CommandRadps = 0.0;
 	FTransform ResetPose;
+	double Clearance[3] = {SenseRangeM, SenseRangeM, SenseRangeM};
+	void SenseAhead();
+	bool IsFree(const FVector& AtCm, const FQuat& Rotation) const;
 };

@@ -583,17 +583,50 @@ def test_diagnose_reports_a_rover_that_never_drove(tmp_path):
     assert "rover resets in unreal.log: 60" in text and "never drove" in text
 
 
-def _physical_unreal(course, npcs=3, seconds=200.0, block=None):
-    """Stands in for Unreal with physical rivals: integrates each rival's command as a rover would
-    and reports its pose. `block(x, y)` stops a rover there, as a solid post or rock would."""
+def _clear(x, y, yaw, posts, front=1.0, rng=5.0):
+    """Free distance left, ahead and right, as RaceOpponent::SenseAhead measures it: ahead with a
+    box as wide as the body (0.75 m half width), the sides with a 0.3 m sphere 30 degrees out."""
+    out = []
+    for off, half in ((math.radians(30), 0.3), (0.0, 0.75), (-math.radians(30), 0.3)):
+        hx, hy = math.cos(yaw + off), math.sin(yaw + off)
+        ox, oy = x + math.cos(yaw) * front, y + math.sin(yaw) * front
+        best = rng
+        for px, py, pr in posts:
+            rr = pr + half
+            fx, fy = px - ox, py - oy
+            along = fx * hx + fy * hy
+            d2 = fx * fx + fy * fy - along * along
+            if along > -pr and d2 < rr * rr:
+                best = min(best, max(0.0, along - pr))
+        out.append(best)
+    return out
+
+
+def _physical_unreal(course, npcs=3, seconds=200.0, block=None, posts=()):
+    """Stands in for Unreal with physical rivals: integrates each rival's command as a rover would,
+    reports its pose and what it sees ahead. `block(x, y)` stops a rover there; `posts` are solid
+    circles (x, y, radius) that Python is never told about."""
     r = Race(garage(), course, npcs=npcs, laps=1, backend="unreal")
     rivals: dict = {}
     resets: dict = {}
+    hits = 0
     t = 0.0
     state = {}
+
+    def others(k):
+        """Every other rover is a solid body too: seen by the sensors and blocking."""
+        out = [(x, y, 1.0) for j, (x, y, _, _) in rivals.items() if j != k]
+        return [*posts, *out, (r.you.x, r.you.y, 1.0)]
+
     while r.outcome == "running" and t < seconds:
         rows = [
-            {"id": k, "position_m": [x, y], "yaw_rad": yaw, "forward_mps": v}
+            {
+                "id": k,
+                "position_m": [x, y],
+                "yaw_rad": yaw,
+                "forward_mps": v,
+                "clear_m": _clear(x, y, yaw, others(k)),
+            }
             for k, (x, y, yaw, v) in rivals.items()
         ]
         body = {
@@ -614,10 +647,18 @@ def _physical_unreal(course, npcs=3, seconds=200.0, block=None):
             v, w = row["command"]
             yaw += w * 0.1
             nx, ny = x + v * math.cos(yaw) * 0.1, y + v * math.sin(yaw) * 0.1
-            if block and block(nx, ny):
-                nx, ny, v = x, y, 0.0
+            near = posts if k not in rivals else others(k)
+            solid = any(
+                math.dist((nx, ny), (px, py)) < pr + 1.0
+                and math.dist((nx, ny), (px, py)) < math.dist((x, y), (px, py))
+                for px, py, pr in near
+            )
+            if solid or (block and block(nx, ny)):
+                hits += solid
+                nx, ny, v = x, y, 0.0  # a solid body stops it; it never passes through
             rivals[k] = (nx, ny, yaw, v)
         t = round(t + 0.1, 6)
+    r.post_hits = hits
     return r, state
 
 
@@ -654,22 +695,27 @@ def test_a_stuck_physical_rival_is_put_back_on_its_path():
     assert rows[0]["reset_id"] == npc.reset_id and len(rows[0]["reset"]) == 3
 
 
-def test_rivals_aim_beside_a_flag_pole():
-    from roverloom.race import FLAG_POLE_CLEAR_M
+def test_a_physical_rival_steers_round_what_it_sees():
+    """Unreal reports how far the rival sees free ahead; Python steers to the freer side and backs off
+    when too close, for any obstacle, with no obstacle positions known."""
+    from roverloom.race import AVOID_STOP_M
 
-    course = COURSES["gale_sprint"]
-    r = Race(garage(), course, npcs=1, laps=1)
+    r = Race(garage(), COURSES["gale_sprint"], npcs=1, laps=1, backend="unreal")
     npc = r.racers[1]
-    flag = course.checkpoints[0]
-    i = min(range(len(course.path)), key=lambda k: math.dist(course.path[k], flag))
-    npc.path_i = i
-    a = course.path[i - 1]
-    npc.x, npc.y = a[0] + (flag[0] - a[0]) * 0.2, a[1] + (flag[1] - a[1]) * 0.2
-    npc.yaw = math.atan2(flag[1] - npc.y, flag[0] - npc.x)
+    clear_way = r._npc_action(npc)
+    npc.clear = (5.0, 1.8, 0.8)  # something ahead and to the right
     act = r._npc_action(npc)
-    # It turns away from the pole: aiming at the pole itself would need no turn at all
-    assert abs(act.yaw_rate_radps) > 0.05
-    assert course.gate_radius_m > FLAG_POLE_CLEAR_M
+    assert act.yaw_rate_radps > 0.4 and act.linear_velocity_mps < clear_way.linear_velocity_mps
+    # It keeps to the side it chose while going round, even if the other side now looks freer
+    npc.clear = (1.0, 1.8, 4.0)
+    assert r._npc_action(npc).yaw_rate_radps > 0.4
+    npc.avoid_side, npc.avoid_until = 0.0, -math.inf  # a new encounter
+    npc.clear = (0.6, AVOID_STOP_M - 0.2, 4.0)  # nose against it, room on the right
+    act = r._npc_action(npc)
+    assert act.linear_velocity_mps < 0 and act.yaw_rate_radps < -0.4
+    npc.clear = (5.0, 5.0, 5.0)
+    npc.avoid_until = -math.inf  # the hold is over
+    assert r._npc_action(npc) == clear_way
 
 
 def test_diagnose_counts_light_contact_as_touching(tmp_path):
@@ -702,3 +748,34 @@ def test_diagnose_counts_light_contact_as_touching(tmp_path):
     assert "rovers overlap in 0, touch in" in text and "touch in 0." not in text
     assert "moved up to 2.4 m" in text
     assert "a bug in the race rules" not in text
+
+
+@pytest.mark.parametrize("name", ["gale_sprint", "noctis_sprint", "amazonis_sprint", "crater_loop"])
+def test_rivals_find_their_way_past_posts_they_were_never_told_about(name):
+    """The robustness the owner asked for: posts placed anywhere on and beside the route, on any
+    stage, and the rivals still finish, seeing them and going round, with no position list."""
+    import random
+
+    course = COURSES[name]
+    rnd = random.Random(7)
+    path = course.path
+    posts = []
+    walked, next_at = 0.0, 12.0
+    for (ax, ay), (bx, by) in zip(path, path[1:], strict=False):
+        n = math.hypot(bx - ax, by - ay) or 1.0
+        while next_at < walked + n:
+            f = (next_at - walked) / n
+            side = rnd.uniform(-1.2, 1.2)
+            px = ax + (bx - ax) * f - (by - ay) / n * side
+            py = ay + (by - ay) * f + (bx - ax) / n * side
+            if all(math.dist((px, py), cp) > 2.5 for cp in (*course.checkpoints, course.start)):
+                posts.append((px, py, rnd.uniform(0.1, 0.5)))
+            next_at += rnd.uniform(12.0, 20.0)
+        walked += n
+    assert len(posts) >= 2
+    r, _ = _physical_unreal(course, npcs=3, seconds=course.limit_s, posts=posts)
+    assert all(x.finished_s is not None for x in r.racers[1:]), [
+        (x.name, x.next_cp, x.reset_id) for x in r.racers[1:]
+    ]
+    # Going round, not rescued round: a few resets at most
+    assert all(x.reset_id <= 6 for x in r.racers[1:]), [x.reset_id for x in r.racers[1:]]

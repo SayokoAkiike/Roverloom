@@ -13,13 +13,20 @@ Decision, `race-0.4` / `race-drive-0.4`, Unreal backend only:
   `mission_state`; Unreal reports each rival's pose and forward speed in its telemetry (`opponents`). Gates, laps,
   positions, charge, boosts and dust still come from Python, on the reported poses. Python no longer moves rivals or
   separates rovers when those poses arrive.
-- **Solid props.** In a race, posts, flag poles, cairns, cones, the finish banner and the supply hut block every rover.
-  Marks on the ground (pads, sand, the stones round a flag, the finish squares) do not. Rocks of 30 cm radius or more within
-  40 m of the course get an invisible collision sphere, because the Poly Haven meshes are imported without collision.
+- **One collision rule, by kind and size, never by place** (`Source/Roverloom/Rover/Collision.h`). In a race, every
+  object is a solid body by default: posts, flag poles, cairns, cones, the banner, the hut, and any prop added later.
+  Only marks drawn on the ground opt out (pads, sand, finish squares, the stones round a flag). A rock is solid when its
+  radius is over 15 cm, wherever it lies and on every stage; smaller stones count as the ground's roughness. The rock
+  collision belongs to the mesh asset (a 26-sided hull from `scripts/unreal/build_rock_collision.py`), so it moves and
+  scales with every instance.
 - **Rovers meet body to body.** Race rigs have a restitution of 0.35 (a game setting) and their wheels stand on static
   objects only, so a wheel never climbs onto another rover.
-- **Stuck rivals.** A rival that is commanded forward but makes no headway for 6 s is reset beside its path by Python.
-  Rivals aim 1.6 m beside a flag's pole, inside the 2.5 m arrival radius.
+- **Rivals see where they go.** Each rival sweeps ahead every frame (a box as wide as its body straight ahead, spheres
+  30 degrees to each side, 5 m) and Unreal reports the free distances. Anything solid with a steep face counts, ground it
+  can drive up does not. Python steers round it, keeps to the side it chose for 1.5 s, and backs off when nearer than
+  0.9 m. No prop or rock position is known to Python.
+- **Stuck rivals.** A rival that makes no headway (under 1 m in 6 s while driving, or in 12 s) is reset 2 m ahead of the
+  nearest point of its path; Unreal moves it beside that point if the overlap test finds a body there.
 - **Wide start and finish.** The banners are 7.2 m between their solid posts, so two rovers abreast pass. In the first
   Mac run (2026-11-27) with 4.25 m banners, rivals starting on the outer grid places hit the start posts and two were
   reset there again and again.
@@ -29,6 +36,7 @@ Not changed: missions, pinned scenarios, scoring and the benchmark `MODEL_VERSIO
 collision, rigs keep restitution 0, and wheels trace as before. The headless race keeps the kinematic rivals and the
 `race-0.3` contact rule, so headless and Unreal results stay on separate boards.
 
-Consequences: Unreal race results now depend on physics and frame rate and are not reproducible. Five rigs instead of one
+Consequences: Unreal race results now depend on physics and frame rate and are not reproducible. The rocks need
+`build_rock_collision` once (run by `setup_gale.py`); without it they are not solid and the log says so. Five rigs instead of one
 cost more frame time; this is unmeasured on the MacBook Air. Unreal C++ older than this change sends no `opponents`, and
 Python then falls back to the kinematic rivals.

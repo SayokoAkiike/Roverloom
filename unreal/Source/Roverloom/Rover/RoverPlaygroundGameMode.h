@@ -9,6 +9,13 @@ class ARoverEffects;
 class ARoverPawn;
 class UPhysicalMaterial;
 
+// A race prop is a solid body unless it is a mark drawn on the ground (RoverloomCollision).
+enum class EPropCollision : uint8
+{
+	Solid,
+	GroundMark,
+};
+
 // G2's greybox test ground, spawned from C++ with no project assets: flat ground, a 25 cm step, 10 and 15 degree
 // slopes with plateaus, and a few rocks, under a sun, sky, and fog. One rover is spawned and given to the player.
 // Start it with /Engine/Maps/Entry?game=/Script/Roverloom.RoverPlaygroundGameMode -game, or set it as a level's
@@ -35,7 +42,7 @@ private:
 	void SpawnRaceCourse();
 	double GroundAtCm(const FVector2D& SiteM) const;
 	AActor* SpawnProp(const FVector2D& SiteM, double LiftCm, double YawDeg, const FVector& SizeCm, const FLinearColor& Color,
-		const TCHAR* MeshPath = TEXT("/Engine/BasicShapes/Cube.Cube"), bool bSolid = false);
+		const TCHAR* MeshPath = TEXT("/Engine/BasicShapes/Cube.Cube"), EPropCollision Collision = EPropCollision::Solid);
 	void SpawnRamp(double StartXCm, double LaneYCm, double SlopeDeg, double LengthCm, double WidthCm, const FLinearColor& Color);
 
 	UPROPERTY()

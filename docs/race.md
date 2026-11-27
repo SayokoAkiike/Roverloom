@@ -48,12 +48,13 @@ uv run --project python python scripts/play_3d.py --race --garage ~/Downloads/ga
 - **Supply pad** (amber, beside the hut) recharges the battery while you are on it.
 - **Dust storms** come in the last four seconds of some 20-second slots, chosen by the seed. Everyone slows to 75%.
   The scout sensor warns eight seconds ahead instead of four.
-- **Rovers, props and rocks collide** ([ADR 0019](decisions/0019-physical-race-rivals.md)). With Unreal, each NPC rival
-  is a physics rover like yours: Python steers it and Unreal's physics decides where it goes, so rovers push and spring
-  back off each other, and stop against posts, flag poles, cairns, the banner, the hut and large rocks. Pads, sand and the
-  stones round a flag are flat marks you drive over. A rival stuck for 6 s is put back beside its path. Ghosts are
-  records and still pass through. Without Unreal (`headless`), rivals are kinematic and are kept apart by a contact rule:
-  rover-sized rectangles, with a short slow-down ("Bump!") if you drive into one.
+- **Everything solid collides** ([ADR 0019](decisions/0019-physical-race-rivals.md)). With Unreal, each NPC rival is a
+  physics rover like yours: Python steers it and Unreal's physics decides where it goes. Rovers push and spring back off
+  each other and stop against anything solid: posts, flag poles, cairns, the banner, the hut, rocks over 15 cm radius, and
+  any prop added later, because objects are solid unless they are marks drawn on the ground (pads, sand, finish squares,
+  the stones round a flag). Rivals see obstacles ahead and steer round them; one that makes no headway is put back on
+  its path. Ghosts are records and still pass through. Without Unreal (`headless`) there is no physics engine: rivals
+  are kinematic and are kept apart by a contact rule (rover-sized rectangles, "Bump!").
 
 ## Modes
 
@@ -109,7 +110,7 @@ uv run --project python python scripts/setup_gale.py --ue-root "/Users/Shared/Ep
 
 It runs the existing steps in order and skips any whose output exists: HiRISE site and horizon, MOLA far field, Poly Haven
 assets, then the Unreal Editor scripts `import_polyhaven`, `build_gale_material`, `build_rock_materials`,
-`build_effect_materials` and `build_gale_level`, and, if Blender is installed, the V2 rover and its materials. The first
+`build_effect_materials`, `build_rock_collision` (rock collision for races) and `build_gale_level`, and, if Blender is installed, the V2 rover and its materials. The first
 game start afterwards compiles the ground shaders, which takes minutes. **This script has not been run on a Mac yet.**
 
 ## Leaderboard and ghosts

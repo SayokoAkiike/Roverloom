@@ -8,6 +8,7 @@
 #include "UObject/ConstructorHelpers.h"
 
 #include "../Bridge/Frames.h"
+#include "../Roverloom.h"
 #include "../WheelSpike/WheelRig.h"
 #include "Greybox.h"
 #include "RoverDrive.h"
@@ -134,11 +135,45 @@ void ARaceOpponent::SetCommand(double LinearMps, double YawRateRadps)
 		: 0.0;
 }
 
+bool ARaceOpponent::IsFree(const FVector& AtCm, const FQuat& Rotation) const
+{
+	// The rig's box with a margin, raised clear of the ground: free if no solid object or rover is inside it
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(RaceOpponentFree), false, this);
+	if (Rig) Params.AddIgnoredActor(Rig);
+	FCollisionObjectQueryParams Objects;
+	Objects.AddObjectTypesToQuery(ECC_WorldStatic);
+	Objects.AddObjectTypesToQuery(ECC_WorldDynamic);
+	Objects.AddObjectTypesToQuery(ECC_PhysicsBody);
+	const FVector Half = RoverloomRover::BodySizeCm * 0.5 + FVector(30.0, 30.0, 0.0);
+	return !GetWorld()->OverlapAnyTestByObjectType(AtCm + FVector(0.0, 0.0, 20.0), Rotation, Objects, FCollisionShape::MakeBox(Half), Params);
+}
+
 void ARaceOpponent::ResetTo(const FVector2D& SiteM, double SiteYawRad)
 {
-	const FVector At = RoverloomFrames::SiteToUnrealPosition(FVector(SiteM.X, SiteM.Y, 0.0));
-	const double Ground = GroundBelowCm(FVector(At.X, At.Y, GetActorLocation().Z));
-	ResetPose = FTransform(FRotator(0.0, -FMath::RadiansToDegrees(SiteYawRad), 0.0), FVector(At.X, At.Y, Ground + RoverloomRover::RideHeightCm));
+	// The asked pose, or the first free place beside it: rocks, props and rovers are found by the overlap test, so no
+	// list of their positions is needed.
+	const FRotator Facing(0.0, -FMath::RadiansToDegrees(SiteYawRad), 0.0);
+	const FVector Base = RoverloomFrames::SiteToUnrealPosition(FVector(SiteM.X, SiteM.Y, 0.0));
+	const FVector Right = FRotationMatrix(Facing).GetUnitAxis(EAxis::Y);
+	FVector Chosen = FVector::ZeroVector;
+	bool bFound = false;
+	for (const double OffsetCm : {0.0, 250.0, -250.0, 500.0, -500.0, 750.0, -750.0})
+	{
+		const FVector At = Base + Right * OffsetCm;
+		const FVector Pose(At.X, At.Y, GroundBelowCm(FVector(At.X, At.Y, GetActorLocation().Z)) + RoverloomRover::RideHeightCm);
+		if (OffsetCm == 0.0) Chosen = Pose;
+		if (IsFree(Pose, Facing.Quaternion()))
+		{
+			Chosen = Pose;
+			bFound = true;
+			break;
+		}
+	}
+	if (!bFound)
+	{
+		UE_LOG(LogRoverloom, Warning, TEXT("Race: no free place beside the reset point for %s; reset there anyway"), *DisplayName);
+	}
+	ResetPose = FTransform(Facing, Chosen);
 	if (!Rig)
 	{
 		return;
@@ -162,6 +197,44 @@ bool ARaceOpponent::GetSitePose(FVector2D& OutM, double& OutYawRad, double& OutF
 	OutYawRad = -FMath::DegreesToRadians(Body->GetComponentRotation().Yaw); // Unreal's Y is the site's -Y
 	OutForwardMps = FVector::DotProduct(Body->GetPhysicsLinearVelocity(), Body->GetForwardVector()) / RoverloomFrames::UnrealCmPerM;
 	return FMath::IsFinite(OutM.X) && FMath::IsFinite(OutM.Y) && FMath::IsFinite(OutYawRad);
+}
+
+void ARaceOpponent::SenseAhead()
+{
+	const UStaticMeshComponent* Body = Rig->GetBody();
+	const FVector Center = Body->GetComponentLocation();
+	const double YawDeg = Body->GetComponentRotation().Yaw;
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(RaceOpponentSense), false, this);
+	Params.AddIgnoredActor(Rig);
+	FCollisionObjectQueryParams Objects;
+	Objects.AddObjectTypesToQuery(ECC_WorldStatic);
+	Objects.AddObjectTypesToQuery(ECC_WorldDynamic);
+	Objects.AddObjectTypesToQuery(ECC_PhysicsBody);
+	// Ahead: a box as wide as the body (anything it would hit); the sides: a 30 cm sphere 30 degrees out
+	const FCollisionShape SideProbe = FCollisionShape::MakeSphere(30.0f);
+	const FCollisionShape AheadProbe = FCollisionShape::MakeBox(FVector(10.0, RoverloomRover::BodySizeCm.Y * 0.5, 25.0));
+	const double RangeCm = SenseRangeM * 100.0;
+	// Site left is Unreal's negative yaw (Unreal's Y is the site's -Y)
+	const double OffsetsDeg[3] = {-30.0, 0.0, 30.0};
+	for (int32 I = 0; I < 3; ++I)
+	{
+		const FVector Dir = FRotator(0.0, YawDeg + OffsetsDeg[I], 0.0).Vector();
+		// From the front of the body, 45 cm above the ground: low enough for cairns and rocks, below the deck
+		const FVector From = Center + Dir * (RoverloomRover::BodySizeCm.X * 0.5) - FVector(0.0, 0.0, RoverloomRover::RideHeightCm - 45.0);
+		TArray<FHitResult> Hits;
+		const bool bAhead = I == 1;
+		GetWorld()->SweepMultiByObjectType(Hits, From, From + Dir * RangeCm, bAhead ? FRotator(0.0, YawDeg, 0.0).Quaternion() : FQuat::Identity,
+			Objects, bAhead ? AheadProbe : SideProbe, Params);
+		double Free = SenseRangeM;
+		for (const FHitResult& Hit : Hits)
+		{
+			// Ground the rover can drive up faces upward; an obstacle has a steep face
+			if (Hit.ImpactNormal.Z > 0.7 || Hit.bStartPenetrating) continue;
+			Free = FMath::Min(Free, Hit.Distance / 100.0);
+			break;
+		}
+		Clearance[I] = Free;
+	}
 }
 
 void ARaceOpponent::TickPhysical(double DeltaSeconds)
@@ -192,6 +265,7 @@ void ARaceOpponent::TickPhysical(double DeltaSeconds)
 	const double StepDt = FMath::Min(DeltaSeconds, static_cast<double>(UPhysicsSettings::Get()->MaxPhysicsDeltaTime));
 	Rig->StepWheels(StepDt);
 	SetActorLocationAndRotation(Body->GetComponentLocation(), Body->GetComponentQuat());
+	SenseAhead();
 	// Wheels where the suspension holds them, spinning at the rig's wheel speed
 	const TArray<AWheelRig::FWheelRecord>& Records = Rig->GetRecords();
 	const double RestCm = Rig->GetParams().RestLengthCm;
