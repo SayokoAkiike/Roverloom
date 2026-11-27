@@ -828,7 +828,7 @@ class Race:
                 reach = r.footprint[0] + max(o.footprint[:2])
                 if 0.5 < ahead < reach + 4.0 and abs(lateral) < width + 0.3:
                     away = -1.0 if lateral > 0 else 1.0  # rival on the left: go right
-                    clear = width + 0.6
+                    clear = width + 0.4
                     target = (o.x + hx - hy * away * clear, o.y + hy + hx * away * clear)
                     break
         obs = {"position_m": [r.x, r.y], "yaw_rad": r.yaw}

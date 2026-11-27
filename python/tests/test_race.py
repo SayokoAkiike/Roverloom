@@ -602,7 +602,26 @@ def _clear(x, y, yaw, posts, front=1.0, rng=5.0):
     return out
 
 
-def _physical_unreal(course, npcs=3, seconds=200.0, block=None, posts=()):
+def _cairns(course, offset):
+    """The trail cairns as SpawnRaceCourse places them: every 9 m along the line, alternating sides
+    at `offset` metres, none within 4 m of a gate or the start. Radius 0.23 m."""
+    out, carry, k = [], 4.5, 0
+    line = course.path
+    for (ax, ay), (bx, by) in zip(line, line[1:], strict=False):
+        n = math.hypot(bx - ax, by - ay) or 1.0
+        d = carry
+        while d < n:
+            cx, cy = ax + (bx - ax) * d / n, ay + (by - ay) * d / n
+            if all(math.dist((cx, cy), g) >= 4.0 for g in (course.start, *course.checkpoints)):
+                side = -offset if k % 2 else offset
+                out.append((cx - (by - ay) / n * side, cy + (bx - ax) / n * side, 0.23))
+                k += 1
+            d += 9.0
+        carry = (d - n) % 9.0
+    return out
+
+
+def _physical_unreal(course, npcs=3, seconds=200.0, block=None, posts=(), player_mps=0.0):
     """Stands in for Unreal with physical rivals: integrates each rival's command as a rover would,
     reports its pose and what it sees ahead. `block(x, y)` stops a rover there; `posts` are solid
     circles (x, y, radius) that Python is never told about."""
@@ -618,7 +637,23 @@ def _physical_unreal(course, npcs=3, seconds=200.0, block=None, posts=()):
         out = [(x, y, 1.0) for j, (x, y, _, _) in rivals.items() if j != k]
         return [*posts, *out, (r.you.x, r.you.y, 1.0)]
 
+    pi = 1
     while r.outcome == "running" and t < seconds:
+        if player_mps and r.time_s >= 0 and pi < len(course.path):
+            # The player drives the path slowly, as the --diagnose agent does
+            tx, ty = course.path[pi]
+            d = math.dist((r.you.x, r.you.y), (tx, ty))
+            if d < 0.5:
+                pi += 1
+            else:
+                step = min(d, player_mps * 0.1)
+                nx = r.you.x + (tx - r.you.x) / d * step
+                ny = r.you.y + (ty - r.you.y) / d * step
+                if not any(
+                    math.dist((nx, ny), (x, y)) < 2.0 for x, y, _, _ in rivals.values()
+                ) and not any(math.dist((nx, ny), (px, py)) < pr + 1.0 for px, py, pr in posts):
+                    r.you.x, r.you.y = nx, ny
+                r.you.yaw = math.atan2(ty - r.you.y, tx - r.you.x)
         rows = [
             {
                 "id": k,
@@ -779,3 +814,15 @@ def test_rivals_find_their_way_past_posts_they_were_never_told_about(name):
     ]
     # Going round, not rescued round: a few resets at most
     assert all(x.reset_id <= 6 for x in r.racers[1:]), [x.reset_id for x in r.racers[1:]]
+
+
+@pytest.mark.parametrize("name", ["noctis_sprint", "gale_sprint", "amazonis_sprint"])
+def test_rivals_overtake_a_slow_player_between_the_cairns(name):
+    """Third Mac run: rivals caught between a slow player and cairns 2.4 m out were reset every 6 s.
+    With the cairns at the track's edge (4.2 m) they pass, and resets are rare."""
+    course = COURSES[name]
+    r, _ = _physical_unreal(
+        course, npcs=4, seconds=course.limit_s, posts=_cairns(course, 4.2), player_mps=0.175
+    )
+    assert all(x.finished_s is not None for x in r.racers[1:])
+    assert sum(x.reset_id for x in r.racers[1:]) <= 3, [x.reset_id for x in r.racers[1:]]

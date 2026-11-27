@@ -247,7 +247,8 @@ void ARoverPlaygroundGameMode::SpawnScatter()
 		if (RaceCourse)
 		{
 			const FVector Site = RoverloomFrames::UnrealToSitePosition(FVector(X, Y, 0.0));
-			return RoverloomRace::DistanceToLineM(*RaceCourse, FVector2D(Site.X, Site.Y)) < 3.2;
+			// Clear of stones a little beyond the cairns, so that the overtaking lane has no rock in it
+			return RoverloomRace::DistanceToLineM(*RaceCourse, FVector2D(Site.X, Site.Y)) < RoverloomCollision::RaceTrackHalfWidthM + 0.3;
 		}
 		const bool bLane = X > -300.0 && X < 4200.0 && FMath::Abs(Y) < 250.0; // The straight lane: 3 m behind to 42 m ahead, 5 m wide
 		const bool bStart = X * X + Y * Y < 300.0 * 300.0;                      // And 3 m around the start
@@ -747,7 +748,8 @@ void ARoverPlaygroundGameMode::SpawnRaceCourse()
 			if (bFlags)
 			{
 				// Alternate sides, as a trail of cairns would be built
-				const FVector2D Foot = C + Left * ((Markers % 2) ? -2.4 : 2.4);
+				// 4.2 m out: a rover on the line (2.3 m wide) and one overtaking it both fit between the cairns
+				const FVector2D Foot = C + Left * ((Markers % 2) ? -RoverloomCollision::RaceTrackHalfWidthM : RoverloomCollision::RaceTrackHalfWidthM);
 				SpawnProp(Foot, 12.0, Markers * 37.0, FVector(46, 40, 26), Cairn, Sphere);
 				SpawnProp(Foot, 32.0, Markers * 53.0, FVector(30, 26, 20), Cairn * 1.15f, Sphere);
 				SpawnProp(Foot, 46.0, Markers * 71.0, FVector(18, 16, 14), Post * 0.8f, Sphere);

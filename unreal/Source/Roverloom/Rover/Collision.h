@@ -27,6 +27,11 @@ namespace RoverloomCollision
 
 	inline constexpr double MinSolidRockRadiusM = 0.15;
 
+	// Half the width of the race track: cairns mark its edges and no stone lies inside it (plus 0.3 m). With physical
+	// rovers the track must hold a rover on the line and one overtaking it; at 2.4 m, rivals were caught between a slow
+	// rover and the cairns (Mac run, 2026-11-28).
+	inline constexpr double RaceTrackHalfWidthM = 4.2;
+
 	inline void Apply(UPrimitiveComponent* Component, EKind Kind)
 	{
 		if (!Component)

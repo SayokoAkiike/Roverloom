@@ -87,7 +87,8 @@ The Gale courses are on the real terrain of the Gale level (a HiRISE DTM, [resul
 Each was routed on the heightfield so that the 4 m-baseline slope stays under 10 degrees with 3 m of clearance either side
 (the steepest point on the path is 10.0 degrees). Flags are golf-style pins with a ring of pale stones the size of the
 arrival radius (2.5 m); small cairns every 9 m show the way between them, and the HUD shows the flag number, its distance
-and an arrow. Rocks are kept out of a 3.2 m corridor along the path and added beside it, so the ground along the whole
+and an arrow. The track is 8.4 m wide: cairns stand 4.2 m either side of the path, wide enough for a rover on the line and one
+overtaking it, and rocks are kept out of 4.5 m either side and added beyond, so the ground along the whole
 course is as detailed as at the start. Rivals follow the routed path; with Unreal they are physics rovers and slow on slopes as yours does.
 
 The rover's top speed is 0.5 m/s, as the drive model's limit: Gale Links takes about nine minutes and Gale Sprint about
