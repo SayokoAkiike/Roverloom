@@ -244,6 +244,10 @@ void ARaceOpponent::TickPhysical(double DeltaSeconds)
 	{
 		// The body simulates from the frame IsReady first returns true, as the player's rig.
 		bRigReady = Rig->IsReady();
+		if (bRigReady)
+		{
+			Rig->AddWheelContactShapes();
+		}
 		SetActorLocationAndRotation(Body->GetComponentLocation(), Body->GetComponentQuat());
 		return;
 	}

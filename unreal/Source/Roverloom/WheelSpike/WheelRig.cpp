@@ -1,6 +1,7 @@
 #include "WheelRig.h"
 
 #include "CollisionQueryParams.h"
+#include "Components/SphereComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/CollisionProfile.h"
 #include "Engine/StaticMesh.h"
@@ -67,6 +68,36 @@ void AWheelRig::OnBodyHit(UPrimitiveComponent* HitComponent, AActor* OtherActor,
 	const FHitResult& Hit)
 {
 	++BodyHits;
+}
+
+void AWheelRig::AddWheelContactShapes()
+{
+	if (bWheelShapes || !Body->GetBodyInstance()->IsValidBodyInstance())
+	{
+		return;
+	}
+	bWheelShapes = true;
+	for (int32 Index = 0; Index < Wheels.Num(); ++Index)
+	{
+		USphereComponent* Shape = NewObject<USphereComponent>(this);
+		Shape->SetSphereRadius(Params.RadiusCm);
+		Shape->SetCollisionObjectType(ECC_PhysicsBody);
+		Shape->SetCollisionResponseToAllChannels(ECR_Ignore);
+		Shape->SetCollisionResponseToChannel(ECC_PhysicsBody, ECR_Block);
+		Shape->SetCollisionResponseToChannel(ECC_WorldDynamic, ECR_Block);
+		Shape->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		Shape->SetMassOverrideInKg(NAME_None, 0.01f, true);
+		Shape->SetHiddenInGame(true);
+		Shape->SetCanEverAffectNavigation(false);
+		Shape->RegisterComponent();
+		// Where the wheel sits at its static compression, in the body's frame
+		const FVector Local = Wheels[Index].MountLocal - FVector(0.0, 0.0, Params.RestLengthCm - StaticCompressionCm);
+		// As StepWheels places the mounts: the body's position and rotation, not its scale
+		Shape->SetWorldLocation(Body->GetComponentLocation() + Body->GetComponentQuat().RotateVector(Local));
+		Shape->AttachToComponent(Body, FAttachmentTransformRules(EAttachmentRule::KeepWorld, true));
+		// The body's scale must not stretch the sphere
+		Shape->SetWorldScale3D(FVector::OneVector);
+	}
 }
 
 bool AWheelRig::IsReady() const

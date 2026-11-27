@@ -226,7 +226,7 @@ void ARoverPlaygroundGameMode::SpawnScatter()
 		Component->SetStaticMesh(Meshes[Mesh]);
 		// In a race, every rock over the size limit is a solid body, wherever it lies: the rule is by size, not by place
 		RoverloomCollision::Apply(Component, bSolidRocks && MeshSolid[Mesh] && Classes[Class].MaxRadiusM > RoverloomCollision::MinSolidRockRadiusM
-				? RoverloomCollision::EKind::Solid
+				? RoverloomCollision::EKind::Ground
 				: RoverloomCollision::EKind::GroundMark);
 		Component->SetCanEverAffectNavigation(false);
 		Component->SetCullDistances(0, static_cast<int32>(Classes[Class].CullCm * CullPercent / 100.0f));

@@ -455,6 +455,10 @@ void ARoverPawn::Tick(float DeltaSeconds)
 		Status.bReady = bRigReady;
 		if (bRigReady)
 		{
+			if (Status.bRace)
+			{
+				Rig->AddWheelContactShapes(); // wheels meet rivals and posts as solids
+			}
 			ReadyTimeS = GetWorld()->GetTimeSeconds();
 			if (MissionClockStartS < 0.0) MissionClockStartS = ReadyTimeS;
 			bLoggedSettle = false;

@@ -19,8 +19,14 @@ Decision, `race-0.4` / `race-drive-0.4`, Unreal backend only:
   radius is over 15 cm, wherever it lies and on every stage; smaller stones count as the ground's roughness. The rock
   collision belongs to the mesh asset (a 26-sided hull from `scripts/unreal/build_rock_collision.py`), so it moves and
   scales with every instance.
-- **Rovers meet body to body.** Race rigs have a restitution of 0.35 (a game setting) and their wheels stand on static
-  objects only, so a wheel never climbs onto another rover.
+- **Rovers meet body and wheels.** A rig's box (2.0 x 1.5 m) is narrower than its wheel track (2.3 m), and the model
+  wheels are traces, not bodies: in the second Mac run a rival drove alongside the player with its wheels 0.87 m into
+  the player's for 15 s. In a race each wheel also has a solid sphere welded to the body (no mass of its own), which
+  meets other rovers and obstacles but not the ground; the wheel model still finds the ground by its trace. Race rigs
+  have a restitution of 0.35 (a game setting) and their wheel traces see only the ground (object type WorldStatic), so a
+  wheel never climbs onto another rover or a post.
+- **Ground or obstacle.** The ground and rocks are WorldStatic: wheels stand on them and climb them. Posts, poles,
+  cairns and buildings are WorldDynamic: they block bodies and wheels and are not climbed.
 - **Rivals see where they go.** Each rival sweeps ahead every frame (a box as wide as its body straight ahead, spheres
   30 degrees to each side, 5 m) and Unreal reports the free distances. Anything solid with a steep face counts, ground it
   can drive up does not. Python steers round it, keeps to the side it chose for 1.5 s, and backs off when nearer than

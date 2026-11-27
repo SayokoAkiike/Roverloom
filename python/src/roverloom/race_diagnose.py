@@ -207,13 +207,21 @@ def report(run: Path) -> str:
             "See the first reset above."
         )
         return "\n".join(lines)
-    lines.append("Verdict: " + verdict(rules, current, py_hits, draw_hits))
+    physical = '"command"' in states.read_text(encoding="utf-8")
+    lines.append("Verdict: " + verdict(rules, current, py_hits, draw_hits, physical))
     return "\n".join(lines)
 
 
-def verdict(rules: set[str], current: str, py_hits: int, draw_hits: int) -> str:
+def verdict(
+    rules: set[str], current: str, py_hits: int, draw_hits: int, physical: bool = False
+) -> str:
     if rules != {current}:
         return "this run used other race rules than this checkout; run `git pull` and race again."
+    if physical and (py_hits or draw_hits > 0):
+        return (
+            "Unreal's physics placed the rovers and let them overlap: the collision shapes do not "
+            "cover the drawn rovers (wheels, mast or deck), or a body was pushed through."
+        )
     if py_hits:
         return "Python let rovers overlap: a bug in the race rules."
     if draw_hits > 0:

@@ -74,6 +74,11 @@ public:
 	// rovers meet body to body. Off by default, so missions keep their traces.
 	void SetWheelsHitOnlyStatic(bool bOn) { bWheelsHitOnlyStatic = bOn; }
 
+	// Give each wheel a solid shape, welded to the body, at its place at rest. The wheel model still finds the ground by
+	// its trace; these shapes only meet other rovers and obstacles (object types PhysicsBody and WorldDynamic), so wheels
+	// no longer pass through a rival's wheels or a post. They carry no mass of their own. Call once IsReady is true.
+	void AddWheelContactShapes();
+
 	// A known force on the center of mass for the coming step. The rig applies it, and the solve accounts for it.
 	void SetExternalForce(const FVector& Force) { ExternalForce = Force; }
 
@@ -128,4 +133,5 @@ private:
 	bool bLockYawAxis = false;
 	bool bUseSweep = false;
 	bool bWheelsHitOnlyStatic = false;
+	bool bWheelShapes = false;
 };
