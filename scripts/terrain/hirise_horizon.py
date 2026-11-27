@@ -20,6 +20,7 @@ import argparse
 import json
 from pathlib import Path
 
+import local_frame
 import numpy as np
 from osgeo import gdal
 
@@ -42,7 +43,7 @@ def configure(name: str) -> None:
     DATA = REPO / "unreal/Saved/Terrain" / name
     SOURCE = DATA / f"{site['product']}.tif"
     SITE = DATA / f"{name}_site.json"
-    CENTER = (float(site["center_projected_m"][0]), float(site["center_projected_m"][1]))
+    CENTER = local_frame.center(site)
     GSD_M = float(site["source_gsd_m"])
 
 
@@ -61,6 +62,7 @@ def cut(target: Path, half: float, spacing: float) -> None:
         resampleAlg="average",  # Averages the 1 m posts, which also damps stereo noise
         outputType=gdal.GDT_Float32,
         dstNodata=-3.4028227e38,
+        **local_frame.warp_options(SITES[NAME]),
     )
 
 

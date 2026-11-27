@@ -26,6 +26,7 @@ import math
 import urllib.request
 from pathlib import Path
 
+import local_frame
 import numpy as np
 from osgeo import gdal
 
@@ -45,7 +46,9 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def cut(source: Path, center: tuple[float, float], half: float, resample: str) -> np.ndarray:
+def cut(
+    source: Path, center: tuple[float, float], half: float, resample: str, warp: dict | None = None
+) -> np.ndarray:
     x, y = center
     dataset = gdal.Warp(
         "",
@@ -58,6 +61,7 @@ def cut(source: Path, center: tuple[float, float], half: float, resample: str) -
         outputType=gdal.GDT_Float32,
         srcNodata=0,
         dstNodata=-1,
+        **(warp or {}),
     )
     return dataset.GetRasterBand(1).ReadAsArray().astype(np.float64)
 
@@ -141,7 +145,7 @@ def fit_sun(image: np.ndarray, height: np.ndarray, spacing: float) -> dict:
 
 
 def albedo(
-    image: np.ndarray, height: np.ndarray, spacing: float, sun: dict
+    image: np.ndarray, height: np.ndarray, spacing: float, sun: dict, shadow_cut: float = 0.45
 ) -> tuple[np.ndarray, float]:
     shade = lambert(
         height, spacing, math.radians(sun["azimuth_deg"]), math.radians(sun["elevation_deg"])
@@ -150,7 +154,9 @@ def albedo(
     valid = image > 0
     # Cast shadows (pit floors, the lee of cliffs) are not in the Lambert model: they would come out as dark ground.
     # Ground darker than 45 % of the median photo brightness is treated as shadow and left at the mean brightness.
-    shadow = valid & (image < 0.45 * np.median(image[valid]))
+    # Sites of dark basaltic dunes on bright ground (sites.json "albedo_shadow_cut": 0) keep their dark ground: there
+    # the dark patches are the dunes, and the source photos were taken with the sun 31 to 47 degrees up.
+    shadow = valid & (image < shadow_cut * np.median(image[valid]))
     result = np.where(valid & ~shadow, image / model, np.nan)
     result /= np.nanmean(result)
     missing = float(np.isnan(result).mean())
@@ -189,22 +195,23 @@ def main() -> None:
     checksum = sha256(source)
     if checksum != site["ortho_sha256"]:
         raise SystemExit(f"{source} has SHA-256 {checksum}, expected {site['ortho_sha256']}")
-    center = (float(site["center_projected_m"][0]), float(site["center_projected_m"][1]))
+    center = local_frame.center(site)
     site_info = json.loads((data / f"{args.site}_site.json").read_text())
     horizon_info = json.loads((REPO / site["report"] / "horizon.json").read_text())
 
-    image = cut(source, center, (SAMPLES - 1) / 2 + 0.5, "bilinear")
+    image = cut(source, center, (SAMPLES - 1) / 2 + 0.5, "bilinear", local_frame.warp_options(site))
     height = heights(data / f"{args.site}_site.r16", site_info)
     height = smooth(height)
     sun = fit_sun(image, height, 1.0)
-    site_albedo, site_missing = albedo(image, height, 1.0, sun)
+    cut_share = float(site.get("albedo_shadow_cut", 0.45))
+    site_albedo, site_missing = albedo(image, height, 1.0, sun, cut_share)
     write_png(site_albedo, data / f"{args.site}_albedo.png")
 
     half = horizon_info["extent_m"] / 2 + horizon_info["spacing_m"] / 2
-    horizon_image = cut(source, center, half, "average")
+    horizon_image = cut(source, center, half, "average", local_frame.warp_options(site))
     horizon_height = heights(data / f"{args.site}_horizon.r16", horizon_info)
     horizon_albedo, horizon_missing = albedo(
-        horizon_image, horizon_height, horizon_info["spacing_m"], sun
+        horizon_image, horizon_height, horizon_info["spacing_m"], sun, cut_share
     )
     write_png(horizon_albedo, data / f"{args.site}_horizon_albedo.png")
 
@@ -212,7 +219,8 @@ def main() -> None:
         "source": f"{site['ortho']}.tif",
         "source_sha256": checksum,
         "license": "CC0-1.0 (HiRISE products are public domain); NASA/JPL/University of Arizona, distributed by USGS",
-        "method": "albedo = photo / (a * cos i + b), with the sun direction fitted to the DTM's Lambert shading; normalised to mean 1, clipped to 0.35..1.9; cast shadows (under 45 % of the median) and gaps set to the mean",
+        "method": "albedo = photo / (a * cos i + b), with the sun direction fitted to the DTM's Lambert shading; normalised to mean 1, clipped to 0.35..1.9; cast shadows (under the site's shadow cut, 45 % of the median unless set) and gaps set to the mean",
+        "shadow_cut_share_of_median": cut_share,
         "fitted_sun_azimuth_deg_from_north": sun["azimuth_deg"],
         "fitted_sun_elevation_deg": sun["elevation_deg"],
         "fit_r2": round(float(sun["r2"]), 3),

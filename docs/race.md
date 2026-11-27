@@ -80,6 +80,10 @@ too slow for you, change the difficulty.
 | `noctis_sprint` | 157 m, point to point | 1 | Noctis Labyrinthus | The first two flags of Noctis Spur |
 | `amazonis_rim` | 351 m, point to point | 1 | Amazonis Planitia | Smooth dusty plains past a channel to the rim of a deep pit |
 | `amazonis_sprint` | 160 m, point to point | 1 | Amazonis Planitia | The last two flags of Amazonis Rim |
+| `lyot_slalom` | 410 m, point to point | 1 | Lyot Crater, winter | Between frosted dark dunes on a bright crater floor, under a sun 7° up |
+| `lyot_sprint` | 156 m, point to point | 1 | Lyot Crater, winter | The first leg of Lyot Frost Slalom |
+| `ghost_forest` | 431 m, point to point | 1 | North polar dunes, spring | The "ghost forest": dark sand streaks on frosted dunes, over a dune tail and a rough band |
+| `ghost_sprint` | 223 m, point to point | 1 | North polar dunes, spring | The first two flags of Ghost Forest |
 | `crater_loop` | 46 m | 2 | Generated | Sand on the east turn, two boost pads, a supply pad |
 | `dune_sprint` | 32 m | 3 | Generated | A short rectangle with a sand patch and one boost pad |
 

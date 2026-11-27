@@ -325,11 +325,21 @@ def _distance_to_path(path, p):
 
 
 @pytest.mark.parametrize(
-    "name", ["noctis_spur", "noctis_sprint", "amazonis_rim", "amazonis_sprint"]
+    "name",
+    [
+        "noctis_spur",
+        "noctis_sprint",
+        "amazonis_rim",
+        "amazonis_sprint",
+        "lyot_slalom",
+        "lyot_sprint",
+        "ghost_forest",
+        "ghost_sprint",
+    ],
 )
 def test_new_stage_courses_are_point_to_point_flag_courses(name):
     course = COURSES[name]
-    assert course.ground in ("noctis", "amazonis") and course.style == "flags"
+    assert course.ground in ("noctis", "amazonis", "lyot", "olympia") and course.style == "flags"
     assert course.start_point == course.path[0] and course.path[-1] == course.checkpoints[-1]
     for flag in course.checkpoints:
         assert min(math.dist(flag, p) for p in course.path) < 0.01
@@ -350,10 +360,16 @@ def test_stage_levels_resolve_from_sites_json():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     assert module.stage_level("generated") is None
-    for site in ("gale", "noctis", "amazonis"):
+    stages = {"gale", "noctis", "amazonis", "lyot", "olympia"}
+    for site in stages:
         level, umap = module.stage_level(site)
         assert level.startswith("/Game/Licensed/") and umap.suffix == ".umap"
-    assert {c.ground for c in COURSES.values()} <= {"generated", "gale", "noctis", "amazonis"}
+    assert {c.ground for c in COURSES.values()} <= {"generated"} | stages
+    # Each new stage has its own light, and the far-north stages are cut in a local frame
+    assert module.STAGE_LIGHT == {"lyot": "winter", "olympia": "polar"}
+    sites = json.loads((Path(__file__).parents[2] / "scripts/terrain/sites.json").read_text())
+    for site in ("lyot", "olympia"):
+        assert sites[site]["center_projected_m"] == [0.0, 0.0] and "center_lonlat" in sites[site]
 
 
 def test_rivals_never_overlap_the_player_or_each_other():

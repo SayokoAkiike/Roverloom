@@ -28,6 +28,7 @@ import json
 import math
 from pathlib import Path
 
+import local_frame
 import numpy as np
 from osgeo import gdal
 
@@ -56,7 +57,7 @@ def configure(name: str) -> None:
     NAME = name
     DATA = REPO / "unreal/Saved/Terrain" / name
     REPORT = REPO / site["report"]
-    CENTER = (float(site["center_projected_m"][0]), float(site["center_projected_m"][1]))
+    CENTER = local_frame.center(site)
     HORIZON_HALF_M = float(site["horizon_half_m"])
 
 
@@ -75,6 +76,7 @@ def window(half: float, size: int) -> np.ndarray:
         height=size,
         resampleAlg="cubic",
         outputType=gdal.GDT_Float32,
+        **local_frame.warp_options(SITES[NAME]),
     )
     return dataset.GetRasterBand(1).ReadAsArray().astype(np.float64)
 

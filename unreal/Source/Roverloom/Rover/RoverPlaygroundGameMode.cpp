@@ -846,6 +846,19 @@ void ARoverPlaygroundGameMode::SpawnLights()
 		// the sky around the sun glows blue, as in the photographs of Martian sunsets, and the haze turns blue-violet
 		Look = {5.5, 195.0, 2.4f, FLinearColor(1.0f, 0.42f, 0.20f), 11.4f, 0.14f, FLinearColor(0.22f, 0.42f, 1.0f), 0.93f, 0.001f, 0.5f, FLinearColor(0.48f, 0.22f, 0.14f), 0.007f, FLinearColor::Black, 5.0f}; // The sun-side fog glow (0.30, 0.52, 1.6) had no visible effect on the sky, even at 12 times (tested 2026-11-16)
 	}
+	else if (Preset == TEXT("winter"))
+	{
+		// Northern winter at 49 N (Lyot), two days after the solstice: the sun only 7 degrees up, in the south-west at 14:39, as in
+		// HiRISE ESP_074942_2295. Its light travels north-east, crosses a long path and comes in thin and cold. Water-ice haze of the
+		// polar hood whitens the sky. The frosted pole-facing slopes are the ones in shade. Colours by eye (mars_inspired)
+		Look = {7.0, 315.0, 2.6f, FLinearColor(1.0f, 0.86f, 0.72f), 11.8f, 0.05f, FLinearColor(0.86f, 0.80f, 0.76f), 0.75f, 0.0008f, 0.7f, FLinearColor(0.56f, 0.60f, 0.70f), 0.009f, FLinearColor::Black, 6.0f};
+	}
+	else if (Preset == TEXT("polar"))
+	{
+		// Polar spring at 80 N: a pale sun about 13 degrees up and ahead of the start, so that the dunes and the dark streaks on the
+		// frost stand against the light. A clear, cold sky with little dust. Colours by eye (mars_inspired)
+		Look = {13.0, 135.0, 3.2f, FLinearColor(1.0f, 0.93f, 0.82f), 11.3f, 0.02f, FLinearColor(0.80f, 0.70f, 0.62f), 0.8f, 0.0006f, 0.8f, FLinearColor(0.50f, 0.56f, 0.68f), 0.004f, FLinearColor::Black, 7.0f};
+	}
 	else if (Preset == TEXT("sunset_blue"))
 	{
 		// The same low sun, but a pale sun light and a layer that absorbs red and green along the long path: the sky around the sun turns

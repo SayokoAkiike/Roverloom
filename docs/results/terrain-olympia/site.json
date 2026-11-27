@@ -1,0 +1,44 @@
+{
+  "site": "olympia",
+  "rationale": "North polar dune forms and frost (USGS item description)",
+  "product": "DTEPC_062937_2605_062555_2605_A01",
+  "stac_item": "https://stac.astrogeology.usgs.gov/api/collections/mro_hirise_socet_dtms/items/DTEPC_062937_2605_062555_2605_A01",
+  "source_url": "https://astrogeo-ard.s3-us-west-2.amazonaws.com/mars/mro/hirise/controlled/dtm/ESP_062937_2605_ESP_062555_2605/DTEPC_062937_2605_062555_2605_A01.tif",
+  "source_sha256": "2f51741f809ac2c609b3fbd5f8b2041412107f6d58f31c92f2169341143c8c8e",
+  "license": "CC0-1.0",
+  "credit": "NASA/JPL/University of Arizona; DTM distributed by USGS",
+  "projection": "local stereographic on the Mars sphere: +proj=stere +lat_0=80.3402 +lon_0=96.37259 +k=1 +x_0=0 +y_0=0 +R=3396190.0 +units=m +no_defs",
+  "source_projection": "Mars (2015) - Sphere / Ocentric / North Polar",
+  "center_lon_lat_deg": [
+    96.37259,
+    80.3402
+  ],
+  "samples": 1009,
+  "spacing_m": 1.0,
+  "extent_m": 1008.0,
+  "resampling": "cubic, from about 1.0059 m",
+  "nodata_filled_samples": 0,
+  "height_min_m": -4509.504,
+  "height_max_m": -4488.081,
+  "height_reference": "Mars aeroid; heightfield is relative to height_min_m",
+  "r16": "uint16 little-endian, row 0 north, 0 = height_min_m, 65535 = height_max_m",
+  "unreal_z_scale_percent": 4.184,
+  "unreal_xy_scale_percent": 100.0,
+  "slope_1m": {
+    "under_15_deg_fraction": 0.8774,
+    "p95_deg": 20.54,
+    "note": "Dominated by stereo noise; resolving power is coarser than the spacing"
+  },
+  "slope_4m": {
+    "under_15_deg_fraction": 0.9505,
+    "p95_deg": 14.96,
+    "max_deg": 35.67
+  },
+  "import_check": {
+    "pairs": 200,
+    "median_abs_error_m": 0.062,
+    "max_abs_error_m": 0.51,
+    "quantization_step_m": 0.0003
+  },
+  "measured_vs_generated": "Shape at about 1 m is measured; anything finer is generated"
+}

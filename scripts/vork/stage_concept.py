@@ -118,6 +118,115 @@ STAGES: dict[str, dict[str, Any]] = {
         },
     },
 }
+# The two winter and spring stages take their frost and streak rules from the Unreal material's LOOKS
+# (scripts/unreal/build_gale_material.py), so that the concept renders and the game follow the same rules.
+STAGES["lyot"] = {
+    # Lyot Crater in northern winter: dark barchans on a bright crater floor; frost on the north-facing halves.
+    "palette": {
+        "dark": [0.18, 0.12, 0.10],
+        "mid": [0.42, 0.25, 0.19],
+        "light": [0.62, 0.40, 0.32],
+    },
+    "rocks": 160,
+    "frost": {
+        "facing_from": 0.03,
+        "facing_gain": 8.0,
+        "slope_cover": 1.0,
+        "flat_cover": 0.05,
+        "dune_frost": 0.85,
+        "color": [0.78, 0.78, 0.80],
+        "strength": 0.92,
+    },
+    "streaks": {
+        "surface": "flat",
+        "downslope_deg": 80.0,
+        "spacing_m": 3.0,
+        "thin": 0.62,
+        "color": [0.78, 0.78, 0.80],
+        "strength": 0.55,
+    },
+    "shots": {
+        "lyot_slalom": {
+            "about": "Lyot Frost Slalom start, the rover facing flag 1 between frosted barchans",
+            "spot": [-180.0, 20.0],
+            "yaw_deg": 40.0,
+            "camera": [-7.0, 1.7, 5.0],
+            "target": [20.0, 0.8, -16.0],
+            "lens_mm": 30,
+            "sun_elevation_deg": 7,
+            "sun_rotation_deg": 220,
+            "tau": 0.6,
+            "haze": 0.9,
+            "exposure": -2.4,
+        },
+        "lyot_frost": {
+            "about": "Lyot Frost Slalom flag 1, looking south at the frosted north faces of the dunes",
+            "spot": [-60.0, 120.0],
+            "yaw_deg": -90.0,
+            "camera": [-3.0, 2.4, -9.0],
+            "target": [6.0, 0.0, 40.0],
+            "lens_mm": 28,
+            "sun_elevation_deg": 7,
+            "sun_rotation_deg": 220,
+            "tau": 0.6,
+            "haze": 0.9,
+            "exposure": -2.4,
+        },
+    },
+}
+STAGES["olympia"] = {
+    # North polar dunes in spring: frost over the ground, dark dune sand clearing, dark streaks down the slip faces.
+    "palette": {
+        "dark": [0.07, 0.06, 0.06],
+        "mid": [0.24, 0.21, 0.20],
+        "light": [0.50, 0.46, 0.44],
+    },
+    "rocks": 40,
+    "frost": {
+        "facing_from": 0.0,
+        "facing_gain": 0.0,
+        "slope_cover": 0.0,
+        "flat_cover": 0.9,
+        "dark_clears": 0.9,
+        "color": [0.74, 0.71, 0.71],
+        "strength": 0.78,
+    },
+    "streaks": {
+        "downslope_deg": 135.0,
+        "spacing_m": 4.0,
+        "thin": 0.5,
+        "color": [0.05, 0.045, 0.04],
+        "strength": 1.0,
+    },
+    "shots": {
+        "ghost_forest": {
+            "about": "Ghost Forest flag 1, looking south-east at dark streaks on the frosted dunes",
+            "spot": [-148.0, -164.0],
+            "yaw_deg": -45.0,
+            "camera": [-6.0, 2.2, -6.0],
+            "target": [30.0, -1.5, 30.0],
+            "lens_mm": 28,
+            "sun_elevation_deg": 13,
+            "sun_rotation_deg": 45,
+            "tau": 0.3,
+            "haze": 0.5,
+            "exposure": -2.8,
+        },
+        "ghost_start": {
+            "about": "Ghost Forest start, on the tail of a linear dune, looking along the course",
+            "spot": [-250.0, -250.0],
+            "yaw_deg": 40.0,
+            "camera": [-6.5, 1.8, 5.5],
+            "target": [22.0, 0.5, -18.0],
+            "lens_mm": 30,
+            "sun_elevation_deg": 13,
+            "sun_rotation_deg": 45,
+            "tau": 0.3,
+            "haze": 0.5,
+            "exposure": -2.8,
+        },
+    },
+}
 NEAR_LIMIT = (
     480.0  # The 1 m site mesh reaches this far from the rover, then the horizon mesh takes over
 )
@@ -240,8 +349,8 @@ def ground_functions(
     def far_height(x: float, z: float) -> float:
         east, north = e0 + x, n0 - z
         sink = (
-            1.5 if terrain["site"].inside(east, north) else 0.0
-        )  # under the near mesh where both exist
+            4.0 if terrain["site"].inside(east, north) else 0.0
+        )  # under the near mesh where both exist, even where the ground under the rover is levelled below a dune
         return rc.GROUND_Y + terrain["horizon"].at(east, north) - base - sink
 
     def colour(x: float, z: float) -> list[float]:
@@ -258,7 +367,49 @@ def ground_functions(
             (palette["dark"], palette["mid"]) if t < 0.45 else (palette["mid"], palette["light"])
         )
         u = t / 0.45 if t < 0.45 else (t - 0.45) / 0.55
-        return [min(1.0, (lo[k] + (hi[k] - lo[k]) * u) * fine) for k in range(3)]
+        rgb = [min(1.0, (lo[k] + (hi[k] - lo[k]) * u) * fine) for k in range(3)]
+        if "frost" not in stage and "streaks" not in stage:
+            return rgb
+        # The ground's slope at this point, from the heights, in the site frame (east, north, up)
+        dzde = (absolute(east + 1.0, north) - absolute(east - 1.0, north)) / 2.0
+        dzdn = (absolute(east, north + 1.0) - absolute(east, north - 1.0)) / 2.0
+        norm = math.sqrt(dzde * dzde + dzdn * dzdn + 1.0)
+        n_east, n_north, n_up = -dzde / norm, -dzdn / norm, 1.0 / norm
+        steep = 1.0 - n_up
+        if "frost" in stage:
+            f = stage["frost"]
+            pole = min(1.0, max(0.0, (n_north - f["facing_from"]) * f["facing_gain"]))
+            patches = min(
+                1.0, max(0.0, (noise(x / 25.0 + 41.0, z / 25.0) - (1.0 - f["flat_cover"])) * 4.0)
+            )
+            cover = min(1.0, pole * f["slope_cover"] + patches)
+            if "dune_frost" in f:
+                dune = min(1.0, max(0.0, (f["dune_frost"] - a) * 2.5))
+                not_slip = 1.0 - min(1.0, max(0.0, (steep - 0.10) * 20.0))
+                cover = min(1.0, cover + dune * not_slip)
+            if "dark_clears" in f:
+                cleared = min(1.0, max(0.0, (f["dark_clears"] - a) * 2.5))
+                slip_face = min(1.0, max(0.0, (steep - 0.03) * 15.0))
+                cover *= 1.0 - cleared * (1.0 - slip_face)
+            amount = cover * f["strength"]
+            rgb = [rgb[k] * (1.0 - amount) + f["color"][k] * fine * amount for k in range(3)]
+        if "streaks" in stage:
+            k_ = stage["streaks"]
+            theta = math.radians(k_["downslope_deg"])
+            de, dn = math.cos(theta), math.sin(theta)
+            toward = n_east * de + n_north * dn
+            if k_.get("surface") == "flat":
+                on_face = min(1.0, max(0.0, 1.0 - steep * 30.0))
+            else:
+                on_face = min(1.0, max(0.0, (toward - 0.08) * 6.0))
+            across = east * (-dn) + north * de
+            along = east * de + north * dn
+            n = noise(across / k_["spacing_m"] + 7.0, along / (k_["spacing_m"] * 6.0))
+            stripe = min(1.0, max(0.0, (n - k_["thin"]) / (1.0 - k_["thin"])))
+            broken = min(1.0, max(0.0, (noise(x / 66.0 + 13.0, z / 66.0) - 0.3) * 3.0))
+            amount = stripe * on_face * broken * k_["strength"]
+            rgb = [rgb[k] * (1.0 - amount) + k_["color"][k] * amount for k in range(3)]
+        return rgb
 
     return height, far_height, colour
 

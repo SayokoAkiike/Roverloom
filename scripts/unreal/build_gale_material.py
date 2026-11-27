@@ -29,6 +29,7 @@ The Earth textures are stand-ins, and the colors do the rest. Nothing here is a 
 # ruff: noqa: E501  (long prose lines in the docstring and log messages; wrapping them would not help the reader)
 
 import json
+import math
 import sys
 from pathlib import Path
 
@@ -78,6 +79,71 @@ LOOKS = {
         "gravel_bias": -0.2,
         "bands_cm": 0.0,
         "albedo": 0.5,
+    },
+    # Lyot Crater, 49 N, in northern winter: dark basaltic barchans on a bright, dusty crater floor (the HiRISE brightness
+    # map carries the dunes). Frost, a mix of CO2 and water ice, lies on the pole-facing (north) half of each dune but not on
+    # the warmer south-facing half, and in patches on the floor. HiRISE captions: ESP_074942_2295, ESP_053406_2295.
+    "lyot": {
+        "tints": [(1.12, 0.84, 0.66), (0.70, 0.58, 0.52), (0.92, 0.74, 0.60), (0.78, 0.62, 0.52)],
+        "patch": ((1.04, 0.92, 0.82), (1.0, 0.98, 0.94)),
+        "drift_bias": 0.0,
+        "gravel_bias": -0.1,
+        "bands_cm": 0.0,
+        "albedo": 1.0,
+        # facing: north-facing share of the normal where frost starts, and how fast it gets full (a 20 degree slope is 0.34)
+        "frost": {
+            "pole": "north",
+            "facing_from": 0.03,
+            "facing_gain": 8.0,
+            "slope_cover": 1.0,
+            "flat_cover": 0.05,
+            # Dune sand (dark in the brightness map) loses its heat fastest at night and frosts over first, all but
+            # its steep slip face; the crater floor stays bare apart from thin frosted streaks (ESP_074942_2295)
+            "dune_frost": 0.85,
+            "color": (0.86, 0.86, 0.88),
+            "strength": 0.92,
+        },
+        # Thin frosted streaks on the floor, running about north-south as in the winter image
+        "streaks": {
+            "surface": "flat",
+            "downslope_deg": 80.0,
+            "spacing_cm": 300.0,
+            "thin": 0.62,
+            "color": (0.86, 0.86, 0.88),
+            "strength": 0.55,
+        },
+    },
+    # North polar dunes, 80 N (Olympia Undae), in spring: the seasonal CO2 frost still covers the ground; the dark dune sand,
+    # absorbing more sunlight, clears first in spots, and dark sand streaks down the frosted slip faces. Seen from orbit these
+    # streaks, which cast no shadow, look like trees: the "ghost forest". HiRISE captions: ESP_062937_2605, and the 2008
+    # north polar dune image explained by the HiRISE team (dark basaltic sand sliding down the frosted dunes).
+    "olympia": {
+        "tints": [(1.04, 0.92, 0.84), (0.46, 0.43, 0.43), (0.84, 0.76, 0.70), (0.62, 0.54, 0.50)],
+        "patch": ((1.0, 0.95, 0.90), (0.96, 0.97, 1.0)),
+        "drift_bias": -0.1,
+        "gravel_bias": -0.2,
+        "bands_cm": 0.0,
+        "albedo": 1.0,
+        "frost": {
+            "pole": "north",
+            "facing_from": 0.0,
+            "facing_gain": 0.0,
+            "slope_cover": 0.0,
+            "flat_cover": 0.9,
+            "dark_clears": 0.9,  # where the measured brightness is under this, the dune sand has cleared,
+            # except on slip faces steeper than about 15 degrees, which keep their frost longest: the streaks run there
+            "color": (0.80, 0.77, 0.77),  # dust-laden CO2 frost: a warm, pinkish grey-white
+            "strength": 0.78,
+        },
+        # Dark streaks down the slip faces. downslope_deg: the direction the steep faces mostly face, measured on the site
+        # heightfield (degrees from east, toward north); a fixed direction keeps the stripes steady far from the origin.
+        "streaks": {
+            "downslope_deg": 135.0,
+            "spacing_cm": 400.0,
+            "thin": 0.5,
+            "color": (0.10, 0.085, 0.08),
+            "strength": 1.0,
+        },
     },
 }
 SITE = next((a for a in sys.argv[1:] if not a.startswith("-")), "gale")
@@ -220,7 +286,7 @@ def weighted_sum(items):
 def apply_albedo(base, world):
     """Multiply by the HiRISE brightness map (hirise_albedo.py) over the site and the horizon squares, if it exists."""
     if not LOOK["albedo"]:
-        return base
+        return base, None
     terrain = Path(unreal.Paths.project_dir(), "Saved/Terrain", SITE)
     textures = {}
     for key, file in (("site", f"{SITE}_albedo.png"), ("horizon", f"{SITE}_horizon_albedo.png")):
@@ -228,7 +294,7 @@ def apply_albedo(base, world):
             unreal.log_warning(
                 f"{file} is missing: run scripts/terrain/hirise_albedo.py --site {SITE}"
             )
-            return base
+            return base, None
         task = unreal.AssetImportTask()
         task.set_editor_property("filename", str(terrain / file))
         task.set_editor_property("destination_path", FOLDER)
@@ -285,7 +351,7 @@ def apply_albedo(base, world):
     measured = lerp(
         brightness(textures["horizon"], horizon_uv), brightness(textures["site"], site_uv), inside
     )
-    return mul(base, lerp(const(1.0), measured, const(LOOK["albedo"])))
+    return mul(base, lerp(const(1.0), measured, const(LOOK["albedo"]))), measured
 
 
 def main() -> int:
@@ -311,7 +377,8 @@ def main() -> int:
         return add(world, const3(x, y, 0.0))
 
     # ---- Where each layer goes: from slope, from noise, never from a painted map
-    normal_z = mask(node(unreal.MaterialExpressionVertexNormalWS), "b")
+    vertex_normal = node(unreal.MaterialExpressionVertexNormalWS)
+    normal_z = mask(vertex_normal, "b")
     steep = sub(const(1.0), normal_z)  # 0 flat, 1 vertical
     slope = saturate(
         mul(sub(steep, const(0.05)), const(5.0))
@@ -390,7 +457,61 @@ def main() -> int:
         band = add(const(0.82), mul(cycles("cos", phase), const(0.18)))
         fine_band = add(const(0.94), mul(cycles("cos", mul(phase, const(3.7))), const(0.06)))
         base = lerp(base, mul(base, mul(band, fine_band)), weights[2])
-    base = apply_albedo(base, world)
+    base, measured = apply_albedo(base, world)
+    frost_cover = None
+    if "frost" in LOOK:
+        # Seasonal frost. The site's north is Unreal's -Y, so a slope faces the pole when its normal points that way.
+        f = LOOK["frost"]
+        nx, ny = mask(vertex_normal, "r"), mask(vertex_normal, "g")
+        facing = mul(ny, const(-1.0 if f["pole"] == "north" else 1.0))
+        pole_slope = saturate(mul(sub(facing, const(f["facing_from"])), const(f["facing_gain"])))
+        patches = saturate(
+            mul(sub(noise(shifted(700.0, 3300.0), 0.004), const(1.0 - f["flat_cover"])), const(4.0))
+        )
+        frost_cover = saturate(add(mul(pole_slope, const(f["slope_cover"])), patches))
+        if measured is not None and f.get("dune_frost"):
+            dune = saturate(mul(sub(const(f["dune_frost"]), measured), const(2.5)))
+            not_slip = sub(const(1.0), saturate(mul(sub(steep, const(0.10)), const(20.0))))
+            frost_cover = saturate(add(frost_cover, mul(dune, not_slip)))
+        if measured is not None and f.get("dark_clears"):
+            # Dark sand warms first: where the measured ground is dark, the frost has gone
+            cleared = saturate(mul(sub(const(f["dark_clears"]), measured), const(2.5)))
+            slip_face = saturate(mul(sub(steep, const(0.03)), const(15.0)))
+            cleared = mul(cleared, sub(const(1.0), slip_face))
+            frost_cover = mul(frost_cover, sub(const(1.0), cleared))
+        frost_color = mul(const3(*f["color"]), add(const(0.92), mul(fine_noise, const(0.16))))
+        base = lerp(base, frost_color, mul(frost_cover, const(f["strength"])))
+    if "streaks" in LOOK:
+        # Dark sand streaks down the slip faces facing one way: stripes running downslope, broken and wavering
+        k = LOOK["streaks"]
+        theta = math.radians(k["downslope_deg"])
+        dx, dy = math.cos(theta), -math.sin(theta)  # in Unreal's frame
+        nx, ny = mask(vertex_normal, "r"), mask(vertex_normal, "g")
+        toward = add(mul(nx, const(dx)), mul(ny, const(dy)))
+        if k.get("surface") == "flat":
+            on_face = saturate(
+                sub(const(1.0), mul(steep, const(30.0)))
+            )  # flat ground only, under about 8 degrees
+        else:
+            on_face = saturate(
+                mul(sub(toward, const(0.08)), const(6.0))
+            )  # slopes over about 5 degrees facing that way
+        across = add(mul(wx, const(-dy)), mul(wy, const(dx)))
+        along = add(mul(wx, const(dx)), mul(wy, const(dy)))
+        # Noise stretched sixfold downslope: streaks of uneven width and spacing, not a regular hatching
+        stretched = node(unreal.MaterialExpressionAppendVector)
+        link(div(across, const(k["spacing_cm"])), stretched, "A")
+        link(div(along, const(k["spacing_cm"] * 6.0)), stretched, "B")
+        streak_pos = node(unreal.MaterialExpressionAppendVector)
+        link(stretched, streak_pos, "A")
+        link(const(0.0), streak_pos, "B")
+        stripe = saturate(
+            mul(sub(noise(streak_pos, 1.0, 2), const(k["thin"])), const(1.0 / (1.0 - k["thin"])))
+        )
+        broken = saturate(mul(sub(noise(shifted(2600.0, 8800.0), 0.0015), const(0.3)), const(3.0)))
+        streak = mul(mul(stripe, on_face), mul(broken, const(k["strength"])))
+        streak_color = mul(const3(*k["color"]), add(const(0.8), mul(fine_noise, const(0.4))))
+        base = lerp(base, streak_color, streak)
     # Real pebbles for the first few metres, around the wheels, where no stone instances may lie: the gravel texture again at 26 cm a
     # tile, laid over the gravelly ground and the drift edges, and fading out by about 10 m
     pebble_depth = sub(const(1.0), saturate(mul(depth, const(1.0 / 1000.0))))
@@ -456,6 +577,8 @@ def main() -> int:
     roughness = lerp(
         lerp(const(0.86), mask(arm, "g"), const(0.5)), const(0.72), mul(w_sand, const(0.6))
     )  # Sand a little smoother
+    if frost_cover is not None:
+        roughness = lerp(roughness, const(0.45), mul(frost_cover, const(0.6)))  # Frost is smoother
 
     if "--debug-weights" in sys.argv:
         # A look at where the layers went: sand red, gravel green, bedrock blue, regolith dark. Not for use in the game.

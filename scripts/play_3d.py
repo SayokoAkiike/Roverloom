@@ -118,7 +118,10 @@ def supervise(
 
 
 # Stones per stage, in percent of the Gale scatter. Amazonis is a dust-mantled plain with few rocks.
-STAGE_ROCKS = {"gale": 100, "noctis": 70, "amazonis": 25}
+STAGE_ROCKS = {"gale": 100, "noctis": 70, "amazonis": 25, "lyot": 40, "olympia": 10}
+# A stage's own light when --light is not given: Lyot in northern winter, the sun low in the south,
+# the polar dunes under a pale, low polar sun (RoverPlaygroundGameMode's light presets).
+STAGE_LIGHT = {"lyot": "winter", "olympia": "polar"}
 
 
 def stage_level(name: str) -> tuple[str, Path] | None:
@@ -175,9 +178,15 @@ def main(argv: list[str] | None = None) -> int:
     race.add_argument("--name", default="You")
     race.add_argument("--agent", default="none", help="none, pursuit, cap or external (Advanced)")
     race.add_argument(
-        "--map", choices=("generated", "gale", "noctis", "amazonis"), default="generated"
+        "--map",
+        choices=("generated", "gale", "noctis", "amazonis", "lyot", "olympia"),
+        default="generated",
     )
-    race.add_argument("--light", default="afternoon", help="noon, afternoon, sunset or default")
+    race.add_argument(
+        "--light",
+        help="noon, afternoon, sunset, winter, polar or default "
+        "(default: the stage's own, else afternoon)",
+    )
     race.add_argument("--res", default="1280x720")
     race.add_argument("--profile", choices=("dev", "capture"), default="dev")
     race.add_argument("--demo", action="store_true", help="hands-free: the pursuit agent drives")
@@ -222,6 +231,7 @@ def main(argv: list[str] | None = None) -> int:
             ground = COURSES[args.course].ground
             if ground != "generated":
                 args.map = ground  # Courses routed on a real site race on that site's level
+            args.light = args.light or STAGE_LIGHT.get(args.map, "afternoon")
             level = stage_level(args.map)
             if level and not level[1].exists():
                 raise RuntimeError(

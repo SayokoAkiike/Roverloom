@@ -1,0 +1,44 @@
+{
+  "site": "lyot",
+  "rationale": "Dune field in Lyot Crater (USGS item description); the same dunes as HiRISE ESP_074942_2295, Frosted Dunes in the Depths of Winter",
+  "product": "DTEEC_053406_2295_053894_2295_A01",
+  "stac_item": "https://stac.astrogeology.usgs.gov/api/collections/mro_hirise_socet_dtms/items/DTEEC_053406_2295_053894_2295_A01",
+  "source_url": "https://astrogeo-ard.s3-us-west-2.amazonaws.com/mars/mro/hirise/controlled/dtm/ESP_053406_2295_ESP_053894_2295/DTEEC_053406_2295_053894_2295_A01.tif",
+  "source_sha256": "61ed4d3a9b6f74418ecce1f08c9e2f471738c627409aee50d34b3f01301a89e1",
+  "license": "CC0-1.0",
+  "credit": "NASA/JPL/University of Arizona; DTM distributed by USGS",
+  "projection": "local stereographic on the Mars sphere: +proj=stere +lat_0=49.1773 +lon_0=29.0378 +k=1 +x_0=0 +y_0=0 +R=3396190.0 +units=m +no_defs",
+  "source_projection": "Mars (2015) - Sphere / Ocentric / Equirectangular, clon = 0",
+  "center_lon_lat_deg": [
+    29.0378,
+    49.1773
+  ],
+  "samples": 1009,
+  "spacing_m": 1.0,
+  "extent_m": 1008.0,
+  "resampling": "cubic, from about 1.1191 m",
+  "nodata_filled_samples": 0,
+  "height_min_m": -5639.458,
+  "height_max_m": -5606.952,
+  "height_reference": "Mars aeroid; heightfield is relative to height_min_m",
+  "r16": "uint16 little-endian, row 0 north, 0 = height_min_m, 65535 = height_max_m",
+  "unreal_z_scale_percent": 6.349,
+  "unreal_xy_scale_percent": 100.0,
+  "slope_1m": {
+    "under_15_deg_fraction": 0.918,
+    "p95_deg": 17.88,
+    "note": "Dominated by stereo noise; resolving power is coarser than the spacing"
+  },
+  "slope_4m": {
+    "under_15_deg_fraction": 0.9597,
+    "p95_deg": 13.83,
+    "max_deg": 41.88
+  },
+  "import_check": {
+    "pairs": 200,
+    "median_abs_error_m": 0.011,
+    "max_abs_error_m": 0.107,
+    "quantization_step_m": 0.0005
+  },
+  "measured_vs_generated": "Shape at about 1 m is measured; anything finer is generated"
+}

@@ -1,5 +1,5 @@
 {
-  "_note": "Terrain sites for the Unreal levels. Products are public HiRISE DTMs (CC0-1.0, NASA/JPL/University of Arizona, distributed by USGS) on the astrogeo-ard bucket. center_projected_m is in the product's equirectangular metres on the Mars 3,396,190 m sphere. origin_m is where the rover starts, relative to the site Landscape's center, as (east, north). See docs/stages.md.",
+  "_note": "Terrain sites for the Unreal levels. Products are public HiRISE DTMs (CC0-1.0, NASA/JPL/University of Arizona, distributed by USGS) on the astrogeo-ard bucket. center_projected_m is in the product's equirectangular metres on the Mars 3,396,190 m sphere. origin_m is where the rover starts, relative to the site Landscape's center, as (east, north). See docs/stages.md. A site with center_lonlat is cut in a local stereographic frame centred there (scripts/terrain/local_frame.py), true to scale at any latitude; its center_projected_m is then (0, 0).",
   "gale": {
     "title": "Gale crater floor",
     "product": "DTEEC_063319_1745_052242_1745_A01",
@@ -63,5 +63,59 @@
     "report": "docs/results/terrain-amazonis",
     "ortho": "ESP_025827_2025_RED_D_01_ORTHO",
     "ortho_sha256": "ab08789fcbfdad7fb4cded855d2ec9c0f6a5133e363a3e9b98cf9d2cb9dcd5d1"
+  },
+  "lyot": {
+    "title": "Lyot Crater dune field in northern winter",
+    "product": "DTEEC_053406_2295_053894_2295_A01",
+    "pair": "ESP_053406_2295_ESP_053894_2295",
+    "sha256": "61ed4d3a9b6f74418ecce1f08c9e2f471738c627409aee50d34b3f01301a89e1",
+    "rationale": "Dune field in Lyot Crater (USGS item description); the same dunes as HiRISE ESP_074942_2295, Frosted Dunes in the Depths of Winter",
+    "center_lonlat": [
+      29.0378,
+      49.1773
+    ],
+    "center_projected_m": [
+      0.0,
+      0.0
+    ],
+    "source_gsd_m": 1.1191,
+    "horizon_half_m": 2500.0,
+    "origin_m": [
+      0.0,
+      0.0
+    ],
+    "level": "/Game/Licensed/Lyot/Lyot",
+    "material": "/Game/Licensed/Lyot/M_LyotLandscape",
+    "report": "docs/results/terrain-lyot",
+    "ortho": "ESP_053406_2295_RED_C_01_ORTHO",
+    "ortho_sha256": "b2b49850475a41f23773e87ac3224a4e40b6b05ce758dfe52ddfd25e34d7bc2a",
+    "albedo_shadow_cut": 0.0
+  },
+  "olympia": {
+    "title": "North polar dune field, Olympia Undae",
+    "product": "DTEPC_062937_2605_062555_2605_A01",
+    "pair": "ESP_062937_2605_ESP_062555_2605",
+    "sha256": "2f51741f809ac2c609b3fbd5f8b2041412107f6d58f31c92f2169341143c8c8e",
+    "rationale": "North polar dune forms and frost (USGS item description)",
+    "center_lonlat": [
+      96.37259,
+      80.3402
+    ],
+    "center_projected_m": [
+      0.0,
+      0.0
+    ],
+    "source_gsd_m": 1.0059,
+    "horizon_half_m": 2500.0,
+    "origin_m": [
+      0.0,
+      0.0
+    ],
+    "level": "/Game/Licensed/Olympia/Olympia",
+    "material": "/Game/Licensed/Olympia/M_OlympiaLandscape",
+    "report": "docs/results/terrain-olympia",
+    "ortho": "ESP_062937_2605_RED_C_01_ORTHO",
+    "ortho_sha256": "22061bd0e3599e40ee27f9a8998f1bb7cdcb265a993470afcaf43aeb1d96db5f",
+    "albedo_shadow_cut": 0.0
   }
 }

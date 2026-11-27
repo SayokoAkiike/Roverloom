@@ -23,6 +23,7 @@ import math
 import urllib.request
 from pathlib import Path
 
+import local_frame
 import numpy as np
 from osgeo import gdal
 
@@ -50,7 +51,7 @@ def configure(name: str) -> None:
     )
     FILES = [f"{PRODUCT}.tif", f"{PRODUCT}.jpg"] + (["provenance.txt"] if name == "gale" else [])
     SOURCE_SHA256 = site["sha256"]
-    CENTER = (float(site["center_projected_m"][0]), float(site["center_projected_m"][1]))
+    CENTER = local_frame.center(site)
     SOURCE_GSD_M = float(site["source_gsd_m"])
 
 
@@ -108,6 +109,7 @@ def crop(source: Path, out: Path) -> Path:
         resampleAlg="cubic",
         outputType=gdal.GDT_Float32,
         dstNodata=-3.4028227e38,
+        **local_frame.warp_options(SITES[NAME]),
     )
     return target
 
@@ -260,7 +262,9 @@ def main() -> None:
     low, high = write_r16(height, r16)
     slope = slope_deg(height, SPACING_M)
     slope4 = slope_at_baseline(height, SPACING_M, BASELINE_M)
-    check = import_check(source, r16, low, high)
+    check = import_check(
+        Path(local_frame.local_source(source, SITES[NAME], args.data)), r16, low, high
+    )
 
     extra = {} if NAME == "gale" else {"site": NAME, "rationale": SITES[NAME]["rationale"]}
     metadata = {
@@ -271,12 +275,23 @@ def main() -> None:
         "source_sha256": checksum,
         "license": "CC0-1.0",
         "credit": "NASA/JPL/University of Arizona; DTM distributed by USGS",
-        "projection": "Mars (2015) sphere, equirectangular, clon 0 (IAU_2015:49910)",
-        "center_projected_m": list(CENTER),
-        "center_lon_lat_deg": [
-            round(math.degrees(CENTER[0] / 3396190.0), 5),
-            round(math.degrees(CENTER[1] / 3396190.0), 5),
-        ],
+        **(
+            {
+                "projection": "local stereographic on the Mars sphere: "
+                + local_frame.srs(SITES[NAME]),
+                "source_projection": gdal.Open(str(source)).GetSpatialRef().GetName(),
+                "center_lon_lat_deg": list(SITES[NAME]["center_lonlat"]),
+            }
+            if local_frame.is_local(SITES[NAME])
+            else {
+                "projection": "Mars (2015) sphere, equirectangular, clon 0 (IAU_2015:49910)",
+                "center_projected_m": list(CENTER),
+                "center_lon_lat_deg": [
+                    round(math.degrees(CENTER[0] / 3396190.0), 5),
+                    round(math.degrees(CENTER[1] / 3396190.0), 5),
+                ],
+            }
+        ),
         "samples": SAMPLES,
         "spacing_m": SPACING_M,
         "extent_m": (SAMPLES - 1) * SPACING_M,
@@ -314,7 +329,8 @@ def main() -> None:
         (args.previews / "site.json").write_text(json.dumps(metadata, indent=2) + "\n")
         hillshade_jpeg(height, SPACING_M, args.previews / "hillshade.jpg", 800)
         slope_jpeg(np.kron(slope4, np.ones((4, 4))), args.previews / "slope.jpg", 800)
-        locator_jpeg(source, args.previews / "locator.jpg")
+        if not local_frame.is_local(SITES[NAME]):  # the locator outlines the site in source metres
+            locator_jpeg(source, args.previews / "locator.jpg")
 
 
 if __name__ == "__main__":

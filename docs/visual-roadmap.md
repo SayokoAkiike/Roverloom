@@ -48,6 +48,10 @@ at that size. The captures were made at 1600 × 900, but those originals are not
 | [Gaea](https://quadspinner.com/) | Tool: terrain generation | Free edition is non-commercial, with 1K export | Heightfield export | Not adopted. A paid edition needs the owner |
 | [LibreTerrain](https://libreterrain.org/) | Tool: terrain masks and detail | MIT or Apache-2.0; very young | EXR and tiles | Trial only |
 | [RoveSoSimulator](https://missourimrdt.github.io/RoveSoSimulator) | Reference: a UE5 rover simulator | Listed as MIT | UE5 | Structure reference only |
+| Unreal's own Niagara (effects), PCG (procedural placement) and material graph | Tool: built into UE 5.8 | Engine EULA, as the rest of the project | Native | Adopt. The winter and polar stages' frost and streaks are material rules (2026-11-28); CO2 jets and drifting frost dust are candidates for Niagara |
+| [Infinigen](https://infinigen.org/) | Tool: procedural natural scenes, Blender-based | BSD 3-Clause, per its arXiv listing and press coverage; Apple Silicon reported supported from 1.4.0, older docs warn of build problems | Exports through Blender | Not adopted now: it needs Blender and a source build on the Mac (owner's approval), and it makes Earth-like nature, not Mars terrain. Candidate for rock and dune detail meshes |
+| TRELLIS.2, TripoSR (image to 3D) | Tool: generated meshes from one image | MIT, as reported by third-party surveys; Hunyuan3D's licence excludes the EU, UK and South Korea | glTF or OBJ export | Trial only, on the owner's request: generated rocks would need a licence check of the training terms and a look check against HiRISE; never NASA hardware |
+| AI video generation services | Tool: text or image to video | Paid accounts | None | Not adopted: paid services need the owner, and generated footage could not be told apart from game footage. Demo videos come from the game itself (`--record`) |
 | Mars First Logistics, NASA Eyes | Reference: games and visualizers | — | — | Readable failure, data sources on screen. See [product-quality-vision.md](product-quality-vision.md) |
 
 ## Steps, in priority order

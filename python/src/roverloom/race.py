@@ -304,6 +304,74 @@ COURSES = {
         style="flags",
         drain_scale=0.7,
     ),
+    # Lyot Crater dune field, 49 N: dark barchans on a bright crater floor. In northern winter the
+    # pole-facing (north) slopes carry CO2 and water frost (HiRISE ESP_074942_2295, the same dunes).
+    # Routed on DTEEC_053406_2295_053894_2295_A01 in a local frame (scripts/terrain/local_frame.py).
+    "lyot_slalom": Course(
+        "lyot_slalom",
+        "Lyot Frost Slalom",
+        ((-60.0, 120.0), (60.0, 40.0), (150.0, 0.0)),
+        pads=((-120.0, 70.0), (106.0, 32.0)),
+        supply=(-60.0, 120.0),
+        laps=1,
+        limit_s=1500.0,
+        start_point=(-180.0, 20.0),
+        line=(
+            (-180.0, 20.0),
+            (-60.0, 120.0),
+            (16.0, 72.0),
+            (56.0, 36.0),
+            (60.0, 40.0),
+            (126.0, 28.0),
+            (150.0, 0.0),
+        ),
+        ground="lyot",
+        style="flags",
+        drain_scale=0.7,
+    ),
+    "lyot_sprint": Course(
+        "lyot_sprint",
+        "Lyot Sprint",
+        ((-120.0, 70.0), (-60.0, 120.0)),
+        pads=((-150.0, 45.0),),
+        laps=1,
+        limit_s=900.0,
+        start_point=(-180.0, 20.0),
+        line=((-180.0, 20.0), (-120.0, 70.0), (-60.0, 120.0)),
+        ground="lyot",
+        style="flags",
+        drain_scale=0.7,
+    ),
+    # North polar dunes, 80 N (Olympia Undae): dark linear dunes over bright ice-cemented ground.
+    # In spring, dark sand streaks down the frosted dunes look like trees: the "ghost forest".
+    # Routed on DTEPC_062937_2605_062555_2605_A01 in a local frame.
+    "ghost_forest": Course(
+        "ghost_forest",
+        "Ghost Forest",
+        ((-148.0, -164.0), (-60.0, -150.0), (60.0, 20.0)),
+        pads=((-199.0, -207.0), (0.0, -65.0)),
+        supply=(-60.0, -150.0),
+        laps=1,
+        limit_s=1500.0,
+        start_point=(-250.0, -250.0),
+        line=((-250.0, -250.0), (-148.0, -164.0), (-104.0, -152.0), (-60.0, -150.0), (60.0, 20.0)),
+        ground="olympia",
+        style="flags",
+        drain_scale=0.7,
+    ),
+    "ghost_sprint": Course(
+        "ghost_sprint",
+        "Ghost Sprint",
+        ((-148.0, -164.0), (-60.0, -150.0)),
+        pads=((-199.0, -207.0),),
+        laps=1,
+        limit_s=900.0,
+        start_point=(-250.0, -250.0),
+        line=((-250.0, -250.0), (-148.0, -164.0), (-104.0, -152.0), (-60.0, -150.0)),
+        ground="olympia",
+        style="flags",
+        drain_scale=0.7,
+    ),
 }
 
 
