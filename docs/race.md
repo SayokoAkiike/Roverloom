@@ -48,12 +48,12 @@ uv run --project python python scripts/play_3d.py --race --garage ~/Downloads/ga
 - **Supply pad** (amber, beside the hut) recharges the battery while you are on it.
 - **Dust storms** come in the last four seconds of some 20-second slots, chosen by the seed. Everyone slows to 75%.
   The scout sensor warns eight seconds ahead instead of four.
-- **Rivals do not pass through you or each other.** Rovers touch as rectangles the size of the drawn models: yours
-  from the sample arm 1.14 m ahead to the solar deck 1.75 m behind, 2.55 m wide; a rival 2.5 m long and 2.3 m wide.
-  A rival overtakes a slower rover on the side with more room; when two touch, the rival is pushed clear, and if you
-  drove into it you slow to 60% for 0.8 s ("Bump!"). A rover parked on a gate cannot block it: touching it counts as
-  passing. Ghosts still pass through.
-  This is race logic in Python, not Unreal physics: your rover's physics body does not touch the rivals' models.
+- **Rovers, props and rocks collide** ([ADR 0019](decisions/0019-physical-race-rivals.md)). With Unreal, each NPC rival
+  is a physics rover like yours: Python steers it and Unreal's physics decides where it goes, so rovers push and spring
+  back off each other, and stop against posts, flag poles, cairns, the banner, the hut and large rocks. Pads, sand and the
+  stones round a flag are flat marks you drive over. A rival stuck for 6 s is put back beside its path. Ghosts are
+  records and still pass through. Without Unreal (`headless`), rivals are kinematic and are kept apart by a contact rule:
+  rover-sized rectangles, with a short slow-down ("Bump!") if you drive into one.
 
 ## Modes
 
@@ -87,7 +87,7 @@ Each was routed on the heightfield so that the 4 m-baseline slope stays under 10
 (the steepest point on the path is 10.0 degrees). Flags are golf-style pins with a ring of pale stones the size of the
 arrival radius (2.5 m); small cairns every 9 m show the way between them, and the HUD shows the flag number, its distance
 and an arrow. Rocks are kept out of a 3.2 m corridor along the path and added beside it, so the ground along the whole
-course is as detailed as at the start. Rivals follow the routed path; they do not slow on slopes as the Unreal rover does.
+course is as detailed as at the start. Rivals follow the routed path; with Unreal they are physics rovers and slow on slopes as yours does.
 
 The rover's top speed is 0.5 m/s, as the drive model's limit: Gale Links takes about nine minutes and Gale Sprint about
 four in the race model. Long courses use 70% of the battery drain of the short ones, so that they can be finished.
@@ -222,5 +222,5 @@ Nothing in Unreal has been run on the MacBook Air yet. What is known:
 ## What this is not
 
 - Not a benchmark: real-time Unreal runs are not reproducible, and the drive model is provisional.
-- Not a model of rover racing on Mars. Rivals are kinematic; contact between rovers is a game rule, not physics.
+- Not a model of rover racing on Mars. Collisions use Unreal's game physics; restitution is a game setting.
 - Not an online game: the leaderboard is a local file, and the agent port is loopback only.

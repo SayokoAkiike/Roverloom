@@ -70,6 +70,10 @@ public:
 	const FShadowRecord& GetShadow() const { return Shadow; }
 	double GetSolveMicros() const { return SolveMicros; }
 
+	// Wheels find the ground on static objects only (Landscape, rocks, posts), never on another rover's body: in a race,
+	// rovers meet body to body. Off by default, so missions keep their traces.
+	void SetWheelsHitOnlyStatic(bool bOn) { bWheelsHitOnlyStatic = bOn; }
+
 	// A known force on the center of mass for the coming step. The rig applies it, and the solve accounts for it.
 	void SetExternalForce(const FVector& Force) { ExternalForce = Force; }
 
@@ -123,4 +127,5 @@ private:
 	bool bLockRollPitchAxes = false;
 	bool bLockYawAxis = false;
 	bool bUseSweep = false;
+	bool bWheelsHitOnlyStatic = false;
 };

@@ -581,3 +581,92 @@ def test_diagnose_reports_a_rover_that_never_drove(tmp_path):
     (tmp_path / "unreal.log").write_text(log)
     text = report(tmp_path)
     assert "rover resets in unreal.log: 60" in text and "never drove" in text
+
+
+def _physical_unreal(course, npcs=3, seconds=200.0, block=None):
+    """Stands in for Unreal with physical rivals: integrates each rival's command as a rover would
+    and reports its pose. `block(x, y)` stops a rover there, as a solid post or rock would."""
+    r = Race(garage(), course, npcs=npcs, laps=1, backend="unreal")
+    rivals: dict = {}
+    resets: dict = {}
+    t = 0.0
+    state = {}
+    while r.outcome == "running" and t < seconds:
+        rows = [
+            {"id": k, "position_m": [x, y], "yaw_rad": yaw, "forward_mps": v}
+            for k, (x, y, yaw, v) in rivals.items()
+        ]
+        body = {
+            "time_s": t,
+            "position_m": [r.you.x, r.you.y, 0.0],
+            "yaw_rad": r.you.yaw,
+            "opponents": rows,
+        }
+        state = r.step(body)
+        for row in state["race"]["opponents"]:
+            if "command" not in row:
+                continue
+            k = row["id"]
+            x, y, yaw, _ = rivals.get(k, (*row["position_m"][:2], row["yaw_rad"], 0.0))
+            if row.get("reset_id", 0) != resets.get(k, 0):
+                resets[k] = row["reset_id"]
+                x, y, yaw = row["reset"]
+            v, w = row["command"]
+            yaw += w * 0.1
+            nx, ny = x + v * math.cos(yaw) * 0.1, y + v * math.sin(yaw) * 0.1
+            if block and block(nx, ny):
+                nx, ny, v = x, y, 0.0
+            rivals[k] = (nx, ny, yaw, v)
+        t = round(t + 0.1, 6)
+    return r, state
+
+
+def test_physical_rivals_are_steered_and_placed_by_unreal():
+    """With Unreal's rival poses in the telemetry (race-0.4), Python sends commands and never moves
+    the rivals itself; gates and positions follow where physics put them."""
+    r, state = _physical_unreal(COURSES["gale_sprint"], npcs=3, seconds=40.0)
+    assert r.physical
+    rows = [o for o in state["race"]["opponents"] if o["kind"] == "npc"]
+    assert rows and all(len(o["command"]) == 2 for o in rows)
+    # Python's rival poses are exactly what the stand-in reported: it did not move them
+    assert all(math.dist((x.x, x.y), r.course.start_point) > 3.0 for x in r.racers[1:])
+    started = [x for x in r.racers[1:] if x.speed > 0.1]
+    assert started, "rivals drive on their commands"
+
+
+def test_physical_rivals_finish_a_course():
+    r, _ = _physical_unreal(COURSES["gale_sprint"], npcs=2, seconds=600.0)
+    assert all(x.finished_s is not None for x in r.racers[1:])
+
+
+def test_a_stuck_physical_rival_is_put_back_on_its_path():
+    """A rival held by a rock (the stand-in stops it) is reset beside its path after STUCK_S."""
+    from roverloom.race import COUNTDOWN_S
+
+    course = COURSES["gale_sprint"]
+    rock = course.path[1]
+    r, state = _physical_unreal(
+        course, npcs=1, seconds=COUNTDOWN_S + 90.0, block=lambda x, y: math.dist((x, y), rock) < 1.5
+    )
+    npc = r.racers[1]
+    assert npc.reset_id >= 1
+    rows = [o for o in state["race"]["opponents"] if o["id"] == npc.id]
+    assert rows[0]["reset_id"] == npc.reset_id and len(rows[0]["reset"]) == 3
+
+
+def test_rivals_aim_beside_a_flag_pole():
+    from roverloom.race import FLAG_POLE_CLEAR_M
+
+    course = COURSES["gale_sprint"]
+    r = Race(garage(), course, npcs=1, laps=1)
+    npc = r.racers[1]
+    flag = course.checkpoints[0]
+    i = min(range(len(course.path)), key=lambda k: math.dist(course.path[k], flag))
+    npc.path_i = i
+    a = course.path[i - 1]
+    npc.x, npc.y = a[0] + (flag[0] - a[0]) * 0.2, a[1] + (flag[1] - a[1]) * 0.2
+    npc.yaw = math.atan2(flag[1] - npc.y, flag[0] - npc.x)
+    act = r._npc_action(npc)
+    # It turns away from the pole: aiming at the pole itself would need no turn at all
+    assert abs(act.yaw_rate_radps) > 0.05
+    assert course.gate_radius_m > FLAG_POLE_CLEAR_M

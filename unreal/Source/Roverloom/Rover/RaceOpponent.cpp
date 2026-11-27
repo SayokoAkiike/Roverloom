@@ -3,9 +3,12 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
+#include "PhysicalMaterials/PhysicalMaterial.h"
+#include "PhysicsEngine/PhysicsSettings.h"
 #include "UObject/ConstructorHelpers.h"
 
 #include "../Bridge/Frames.h"
+#include "../WheelSpike/WheelRig.h"
 #include "Greybox.h"
 #include "RoverDrive.h"
 
@@ -75,9 +78,152 @@ void ARaceOpponent::SetTarget(const FVector2D& SiteM, double SiteYawRad, const F
 	}
 }
 
+double ARaceOpponent::GroundBelowCm(const FVector& AtCm) const
+{
+	FHitResult Hit;
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(RaceOpponentGround), false, this);
+	if (Rig) Params.AddIgnoredActor(Rig);
+	if (GetWorld()->LineTraceSingleByObjectType(Hit, FVector(AtCm.X, AtCm.Y, AtCm.Z + 3000.0), FVector(AtCm.X, AtCm.Y, AtCm.Z - 10000.0),
+			FCollisionObjectQueryParams(ECC_WorldStatic), Params))
+	{
+		return Hit.ImpactPoint.Z;
+	}
+	return GroundCm;
+}
+
+void ARaceOpponent::EnablePhysics()
+{
+	if (Rig || bIsGhost)
+	{
+		return;
+	}
+	const FVector At(TargetCm.X, TargetCm.Y, GetActorLocation().Z);
+	GroundCm = GroundBelowCm(At);
+	const FVector Spawn(TargetCm.X, TargetCm.Y, GroundCm + RoverloomRover::RideHeightCm);
+	ResetPose = FTransform(FRotator(0.0, TargetYawDeg, 0.0), Spawn);
+	RigMaterial = NewObject<UPhysicalMaterial>(this);
+	RigMaterial->Friction = RoverloomRover::Friction;
+	RigMaterial->StaticFriction = RoverloomRover::Friction;
+	RigMaterial->Restitution = RoverloomRover::RaceRestitution;
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	Rig = GetWorld()->SpawnActor<AWheelRig>(AWheelRig::StaticClass(), Spawn, ResetPose.Rotator(), SpawnParams);
+	if (!Rig)
+	{
+		return;
+	}
+	TArray<AWheelRig::FWheelSetup> Setups;
+	for (int32 Index = 0; Index < RoverloomRover::NumWheels; ++Index)
+	{
+		Setups.Add({RoverloomRover::WheelMountCm(Index), Index < 3});
+	}
+	// The player's rig: free rotation, sphere sweeps, 853.5 kg, friction 0.6.
+	Rig->Build(RoverloomRover::BodySizeCm, RoverloomRover::MassKg, Setups, false, false, true, RoverloomRover::Friction, RigMaterial);
+	Rig->SetWheelsHitOnlyStatic(true);
+	Rig->GetBody()->SetVisibility(false); // the look-alike meshes are drawn instead; collision is the rig's box
+	SetActorLocationAndRotation(Spawn, ResetPose.Rotator());
+}
+
+void ARaceOpponent::SetCommand(double LinearMps, double YawRateRadps)
+{
+	// The rover's limits, with room for a boost (1.5 times); Python already keeps within them.
+	const double MaxMps = RoverloomRover::MaxSpeedMps * 1.5;
+	CommandMps = FMath::IsFinite(LinearMps) ? FMath::Clamp(LinearMps, -MaxMps, MaxMps) : 0.0;
+	CommandRadps = FMath::IsFinite(YawRateRadps)
+		? FMath::Clamp(YawRateRadps, -RoverloomRover::MaxYawRateRadps, RoverloomRover::MaxYawRateRadps)
+		: 0.0;
+}
+
+void ARaceOpponent::ResetTo(const FVector2D& SiteM, double SiteYawRad)
+{
+	const FVector At = RoverloomFrames::SiteToUnrealPosition(FVector(SiteM.X, SiteM.Y, 0.0));
+	const double Ground = GroundBelowCm(FVector(At.X, At.Y, GetActorLocation().Z));
+	ResetPose = FTransform(FRotator(0.0, -FMath::RadiansToDegrees(SiteYawRad), 0.0), FVector(At.X, At.Y, Ground + RoverloomRover::RideHeightCm));
+	if (!Rig)
+	{
+		return;
+	}
+	UStaticMeshComponent* Body = Rig->GetBody();
+	Body->SetWorldLocationAndRotation(ResetPose.GetLocation(), ResetPose.GetRotation(), false, nullptr, ETeleportType::ResetPhysics);
+	Body->SetPhysicsLinearVelocity(FVector::ZeroVector);
+	Body->SetPhysicsAngularVelocityInDegrees(FVector::ZeroVector);
+	CommandMps = CommandRadps = 0.0;
+}
+
+bool ARaceOpponent::GetSitePose(FVector2D& OutM, double& OutYawRad, double& OutForwardMps) const
+{
+	if (!Rig || !bRigReady)
+	{
+		return false;
+	}
+	const UStaticMeshComponent* Body = Rig->GetBody();
+	const FVector P = RoverloomFrames::UnrealToSitePosition(Body->GetComponentLocation());
+	OutM = FVector2D(P.X, P.Y);
+	OutYawRad = -FMath::DegreesToRadians(Body->GetComponentRotation().Yaw); // Unreal's Y is the site's -Y
+	OutForwardMps = FVector::DotProduct(Body->GetPhysicsLinearVelocity(), Body->GetForwardVector()) / RoverloomFrames::UnrealCmPerM;
+	return FMath::IsFinite(OutM.X) && FMath::IsFinite(OutM.Y) && FMath::IsFinite(OutYawRad);
+}
+
+void ARaceOpponent::TickPhysical(double DeltaSeconds)
+{
+	UStaticMeshComponent* Body = Rig->GetBody();
+	if (!bRigReady)
+	{
+		// The body simulates from the frame IsReady first returns true, as the player's rig.
+		bRigReady = Rig->IsReady();
+		SetActorLocationAndRotation(Body->GetComponentLocation(), Body->GetComponentQuat());
+		return;
+	}
+	const FVector Location = Body->GetComponentLocation();
+	if (Location.ContainsNaN() || Location.Z < ResetPose.GetLocation().Z - 2000.0)
+	{
+		// Fallen through the ground or diverged: back to the last reset pose
+		const FVector Site = RoverloomFrames::UnrealToSitePosition(ResetPose.GetLocation());
+		ResetTo(FVector2D(Site.X, Site.Y), -FMath::DegreesToRadians(ResetPose.Rotator().Yaw));
+		return;
+	}
+	RoverloomCommand::FAction Action;
+	Action.LinearVelocityMps = CommandMps;
+	Action.YawRateRadps = CommandRadps;
+	TArray<double> Targets;
+	RoverloomRover::SkidSteerTargets(Action, Targets, RoverloomRover::DriveTrackScale);
+	Rig->SetTargets(Targets, Action.IsStop() ? RoverloomWheel::EWheelMode::Brake : RoverloomWheel::EWheelMode::Drive);
+	// As the player's rover: the wheel solve uses Chaos's clamped step
+	const double StepDt = FMath::Min(DeltaSeconds, static_cast<double>(UPhysicsSettings::Get()->MaxPhysicsDeltaTime));
+	Rig->StepWheels(StepDt);
+	SetActorLocationAndRotation(Body->GetComponentLocation(), Body->GetComponentQuat());
+	// Wheels where the suspension holds them, spinning at the rig's wheel speed
+	const TArray<AWheelRig::FWheelRecord>& Records = Rig->GetRecords();
+	const double RestCm = Rig->GetParams().RestLengthCm;
+	for (int32 I = 0; I < WheelSpin.Num() && I < Records.Num(); ++I)
+	{
+		const AWheelRig::FWheelRecord& Record = Records[I];
+		const double Compression = Record.Contact.bHit ? FMath::Clamp(Record.Contact.CompressionCm, 0.0, RestCm) : 0.0;
+		const FVector Mount = RoverloomRover::WheelMountCm(I);
+		WheelSpin[I] = FMath::Fmod(WheelSpin[I] + FMath::RadiansToDegrees(Record.SpinRadps * DeltaSeconds), 360.0);
+		Meshes[4 + I]->SetRelativeLocationAndRotation(FVector(Mount.X, Mount.Y, Mount.Z - (RestCm - Compression)),
+			FQuat(FRotator(-WheelSpin[I], 0.0, 0.0)) * FQuat(FRotator(0.0, 0.0, 90.0)));
+	}
+}
+
+void ARaceOpponent::Destroyed()
+{
+	if (Rig)
+	{
+		Rig->Destroy();
+		Rig = nullptr;
+	}
+	Super::Destroyed();
+}
+
 void ARaceOpponent::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+	if (Rig)
+	{
+		TickPhysical(DeltaSeconds);
+		return;
+	}
 	if (!bHasTarget)
 	{
 		return;

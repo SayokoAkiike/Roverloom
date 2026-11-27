@@ -184,12 +184,18 @@ void AWheelRig::StepWheels(double Dt)
 		if (bUseSweep)
 		{
 			// Sweep the wheel's sphere from the mount over the suspension travel.
-			bHit = GetWorld()->SweepSingleByChannel(Hit, Mount, Mount - Up * Params.RestLengthCm, FQuat::Identity,
-				ECC_WorldStatic, FCollisionShape::MakeSphere(Params.RadiusCm), Query);
+			const FCollisionShape Sphere = FCollisionShape::MakeSphere(Params.RadiusCm);
+			bHit = bWheelsHitOnlyStatic
+				? GetWorld()->SweepSingleByObjectType(Hit, Mount, Mount - Up * Params.RestLengthCm, FQuat::Identity,
+					FCollisionObjectQueryParams(ECC_WorldStatic), Sphere, Query)
+				: GetWorld()->SweepSingleByChannel(Hit, Mount, Mount - Up * Params.RestLengthCm, FQuat::Identity,
+					ECC_WorldStatic, Sphere, Query);
 		}
 		else
 		{
-			bHit = GetWorld()->LineTraceSingleByChannel(Hit, Mount, Mount - Up * Reach, ECC_WorldStatic, Query);
+			bHit = bWheelsHitOnlyStatic
+				? GetWorld()->LineTraceSingleByObjectType(Hit, Mount, Mount - Up * Reach, FCollisionObjectQueryParams(ECC_WorldStatic), Query)
+				: GetWorld()->LineTraceSingleByChannel(Hit, Mount, Mount - Up * Reach, ECC_WorldStatic, Query);
 		}
 		Commands[Index].Mode = Mode;
 		Commands[Index].TargetSpinRadps = Targets.IsValidIndex(Index) ? Targets[Index] : 0.0;

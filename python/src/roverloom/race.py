@@ -17,8 +17,10 @@ from typing import Any, Protocol
 from roverloom.contract import ContractError, JsonDict, dump_json, load_json_file
 from roverloom.rally import PAINTS, garage, stats
 
-RULESET = "race-0.3"  # 0.2: rovers do not overlap; bumps; blocked gates. 0.3: rover-shaped contact
-MODEL_VERSION = "race-drive-0.3"  # NPC and headless kinematics, not Unreal physics
+RULESET = (
+    "race-0.4"  # 0.2: no overlap; bumps; blocked gates. 0.3: rover-shaped. 0.4: physical rivals
+)
+MODEL_VERSION = "race-drive-0.4"  # NPC and headless kinematics, not Unreal physics
 AGENT_PROTOCOL = "race-agent-1"
 MAX_SPEED_MPS = 0.5  # pathfinder_6w limits, as RoverDrive.h
 MAX_YAW_RADPS = 0.4918
@@ -37,7 +39,12 @@ PAD_COOLDOWN_S = 6.0
 PLAYER_FOOTPRINT_M = (1.14, 1.75, 1.28)
 NPC_FOOTPRINT_M = (1.23, 1.23, 1.16)
 CONTACT_GAP_M = 0.15
-BUMP_S = 0.8  # the player's slow-down after running into a rival
+# With Unreal, rivals are physics rovers (race-0.4): Python steers them and Unreal's physics
+# places them, so they collide with the player, each other, solid props and rocks. A rival that
+# makes no headway for this long while driving is put back on its path.
+STUCK_S = 6.0
+FLAG_POLE_CLEAR_M = 1.6  # rivals aim this far beside a flag's pole, inside the arrival radius
+BUMP_S = 0.8  # the player's slow-down after running into a rival (headless rule)
 BUMP_SCALE = 0.6
 DIFFICULTIES = {"easy": (0.0, 0.78), "standard": (0.2, 0.9), "hard": (0.4, 0.98)}
 COLORS = {
@@ -343,6 +350,10 @@ class Racer:
     samples: list[list[float]] = field(default_factory=list)
     ghost_total: float | None = None
     path_i: int = 1
+    command: tuple[float, float] = (0.0, 0.0)  # physical rivals: speed and turn rate sent to Unreal
+    reset_pose: tuple[float, float, float] | None = None
+    reset_id: int = 0
+    stuck_since: float | None = None
 
     @property
     def color(self) -> list[float]:
@@ -633,6 +644,7 @@ class Race:
             raise ContractError("laps must be 1 to 9")
         self.difficulty, self.seed = difficulty, seed
         self.controller, self.backend = controller, backend
+        self.physical = False  # set by the first telemetry that carries the rivals' physics poses
         self.time_s = -COUNTDOWN_S  # race clock; negative during the countdown
         self.clock0: float | None = None
         self.outcome = "running"
@@ -789,6 +801,11 @@ class Race:
         dx, dy = b[0] - a[0], b[1] - a[1]
         norm = math.hypot(dx, dy) or 1.0
         side = prof.line_m * (0.5 if self.course.style == "flags" else 1.0)
+        if self.course.style == "flags" and any(
+            math.dist(b, cp) < 0.3 for cp in self.course.checkpoints[:-1]
+        ):
+            # A solid pin pole stands on the flag: pass beside it, still inside the arrival radius
+            side = math.copysign(FLAG_POLE_CLEAR_M, side or 1.0)
         target = (b[0] - dy / norm * side, b[1] + dx / norm * side)
         pace = DIFFICULTIES[self.difficulty][1] * prof.pace
         # Overtaking: a slower rover (or the player) close ahead is passed on the side with more
@@ -815,6 +832,65 @@ class Race:
         far = math.dist((r.x, r.y), b) > 5
         boost = far and abs(act.yaw_rate_radps) < 0.1 and r.charge > prof.boost_charge
         return RaceAction(act.linear_velocity_mps, act.yaw_rate_radps + wobble, boost)
+
+    def _read_rivals(self, rows: list[Any]) -> None:
+        """Physical rivals' poses, as Unreal's physics has them."""
+        by_id = {r.id: r for r in self.racers if r.kind == "npc"}
+        for row in rows:
+            if not isinstance(row, dict) or row.get("id") not in by_id:
+                continue
+            r = by_id[str(row["id"])]
+            p = row.get("position_m")
+            values = [
+                *(p[:2] if isinstance(p, list) else []),
+                row.get("yaw_rad"),
+                row.get("forward_mps", 0.0),
+            ]
+            if len(values) != 4 or not all(
+                isinstance(q, (int, float)) and math.isfinite(q) for q in values
+            ):
+                continue
+            r.x, r.y, r.yaw, r.speed = (float(q) for q in values)
+
+    def _drive_rivals(self, dt: float) -> None:
+        """Steer each physical rival; its rules (charge, boosts, pads, gates) use its real pose."""
+        for r in self.racers:
+            if r.kind != "npc":
+                continue
+            if r.finished_s is not None:
+                r.command = (0.0, 0.0)
+                continue
+            act = self._npc_action(r)
+            k = self.scale(r)
+            r.command = (act.linear_velocity_mps * k, act.yaw_rate_radps if k > 0 else 0.0)
+            self._rules(r, dt, act.boost)
+            self._unstick(r)
+
+    def _unstick(self, r: Racer) -> None:
+        """A rival that drives but makes no headway (on a rock, against a post) is put back on
+        its path, beside the last path point, facing along it."""
+        t = self.time_s
+        if r.command[0] <= 0.1 or abs(r.speed) > 0.05:
+            r.stuck_since = None
+            return
+        if r.stuck_since is None:
+            r.stuck_since = t
+            return
+        if t - r.stuck_since < STUCK_S:
+            return
+        path = self.course.path
+        a, b = path[max(0, r.path_i - 1)], path[r.path_i]
+        yaw = math.atan2(b[1] - a[1], b[0] - a[0])
+        x, y = a
+        for shift in (0.0, 3.0, -3.0, 6.0, -6.0):  # beside it if another rover is there
+            x, y = a[0] - math.sin(yaw) * shift, a[1] + math.cos(yaw) * shift
+            if all(math.dist((x, y), (o.x, o.y)) > 3.5 for o in self._solid() if o is not r):
+                break
+        r.x, r.y, r.yaw, r.speed = x, y, yaw, 0.0
+        r.reset_pose = (round(x, 3), round(y, 3), round(yaw, 4))
+        r.reset_id += 1
+        r.stuck_since = None
+        self._say(r, "Back on course")
 
     def _solid(self) -> list[Racer]:
         return [r for r in self.racers if r.kind != "ghost"]
@@ -890,12 +966,18 @@ class Race:
             you.penalty_s += 30 * (resets - you.resets)
             self._say(you, "Rescue: +30 s")
         you.resets = resets
+        rivals = body.get("opponents")
+        if self.backend == "unreal" and isinstance(rivals, list):
+            self.physical = True
+            self._read_rivals(rivals)
         if self.outcome == "running" and t >= 0:
             if you.finished_s is None:
                 want = bool(body.get("boost_requested", False)) if boost is None else boost
                 self._rules(you, min(dt, 0.5), want)
+            if self.physical:
+                self._drive_rivals(min(dt, 0.5))
             # Fixed sub-steps keep NPCs independent of the telemetry rate.
-            remaining = min(dt, 1.0)
+            remaining = 0.0 if self.physical else min(dt, 1.0)
             while remaining > 1e-9:
                 h = min(TICK_S, remaining)
                 remaining -= h
@@ -923,6 +1005,16 @@ class Race:
         if t >= 0 and (due or final):
             you.samples.append([round(t, 2), round(you.x, 3), round(you.y, 3), round(you.yaw, 3)])
         return self.state()
+
+    def _physics_row(self, r: Racer) -> JsonDict:
+        """For Unreal: the command of a physical rival, and a one-off reset when it was stuck."""
+        if not self.physical or r.kind != "npc":
+            return {}
+        row: JsonDict = {"command": [round(r.command[0], 4), round(r.command[1], 4)]}
+        if r.reset_pose is not None:
+            row["reset"] = list(r.reset_pose)
+            row["reset_id"] = r.reset_id
+        return row
 
     def position_of(self, racer: Racer) -> int:
         return self.standings().index(racer) + 1
@@ -1009,6 +1101,7 @@ class Race:
                         "yaw_rad": round(r.yaw, 4),
                         "color": r.color,
                         "pos": order.index(r) + 1,
+                        **self._physics_row(r),
                     }
                     for r in self.racers
                     if r is not you and (r.kind != "ghost" or r.samples)

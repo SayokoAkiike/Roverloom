@@ -18,6 +18,8 @@ namespace RoverloomRover
 	inline constexpr double MountZCm = -20.0;
 	inline constexpr double RideHeightCm = 70.0; // Body center above flat ground at 5 cm compression
 	inline constexpr double Friction = 0.6;
+	// Race only: how much rovers spring back when bodies meet (0 none, 1 fully). A game setting, not a measurement.
+	inline constexpr double RaceRestitution = 0.35;
 	inline const FVector BodySizeCm(200.0, 150.0, 40.0);
 	inline constexpr int32 NumWheels = 6;
 

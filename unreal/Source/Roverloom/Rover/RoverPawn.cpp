@@ -388,6 +388,10 @@ void ARoverPawn::SpawnRig()
 		RigMaterial->Friction = Friction;
 		RigMaterial->StaticFriction = Friction;
 		RigMaterial->Restitution = 0.0f;
+		if (Status.bRace)
+		{
+			RigMaterial->Restitution = RoverloomRover::RaceRestitution; // rovers spring back when they meet
+		}
 	}
 	FActorSpawnParameters SpawnParams;
 	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
@@ -399,6 +403,8 @@ void ARoverPawn::SpawnRig()
 	}
 	// Phase C's six-wheel rig: free rotation, sphere sweeps, 853.5 kg, friction 0.6. Solver options stay at defaults.
 	Rig->Build(BodySizeCm, MassKg, Setups, false, false, true, Friction, RigMaterial);
+	// In a race, physical rivals share the ground: wheels stand on static objects only, never on another rover.
+	Rig->SetWheelsHitOnlyStatic(Status.bRace);
 	FLinearColor Paint(0.75f, 0.72f, 0.66f);
 	FString PaintText;
 	if (FParse::Value(FCommandLine::Get(), TEXT("RoverPaint="), PaintText, false))
@@ -664,8 +670,20 @@ void ARoverPawn::MissionLinkTick(double NowS)
 	{
 		LinkLastSendS = NowS;
 		const FVector P = Status.SitePositionM;
-		const FString Line = FString::Printf(TEXT("{\"type\":\"telemetry\",\"body\":{\"time_s\":%.3f,\"position_m\":[%.4f,%.4f,%.4f],\"yaw_rad\":%.5f,\"forward_mps\":%.4f,\"resets\":%d,\"boost_requested\":%s}}\n"),
-			NowS - MissionClockStartS, P.X, P.Y, P.Z, Status.YawRad, Status.ForwardMps, Status.Resets, (GetWorld()->GetFirstPlayerController() && GetWorld()->GetFirstPlayerController()->IsInputKeyDown(EKeys::SpaceBar)) ? TEXT("true") : TEXT("false"));
+		// Physical rivals: where Unreal's physics has them, for Python's gates, positions and steering
+		FString Rivals;
+		for (const TPair<FString, TObjectPtr<ARaceOpponent>>& Pair : Opponents)
+		{
+			FVector2D RivalM;
+			double RivalYaw = 0.0, RivalMps = 0.0;
+			if (Pair.Value && Pair.Value->IsPhysical() && Pair.Value->GetSitePose(RivalM, RivalYaw, RivalMps))
+			{
+				Rivals += FString::Printf(TEXT("%s{\"id\":\"%s\",\"position_m\":[%.4f,%.4f],\"yaw_rad\":%.5f,\"forward_mps\":%.4f}"),
+					Rivals.IsEmpty() ? TEXT("") : TEXT(","), *Pair.Key, RivalM.X, RivalM.Y, RivalYaw, RivalMps);
+			}
+		}
+		const FString Line = FString::Printf(TEXT("{\"type\":\"telemetry\",\"body\":{\"time_s\":%.3f,\"position_m\":[%.4f,%.4f,%.4f],\"yaw_rad\":%.5f,\"forward_mps\":%.4f,\"resets\":%d,\"boost_requested\":%s,\"opponents\":[%s]}}\n"),
+			NowS - MissionClockStartS, P.X, P.Y, P.Z, Status.YawRad, Status.ForwardMps, Status.Resets, (GetWorld()->GetFirstPlayerController() && GetWorld()->GetFirstPlayerController()->IsInputKeyDown(EKeys::SpaceBar)) ? TEXT("true") : TEXT("false"), *Rivals);
 		const FTCHARToUTF8 Utf8(*Line);
 		int32 Sent = 0;
 		if (!LinkClient->Send(reinterpret_cast<const uint8*>(Utf8.Get()), Utf8.Length(), Sent) || Sent != Utf8.Length())
@@ -869,6 +887,22 @@ void ARoverPawn::ReadRaceState(const TSharedPtr<FJsonObject>& Race, double NowS)
 				Actor->Position = static_cast<int32>(Pos);
 				Actor->LastUpdateS = NowS;
 				Actor->SetTarget(At, Yaw, Color(*Row), Kind == TEXT("ghost"));
+				// A physical rival: Python drives it (speed, turn rate) and Unreal's physics places it
+				const TArray<TSharedPtr<FJsonValue>>* Command = nullptr;
+				if (Kind == TEXT("npc") && (*Row)->TryGetArrayField(TEXT("command"), Command) && Command->Num() == 2)
+				{
+					Actor->EnablePhysics();
+					Actor->SetCommand((*Command)[0]->AsNumber(), (*Command)[1]->AsNumber());
+					const TArray<TSharedPtr<FJsonValue>>* Reset = nullptr;
+					double ResetId = 0.0;
+					if ((*Row)->TryGetNumberField(TEXT("reset_id"), ResetId) && static_cast<int32>(ResetId) != Actor->LastResetId
+						&& (*Row)->TryGetArrayField(TEXT("reset"), Reset) && Reset->Num() == 3)
+					{
+						Actor->LastResetId = static_cast<int32>(ResetId);
+						Actor->ResetTo(FVector2D((*Reset)[0]->AsNumber(), (*Reset)[1]->AsNumber()), (*Reset)[2]->AsNumber());
+						UE_LOG(LogRoverloom, Display, TEXT("Race: %s reset to the course by Python"), *Name);
+					}
+				}
 				Seen.Add(Id);
 			}
 		}

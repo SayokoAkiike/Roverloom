@@ -3,6 +3,7 @@
 
 #include "Components/DirectionalLightComponent.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
+#include "Components/SphereComponent.h"
 #include "Engine/CollisionProfile.h"
 #include "NiagaraSystem.h"
 #include "Components/ExponentialHeightFogComponent.h"
@@ -268,6 +269,9 @@ void ARoverPlaygroundGameMode::SpawnScatter()
 		}
 	}
 	FRandomStream Random(ScatterSeed);
+	constexpr double SolidRockRadiusM = 0.3; // 60 cm across: more than a 50 cm wheel climbs
+	constexpr int32 MaxSolidRocks = 3000;
+	int32 SolidRocks = 0;
 	int32 Total = 0;
 	int32 BySize[ClassCount] = {};
 	double SmallestM = 1e9;
@@ -326,6 +330,26 @@ void ARoverPlaygroundGameMode::SpawnScatter()
 			// Half buried: the middle of the mesh's bounds is put on the ground
 			const FVector Location = Hit.ImpactPoint - Rotation.RotateVector(Scale3 * LocalCenter[Mesh]);
 			Placed.FindOrAdd(Mesh * ClassCount + Class).Add(FTransform(Rotation, Location, Scale3));
+			// In a race, rocks big enough to stop a wheel are solid near the course. The Poly Haven meshes have no collision
+			// (import_polyhaven.py), so each gets an invisible sphere: centred below the ground so that its cap stands as
+			// high as the half-buried rock, and a little inside its outline.
+			if (RaceCourse && RadiusM >= SolidRockRadiusM && SolidRocks < MaxSolidRocks)
+			{
+				const FVector Site = RoverloomFrames::UnrealToSitePosition(FVector(X, Y, 0.0));
+				if (RoverloomRace::DistanceToLineM(*RaceCourse, FVector2D(Site.X, Site.Y)) < 40.0)
+				{
+					const double R = RadiusM * 100.0 * 0.85;
+					USphereComponent* Solid = NewObject<USphereComponent>(Holder);
+					Solid->SetupAttachment(Root);
+					Solid->SetSphereRadius(R);
+					Solid->SetWorldLocation(Hit.ImpactPoint - FVector(0.0, 0.0, R * (1.0 - Squash)));
+					Solid->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
+					Solid->SetHiddenInGame(true);
+					Solid->SetCanEverAffectNavigation(false);
+					Solid->RegisterComponent();
+					++SolidRocks;
+				}
+			}
 			++Total;
 			++BySize[Class];
 			SmallestM = FMath::Min(SmallestM, RadiusM);
@@ -339,6 +363,10 @@ void ARoverPlaygroundGameMode::SpawnScatter()
 	RocksSpawned += Total;
 	UE_LOG(LogRoverloom, Display, TEXT("Rock scatter: %d instances (seed %d), radius %.3f to %.2f m, by class (to 6, 15, 40, 90 cm, larger) %d %d %d %d %d, no collision, off the test lane"),
 		Total, ScatterSeed, SmallestM, LargestM, BySize[0], BySize[1], BySize[2], BySize[3], BySize[4]);
+	if (RaceCourse)
+	{
+		UE_LOG(LogRoverloom, Display, TEXT("Race: %d rocks of 30 cm radius or more within 40 m of the course are solid (collision spheres)"), SolidRocks);
+	}
 }
 
 void ARoverPlaygroundGameMode::ApplyProfile()
@@ -597,13 +625,21 @@ double ARoverPlaygroundGameMode::GroundAtCm(const FVector2D& SiteM) const
 }
 
 AActor* ARoverPlaygroundGameMode::SpawnProp(const FVector2D& SiteM, double LiftCm, double YawDeg, const FVector& SizeCm,
-	const FLinearColor& Color, const TCHAR* MeshPath)
+	const FLinearColor& Color, const TCHAR* MeshPath, bool bSolid)
 {
-	// Course markers never touch the rover: no collision, so they change no physics value and cannot trap it.
+	// Markers on the ground (pads, sand, the stones round a flag, the finish squares) have no collision: rovers drive over
+	// them. Solid props (posts, poles, cairns, the hut, the banner) block every rover, as a wall would.
 	const FVector At = RoverloomFrames::SiteToUnrealPosition(FVector(SiteM.X, SiteM.Y, 0.0));
 	AActor* Prop = SpawnBlock(FVector(At.X, At.Y, GroundAtCm(SiteM) + LiftCm), FRotator(0.0, YawDeg, 0.0), SizeCm, Color, MeshPath);
 	if (AStaticMeshActor* Mesh = Cast<AStaticMeshActor>(Prop))
 	{
+		if (bSolid)
+		{
+			Mesh->GetStaticMeshComponent()->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
+			Mesh->GetStaticMeshComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+			Mesh->GetStaticMeshComponent()->SetCastShadow(SizeCm.Z > 20.0);
+			return Prop;
+		}
 		Mesh->GetStaticMeshComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		Mesh->GetStaticMeshComponent()->SetCastShadow(SizeCm.Z > 20.0);
 	}
@@ -623,7 +659,7 @@ void ARoverPlaygroundGameMode::SpawnRaceCourse()
 		UE_LOG(LogRoverloom, Warning, TEXT("Race: course '%s' was routed on the %s level, which is not loaded"), *Course.Name, *Course.Ground);
 	}
 	// Expedition-style markers in a restrained palette, so they read against the regolith without looking like a neon kart
-	// track. Every marker has no collision. Sizes are in centimetres.
+	// track. Posts, poles, cairns, cones, the banner and the hut are solid; marks on the ground are not. Sizes in centimetres.
 	const FLinearColor Post(0.78f, 0.76f, 0.70f);
 	const FLinearColor Band(0.92f, 0.38f, 0.10f);
 	const FLinearColor Dark(0.07f, 0.07f, 0.08f);
@@ -643,13 +679,15 @@ void ARoverPlaygroundGameMode::SpawnRaceCourse()
 		// Two posts and a beam of alternating squares, with the same squares on the ground: the finish (and a start).
 		for (const double S : {-1.0, 1.0})
 		{
-			SpawnProp(P + Left * HalfM * S, 125.0, YawDeg, FVector(16, 16, 250), Post, Cylinder);
+			SpawnProp(P + Left * HalfM * S, 160.0, YawDeg, FVector(16, 16, 320), Post, Cylinder, true);
 		}
 		const int32 Squares = 12;
 		for (int32 K = 0; K < Squares; ++K)
 		{
 			const double F = (K + 0.5) / Squares * 2.0 - 1.0;
-			SpawnProp(P + Left * HalfM * F, 240.0, YawDeg, FVector(10, HalfM * 200.0 / Squares, 24), K % 2 ? Dark : Post);
+			// The beam is high above every rover's mast (2.3 m), and solid like the posts
+			SpawnProp(P + Left * HalfM * F, 305.0, YawDeg, FVector(10, HalfM * 200.0 / Squares, 24), K % 2 ? Dark : Post,
+				TEXT("/Engine/BasicShapes/Cube.Cube"), true);
 			SpawnProp(P + Left * HalfM * F, 0.6, YawDeg, FVector(30, HalfM * 200.0 / Squares, 1), K % 2 ? Dark : Post);
 		}
 	};
@@ -671,7 +709,7 @@ void ARoverPlaygroundGameMode::SpawnRaceCourse()
 		{
 			// A golf-style pin: a slim pole with a high-visibility pennant, seen from far off, and a ring of small pale
 			// stones on the ground the size of the arrival radius.
-			SpawnProp(P, 200.0, 0.0, FVector(6, 6, 400), Post, Cylinder);
+			SpawnProp(P, 200.0, 0.0, FVector(6, 6, 400), Post, Cylinder, true); // solid: rivals aim beside it
 			SpawnProp(P + FVector2D(0.0, 0.0), 402.0, 0.0, FVector(10, 10, 6), Dark, Cylinder);
 			const FVector2D Cloth = P + Left * 0.55;
 			SpawnProp(Cloth, 350.0, YawDeg + 90.0, FVector(110, 3, 70), Band);
@@ -686,8 +724,8 @@ void ARoverPlaygroundGameMode::SpawnRaceCourse()
 		for (const double S : {-1.0, 1.0})
 		{
 			const FVector2D Foot = P + Left * HalfM * S;
-			SpawnProp(Foot, 110.0, YawDeg, FVector(18, 18, 220), Post, Cylinder);
-			SpawnProp(Foot, 200.0, YawDeg, FVector(21, 21, 30), Band, Cylinder);
+			SpawnProp(Foot, 110.0, YawDeg, FVector(18, 18, 220), Post, Cylinder, true);
+			SpawnProp(Foot, 200.0, YawDeg, FVector(21, 21, 30), Band, Cylinder, true);
 		}
 	}
 	if (!Course.bLoop)
@@ -718,15 +756,15 @@ void ARoverPlaygroundGameMode::SpawnRaceCourse()
 			{
 				// Alternate sides, as a trail of cairns would be built
 				const FVector2D Foot = C + Left * ((Markers % 2) ? -2.4 : 2.4);
-				SpawnProp(Foot, 12.0, Markers * 37.0, FVector(46, 40, 26), Cairn, Sphere);
-				SpawnProp(Foot, 32.0, Markers * 53.0, FVector(30, 26, 20), Cairn * 1.15f, Sphere);
-				SpawnProp(Foot, 46.0, Markers * 71.0, FVector(18, 16, 14), Post * 0.8f, Sphere);
+				SpawnProp(Foot, 12.0, Markers * 37.0, FVector(46, 40, 26), Cairn, Sphere, true);
+				SpawnProp(Foot, 32.0, Markers * 53.0, FVector(30, 26, 20), Cairn * 1.15f, Sphere, true);
+				SpawnProp(Foot, 46.0, Markers * 71.0, FVector(18, 16, 14), Post * 0.8f, Sphere, true);
 			}
 			else
 			{
 				for (const double S : {-1.0, 1.0})
 				{
-					SpawnProp(C + Left * (HalfM + 0.6) * S, 15.0, 0.0, FVector(18, 18, 30), Markers % 2 ? Band : Post, Cone);
+					SpawnProp(C + Left * (HalfM + 0.6) * S, 15.0, 0.0, FVector(18, 18, 30), Markers % 2 ? Band : Post, Cone, true);
 				}
 			}
 			++Markers;
@@ -745,7 +783,7 @@ void ARoverPlaygroundGameMode::SpawnRaceCourse()
 		}
 		for (const FVector2D& Corner : {Box.Min, Box.Max, FVector2D(Box.Min.X, Box.Max.Y), FVector2D(Box.Max.X, Box.Min.Y)})
 		{
-			SpawnProp(Corner, 40.0, 0.0, FVector(8, 8, 80), Amber, Cylinder);
+			SpawnProp(Corner, 40.0, 0.0, FVector(8, 8, 80), Amber, Cylinder, true);
 		}
 	}
 	for (const FVector2D& P : Course.Pads)
@@ -757,9 +795,10 @@ void ARoverPlaygroundGameMode::SpawnRaceCourse()
 	{
 		SpawnProp(Course.Supply, 1.5, 0.0, FVector(600, 600, 2), Amber); // Python recharges within 3 m
 		const FVector2D Hut = Course.Supply + FVector2D(-4.0, 1.5);
-		SpawnProp(Hut, 140.0, 20.0, FVector(260, 200, 280), Post);
-		SpawnProp(Hut, 330.0, 20.0, FVector(14, 14, 120), Dark, Cylinder);
-		SpawnProp(Hut + FVector2D(0.0, 1.2), 70.0, 20.0, FVector(120, 6, 90), Pad);
+		const TCHAR* Cube = TEXT("/Engine/BasicShapes/Cube.Cube");
+		SpawnProp(Hut, 140.0, 20.0, FVector(260, 200, 280), Post, Cube, true);
+		SpawnProp(Hut, 330.0, 20.0, FVector(14, 14, 120), Dark, Cylinder, true);
+		SpawnProp(Hut + FVector2D(0.0, 1.2), 70.0, 20.0, FVector(120, 6, 90), Pad, Cube, true);
 	}
 	UE_LOG(LogRoverloom, Display, TEXT("Race course drawn: %d gates (%s), %d path markers, %d sand, %d pads, supply %s"), N, *Course.Style, Markers,
 		Course.Sand.Num(), Course.Pads.Num(), Course.bHasSupply ? TEXT("yes") : TEXT("no"));

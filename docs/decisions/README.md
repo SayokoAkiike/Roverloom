@@ -23,3 +23,4 @@ accepted records. Supersede them with a new one.
 | [0016](0016-gale-terrain-in-lightweight-backend.md) | Measured Gale heightfield as an optional terrain source | Accepted as direction; no scenario yet |
 | [0017](0017-experimental-rally.md) | Separate experimental rally rules from benchmark scoring | Accepted as a source prototype; Unreal verification pending |
 | [0018](0018-experimental-race.md) | Lap race with NPCs, ghosts, leaderboard and agent port, apart from scoring | Accepted as a source prototype; Unreal verification pending |
+| [0019](0019-physical-race-rivals.md) | Physical rivals and solid props in the Unreal race | Accepted for the source; Unreal verification pending |
