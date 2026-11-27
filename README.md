@@ -30,6 +30,10 @@ uv run roverloom play
 
 For the experimental source-build 3D tutorial, see [First 3D mission](docs/first-3d-mission.md) (macOS; fresh-machine playtest pending).
 
+## Experimental race
+
+The [race guide](docs/race.md) covers a lap race against NPC rovers, ghosts of saved runs, a local leaderboard you can share by file, and an Advanced mode where a built-in, CaP, or your own agent drives over a local socket. Python rules, agents and the lobby page are tested; the Unreal C++ for the race has not been compiled or played yet.
+
 ## Experimental rally and garage
 
 The [rally guide](docs/rally.md) covers route choices, supply and sampling stops, limited boosts, seeded dust events, local ghosts, and a saved four-slot garage. Source implementation only: Unreal build and playtest are pending.

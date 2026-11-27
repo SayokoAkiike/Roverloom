@@ -22,3 +22,4 @@ accepted records. Supersede them with a new one.
 | [0015](0015-vork-for-concept-renders.md) | vork for concept renders, kept apart from game screenshots | Accepted |
 | [0016](0016-gale-terrain-in-lightweight-backend.md) | Measured Gale heightfield as an optional terrain source | Accepted as direction; no scenario yet |
 | [0017](0017-experimental-rally.md) | Separate experimental rally rules from benchmark scoring | Accepted as a source prototype; Unreal verification pending |
+| [0018](0018-experimental-race.md) | Lap race with NPCs, ghosts, leaderboard and agent port, apart from scoring | Accepted as a source prototype; Unreal verification pending |

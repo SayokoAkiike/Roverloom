@@ -13,7 +13,14 @@ from roverloom.contract import ContractError, JsonDict, dump_json, load_json_fil
 
 MODEL_VERSION = "rally-drive-0.1"
 RULESET = "rally-0.1"
-PAINTS = {"ivory": "0.8,0.76,0.62", "cyan": "0.12,0.65,0.75", "orange": "0.9,0.3,0.08"}
+PAINTS = {
+    "ivory": "0.8,0.76,0.62",
+    "cyan": "0.12,0.65,0.75",
+    "orange": "0.9,0.3,0.08",
+    "slate": "0.32,0.36,0.4",
+    "gold": "0.85,0.62,0.18",
+    "teal": "0.1,0.45,0.42",
+}
 DIFFICULTIES = {"easy": 0.0, "standard": 0.2, "hard": 0.4}
 GATES = (((5.0, -3.0), (5.0, 7.0)), ((14.0, 0.0),), ((22.0, 0.0),), ((0.0, 0.0),))
 LABELS = (

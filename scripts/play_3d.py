@@ -105,15 +105,30 @@ def supervise(
             if final.get("scenario") != scenario:
                 raise RuntimeError("Unexpected scenario in the mission result.")
             print(json.dumps(final, indent=2))
+            need = {"rally": 4, "race": final.get("targets_total")}.get(scenario, 1)
             return (
                 0
-                if final.get("outcome") == "success"
-                and final.get("targets_reached") == (4 if scenario == "rally" else 1)
+                if final.get("outcome") == "success" and final.get("targets_reached") == need
                 else 1
             )
     finally:
         for child in reversed(children):
             stop(child)
+
+
+def write_course(out: Path, course: str) -> None:
+    """Unreal reads the course before Python connects, so write it before launching."""
+    from roverloom.contract import dump_json
+    from roverloom.race import COURSES
+
+    (out / "course.json").write_text(dump_json(COURSES[course].document()) + "\n", encoding="utf-8")
+
+
+def start_recording(out: Path, seconds: int) -> subprocess.Popen[bytes]:
+    """macOS screencapture video. Needs Screen Recording permission for the terminal."""
+    movie = out / "race.mov"
+    print(f"Recording the screen for {seconds} s to {movie}", flush=True)
+    return subprocess.Popen(["screencapture", "-v", "-V", str(seconds), "-x", str(movie)])
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -126,7 +141,23 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--ghost", type=Path)
     parser.add_argument("--difficulty", choices=("easy", "standard", "hard"), default="easy")
     parser.add_argument("--seed", type=int, default=1)
+    race = parser.add_argument_group("race (experimental kart-style race, docs/race.md)")
+    race.add_argument("--race", action="store_true", help="lap race against NPCs and ghosts")
+    race.add_argument("--course", default="crater_loop")
+    race.add_argument("--laps", type=int)
+    race.add_argument("--npcs", type=int, default=3)
+    race.add_argument("--ghosts", type=int, default=0, help="add your best saved runs as ghosts")
+    race.add_argument("--name", default="You")
+    race.add_argument("--agent", default="none", help="none, pursuit, cap or external (Advanced)")
+    race.add_argument("--map", choices=("generated", "gale"), default="generated")
+    race.add_argument("--light", default="afternoon", help="noon, afternoon, sunset or default")
+    race.add_argument("--res", default="1280x720")
+    race.add_argument("--profile", choices=("dev", "capture"), default="dev")
+    race.add_argument("--demo", action="store_true", help="hands-free: the pursuit agent drives")
+    race.add_argument("--record", type=int, metavar="SECONDS", help="record the screen (macOS)")
     args = parser.parse_args(argv)
+    if args.demo and args.agent == "none":
+        args.agent = "pursuit"
     try:
         if platform.system() != "Darwin":
             raise RuntimeError("This first launcher targets macOS. Unreal playtesting is pending.")
@@ -138,8 +169,22 @@ def main(argv: list[str] | None = None) -> int:
             raise RuntimeError(
                 "Run through uv: uv run --project python python scripts/play_3d.py ..."
             )
-        if (args.garage or args.ghost) and not args.rally:
-            raise RuntimeError("--garage and --ghost require --rally")
+        if args.race and args.rally:
+            raise RuntimeError("choose --rally or --race")
+        if args.ghost and not args.rally:
+            raise RuntimeError("--ghost requires --rally; races use --ghosts N")
+        if args.garage and not (args.rally or args.race):
+            raise RuntimeError("--garage requires --rally or --race")
+        gale = ROOT / "unreal" / "Content" / "Licensed" / "Gale" / "Gale.umap"
+        if args.race:
+            from roverloom.race import COURSES
+            from roverloom.rally import load_garage as load_race_garage
+
+            if args.course not in COURSES:
+                raise RuntimeError(f"unknown course; choose {', '.join(COURSES)}")
+            if args.map == "gale" and not gale.exists():
+                raise RuntimeError(f"--map gale needs {gale}; it is not in Git (docs/race.md)")
+            race_design = load_race_garage(args.garage)
         if args.rally:
             from roverloom.rally import Ghost, load_garage
 
@@ -192,6 +237,46 @@ def main(argv: list[str] | None = None) -> int:
                 link += ["--garage", str(args.garage.resolve())]
             if args.ghost:
                 link += ["--ghost", str(args.ghost.resolve())]
+        if args.race:
+            from roverloom.rally import PAINTS as RACE_PAINTS
+
+            width, height = args.res.lower().split("x")
+            game = [a for a in game if a not in ("-RoverTutorial", "-RoverBench=150")]
+            game = [a for a in game if not a.startswith(("-ResX=", "-ResY=", "-RoverProfile="))]
+            if args.map == "gale":
+                game[2] = "/Game/Licensed/Gale/Gale?game=/Script/Roverloom.RoverPlaygroundGameMode"
+            game += [
+                "-RoverRally",
+                "-RoverRace",
+                f"-RoverCourseFile={out / 'course.json'}",
+                "-RoverBench=900",
+                f"-RoverPaint={RACE_PAINTS[race_design['paint']]}",
+                f"-RoverLight={args.light}",
+                f"-RoverProfile={args.profile}",
+                f"-ResX={int(width)}",
+                f"-ResY={int(height)}",
+            ]
+            link = [sys.executable, "-m", "roverloom.race_cli", "link", "--out", str(out)]
+            link += [
+                "--course",
+                args.course,
+                "--npcs",
+                str(args.npcs),
+                "--ghosts",
+                str(args.ghosts),
+            ]
+            link += ["--difficulty", args.difficulty, "--seed", str(args.seed), "--name", args.name]
+            link += [
+                "--agent",
+                args.agent,
+                "--board",
+                str(ROOT / "runs" / "race" / "leaderboard.json"),
+            ]
+            if args.laps:
+                link += ["--laps", str(args.laps)]
+            if args.garage:
+                link += ["--garage", str(args.garage.resolve())]
+            write_course(out, args.course)
         print(f"Logs and result: {out}", flush=True)
         print(
             "Click the window: W/S drive, A/D turn, C camera. "
@@ -203,7 +288,21 @@ def main(argv: list[str] | None = None) -> int:
             "The window closes after the result. Ctrl+C cancels.",
             flush=True,
         )
-        return supervise(game, link, out, scenario="rally" if args.rally else SCENARIO)
+        if args.race:
+            mode = f"agent '{args.agent}' drives" if args.agent != "none" else "you drive"
+            print(
+                f"RACE: {args.course}, {args.npcs} NPCs, {args.ghosts} ghosts, {mode}.", flush=True
+            )
+            print("W/S drive, A/D turn, SPACE boost, C camera, R rescue (+30 s).", flush=True)
+            if args.agent == "external":
+                print("Start your agent now: python -m roverloom.race_agent_example", flush=True)
+        recorder = start_recording(out, args.record) if args.record else None
+        try:
+            scenario = "rally" if args.rally else "race" if args.race else SCENARIO
+            return supervise(game, link, out, timeout=1200 if args.race else 420, scenario=scenario)
+        finally:
+            if recorder:
+                stop(recorder)
     except KeyboardInterrupt:
         print("Cancelled.", file=sys.stderr)
         return 130

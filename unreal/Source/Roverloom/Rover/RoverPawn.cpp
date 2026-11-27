@@ -39,6 +39,7 @@
 #include "RenderTimer.h"
 #include "UnrealClient.h"
 #include "UObject/ConstructorHelpers.h"
+#include "RaceOpponent.h"
 
 #include "../Bridge/Frames.h"
 #include "../Roverloom.h"
@@ -207,6 +208,7 @@ void ARoverPawn::BeginPlay()
 {
 	Super::BeginPlay();
 	bRally = FParse::Param(FCommandLine::Get(), TEXT("RoverRally"));
+	Status.bRace = FParse::Param(FCommandLine::Get(), TEXT("RoverRace"));
 	StartTransform = FTransform(GetActorQuat(), GetActorLocation());
 	FParse::Value(FCommandLine::Get(), TEXT("RoverShotDir="), ShotDir);
 	FParse::Value(FCommandLine::Get(), TEXT("RoverBench="), BenchSeconds);
@@ -523,6 +525,7 @@ void ARoverPawn::Tick(float DeltaSeconds)
 	Status.YawRateRadps = RoverloomFrames::UnrealToSiteAngularVelocity(Body->GetPhysicsAngularVelocityInRadians()).Z;
 	Status.TiltDeg = FMath::RadiansToDegrees(FMath::Acos(FMath::Clamp(Body->GetUpVector().Z, -1.0, 1.0)));
 	Status.SitePositionM = RoverloomFrames::UnrealToSitePosition(Location);
+	Status.YawRad = -FMath::DegreesToRadians(Body->GetComponentRotation().Yaw); // Unreal's Y is the site's -Y
 	Status.WheelsInContact = 0;
 	for (const AWheelRig::FWheelRecord& Record : Rig->GetRecords())
 	{
@@ -613,8 +616,8 @@ void ARoverPawn::MissionLinkTick(double NowS)
 	{
 		LinkLastSendS = NowS;
 		const FVector P = Status.SitePositionM;
-		const FString Line = FString::Printf(TEXT("{\"type\":\"telemetry\",\"body\":{\"time_s\":%.3f,\"position_m\":[%.4f,%.4f,%.4f],\"forward_mps\":%.4f,\"resets\":%d,\"boost_requested\":%s}}\n"),
-			NowS - MissionClockStartS, P.X, P.Y, P.Z, Status.ForwardMps, Status.Resets, (GetWorld()->GetFirstPlayerController() && GetWorld()->GetFirstPlayerController()->IsInputKeyDown(EKeys::SpaceBar)) ? TEXT("true") : TEXT("false"));
+		const FString Line = FString::Printf(TEXT("{\"type\":\"telemetry\",\"body\":{\"time_s\":%.3f,\"position_m\":[%.4f,%.4f,%.4f],\"yaw_rad\":%.5f,\"forward_mps\":%.4f,\"resets\":%d,\"boost_requested\":%s}}\n"),
+			NowS - MissionClockStartS, P.X, P.Y, P.Z, Status.YawRad, Status.ForwardMps, Status.Resets, (GetWorld()->GetFirstPlayerController() && GetWorld()->GetFirstPlayerController()->IsInputKeyDown(EKeys::SpaceBar)) ? TEXT("true") : TEXT("false"));
 		const FTCHARToUTF8 Utf8(*Line);
 		int32 Sent = 0;
 		if (!LinkClient->Send(reinterpret_cast<const uint8*>(Utf8.Get()), Utf8.Length(), Sent) || Sent != Utf8.Length())
@@ -690,8 +693,18 @@ void ARoverPawn::MissionLinkTick(double NowS)
 				for (int32 I = 0; I < FMath::Min(Targets->Num(), 2); ++I)
 				{
 					const TArray<TSharedPtr<FJsonValue>>& P = (*Targets)[I]->AsArray();
-					if (P.Num() == 2) DrawDebugSphere(GetWorld(), RoverloomFrames::SiteToUnrealPosition(FVector(P[0]->AsNumber(), P[1]->AsNumber(), 0)), 200, 24, FColor::Green, false, 0.15f, 0, 3);
+					if (P.Num() == 2 && Status.bRace)
+					{
+						Status.NextCheckpointM = FVector2D(P[0]->AsNumber(), P[1]->AsNumber());
+						Status.bHasNextCheckpoint = true;
+					}
+					else if (P.Num() == 2) DrawDebugSphere(GetWorld(), RoverloomFrames::SiteToUnrealPosition(FVector(P[0]->AsNumber(), P[1]->AsNumber(), 0)), 200, 24, FColor::Green, false, 0.15f, 0, 3);
 				}
+			}
+			const TSharedPtr<FJsonObject>* Race = nullptr;
+			if (Status.bRace && (*Body)->TryGetObjectField(TEXT("race"), Race))
+			{
+				ReadRaceState(*Race, NowS);
 			}
 			const TArray<TSharedPtr<FJsonValue>>* Ghost = nullptr;
 			if ((*Body)->TryGetArrayField(TEXT("ghost_position_m"), Ghost) && Ghost->Num() == 3)
@@ -718,6 +731,104 @@ void ARoverPawn::MissionLinkTick(double NowS)
 			bMissionShotTaken = true; // The HUD shows the verdict from the next frame on
 			FScreenshotRequest::RequestScreenshot(FPaths::Combine(ShotDir, TEXT("Mission.png")), true, false);
 			UE_LOG(LogRoverloom, Display, TEXT("Rover mission verdict captured: Mission.png"));
+		}
+	}
+}
+
+void ARoverPawn::ReadRaceState(const TSharedPtr<FJsonObject>& Race, double NowS)
+{
+	Status.bRaceState = true;
+	auto Int = [&Race](const TCHAR* Key) { double V = 0.0; Race->TryGetNumberField(Key, V); return FMath::IsFinite(V) ? static_cast<int32>(V) : 0; };
+	auto Color = [](const TSharedPtr<FJsonObject>& O)
+	{
+		const TArray<TSharedPtr<FJsonValue>>* C = nullptr;
+		if (O->TryGetArrayField(TEXT("color"), C) && C->Num() == 3)
+		{
+			return FLinearColor(FMath::Clamp((*C)[0]->AsNumber(), 0.0, 1.0), FMath::Clamp((*C)[1]->AsNumber(), 0.0, 1.0), FMath::Clamp((*C)[2]->AsNumber(), 0.0, 1.0));
+		}
+		return FLinearColor::White;
+	};
+	Status.RaceLap = Int(TEXT("lap"));
+	Status.RaceLaps = Int(TEXT("laps"));
+	Status.RacePosition = Int(TEXT("position"));
+	Status.RaceRacers = Int(TEXT("racers"));
+	Status.RaceBoosts = Int(TEXT("boosts"));
+	Race->TryGetStringField(TEXT("time"), Status.RaceTime);
+	Race->TryGetStringField(TEXT("best_lap"), Status.RaceBestLap);
+	Race->TryGetStringField(TEXT("banner"), Status.RaceBanner);
+	Race->TryGetStringField(TEXT("message"), Status.RaceMessage);
+	Race->TryGetStringField(TEXT("controller"), Status.RaceController);
+	Race->TryGetNumberField(TEXT("charge"), Status.RaceCharge);
+	Status.RaceCharge = FMath::IsFinite(Status.RaceCharge) ? FMath::Clamp(Status.RaceCharge, 0.0, 1.0) : 0.0;
+	Race->TryGetBoolField(TEXT("boosting"), Status.bRaceBoosting);
+	Race->TryGetBoolField(TEXT("in_sand"), Status.bRaceSand);
+	Race->TryGetBoolField(TEXT("dust"), Status.bRaceDust);
+	Race->TryGetBoolField(TEXT("dust_warning"), Status.bRaceDustWarning);
+	const TArray<TSharedPtr<FJsonValue>>* List = nullptr;
+	if (Race->TryGetArrayField(TEXT("standings"), List))
+	{
+		Status.Standings.Reset();
+		for (int32 I = 0; I < FMath::Min(List->Num(), 12); ++I)
+		{
+			const TSharedPtr<FJsonObject>* Row = nullptr;
+			if (!(*List)[I]->TryGetObject(Row)) continue;
+			FRoverStatus::FStanding S;
+			double Pos = 0.0, Lap = 0.0;
+			(*Row)->TryGetNumberField(TEXT("pos"), Pos);
+			(*Row)->TryGetNumberField(TEXT("lap"), Lap);
+			S.Pos = static_cast<int32>(Pos);
+			S.Lap = static_cast<int32>(Lap);
+			(*Row)->TryGetStringField(TEXT("name"), S.Name);
+			(*Row)->TryGetStringField(TEXT("kind"), S.Kind);
+			(*Row)->TryGetStringField(TEXT("gap"), S.Gap);
+			(*Row)->TryGetBoolField(TEXT("is_you"), S.bIsYou);
+			S.Color = Color(*Row);
+			Status.Standings.Add(S);
+		}
+	}
+	TSet<FString> Seen;
+	if (Race->TryGetArrayField(TEXT("opponents"), List))
+	{
+		for (int32 I = 0; I < FMath::Min(List->Num(), 12); ++I)
+		{
+			const TSharedPtr<FJsonObject>* Row = nullptr;
+			const TArray<TSharedPtr<FJsonValue>>* P = nullptr;
+			FString Id, Name, Kind;
+			double Yaw = 0.0, Pos = 0.0;
+			if (!(*List)[I]->TryGetObject(Row) || !(*Row)->TryGetStringField(TEXT("id"), Id) || !(*Row)->TryGetArrayField(TEXT("position_m"), P)
+				|| P->Num() < 2)
+			{
+				continue;
+			}
+			(*Row)->TryGetStringField(TEXT("name"), Name);
+			(*Row)->TryGetStringField(TEXT("kind"), Kind);
+			(*Row)->TryGetNumberField(TEXT("yaw_rad"), Yaw);
+			(*Row)->TryGetNumberField(TEXT("pos"), Pos);
+			const FVector2D At((*P)[0]->AsNumber(), (*P)[1]->AsNumber());
+			if (!FMath::IsFinite(At.X) || !FMath::IsFinite(At.Y) || !FMath::IsFinite(Yaw)) continue;
+			TObjectPtr<ARaceOpponent>& Actor = Opponents.FindOrAdd(Id);
+			if (!Actor)
+			{
+				FActorSpawnParameters Params;
+				Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+				Actor = GetWorld()->SpawnActor<ARaceOpponent>(ARaceOpponent::StaticClass(), FTransform::Identity, Params);
+			}
+			if (Actor)
+			{
+				Actor->DisplayName = Name;
+				Actor->Position = static_cast<int32>(Pos);
+				Actor->LastUpdateS = NowS;
+				Actor->SetTarget(At, Yaw, Color(*Row), Kind == TEXT("ghost"));
+				Seen.Add(Id);
+			}
+		}
+	}
+	for (auto It = Opponents.CreateIterator(); It; ++It)
+	{
+		if (!Seen.Contains(It.Key()))
+		{
+			if (It.Value()) It.Value()->Destroy();
+			It.RemoveCurrent();
 		}
 	}
 }

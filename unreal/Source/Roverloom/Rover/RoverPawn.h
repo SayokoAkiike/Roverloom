@@ -8,6 +8,8 @@
 #include "RoverPawn.generated.h"
 
 class ACameraActor;
+class ARaceOpponent;
+class FJsonObject;
 class AWheelRig;
 class UCameraComponent;
 class UInputAction;
@@ -53,6 +55,38 @@ struct FRoverStatus
 	FString MissionLine;
 	FString RallyLine;
 	bool bMissionEnded = false;
+	// Race (docs/race.md): shown as Python sends it; Unreal judges nothing.
+	struct FStanding
+	{
+		int32 Pos = 0;
+		FString Name;
+		FString Kind;
+		FString Gap;
+		int32 Lap = 0;
+		FLinearColor Color = FLinearColor::White;
+		bool bIsYou = false;
+	};
+	bool bRace = false;
+	bool bRaceState = false;
+	int32 RaceLap = 0;
+	int32 RaceLaps = 0;
+	int32 RacePosition = 0;
+	int32 RaceRacers = 0;
+	FString RaceTime;
+	FString RaceBestLap;
+	FString RaceBanner;
+	FString RaceMessage;
+	FString RaceController;
+	double RaceCharge = 1.0;
+	int32 RaceBoosts = 0;
+	bool bRaceBoosting = false;
+	bool bRaceSand = false;
+	bool bRaceDust = false;
+	bool bRaceDustWarning = false;
+	TArray<FStanding> Standings;
+	FVector2D NextCheckpointM = FVector2D::ZeroVector;
+	bool bHasNextCheckpoint = false;
+	double YawRad = 0.0; // Site frame, positive turning left
 };
 
 // The playable six-wheel rover. It drives the WheelSpike rig (drive model P, provisional) through the one command path,
@@ -71,6 +105,7 @@ public:
 	virtual void PawnClientRestart() override;
 
 	const FRoverStatus& GetStatus() const { return Status; }
+	const TMap<FString, TObjectPtr<ARaceOpponent>>& GetOpponents() const { return Opponents; }
 	static const TCHAR* CameraName(ERoverCamera Camera);
 	static const TCHAR* KeyboardSource;
 	static const TCHAR* AgentSource; // Actions from a Python agent over the mission link (bridge v1, real time)
@@ -159,6 +194,10 @@ private:
 	TObjectPtr<UInputAction> FreeMoveAction;
 	UPROPERTY()
 	TObjectPtr<UInputAction> FreeLiftAction;
+
+	UPROPERTY()
+	TMap<FString, TObjectPtr<ARaceOpponent>> Opponents;
+	void ReadRaceState(const TSharedPtr<FJsonObject>& Race, double NowS);
 
 	TUniquePtr<RoverloomCommand::FCommandRouter> Router;
 	FTransform StartTransform;

@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Roverloom Race Lobby</title>
+<style>
+:root{--bg:#0f1418;--panel:#171f25;--line:#2c3a43;--text:#eef0ec;--dim:#9aa7ad;--accent:#f08c3a;--teal:#5fd0d2;--sand:#a86c3f}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(1200px 500px at 70% -10%,#3a2418 0,transparent 60%),var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,sans-serif}
+main{max-width:1180px;margin:auto;padding:36px 24px 60px}
+header small{color:var(--accent);letter-spacing:.14em;font-weight:600}
+h1{font-size:46px;line-height:1.05;margin:8px 0 6px}
+h2{font-size:15px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin:0 0 14px}
+h2 b{color:var(--accent);margin-right:8px}
+.lead{color:var(--dim);max-width:720px;margin:0}
+.steps{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:30px}
+.panel{min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px}
+.wide{grid-column:1/-1}
+.modes{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.mode{border:1px solid var(--line);border-radius:12px;padding:16px;cursor:pointer;background:#121a1f;text-align:left;color:inherit;font:inherit}
+.mode strong{display:block;font-size:18px;margin-bottom:4px}
+.mode span{color:var(--dim);font-size:14px}
+.mode[aria-pressed=true]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:#1d1712}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+label{display:block;font-size:14px;color:var(--dim);margin-bottom:12px}
+select,input{display:block;width:100%;min-width:0;max-width:100%;margin-top:6px;font:inherit;color:var(--text);background:#0f161a;border:1px solid var(--line);border-radius:8px;padding:10px}
+.stat{display:grid;grid-template-columns:120px 1fr 52px;align-items:center;gap:10px;font-size:14px;color:var(--dim);margin:6px 0}
+.bar{height:8px;background:#26323a;border-radius:4px;overflow:hidden}.bar i{display:block;height:100%;background:var(--teal)}
+svg{width:100%;height:auto;display:block}
+.cmd{position:relative;background:#0b1013;border:1px solid var(--line);border-radius:10px;padding:14px 14px 14px 14px;margin:10px 0}
+.cmd pre{margin:0;white-space:pre-wrap;word-break:break-all;font:13px/1.6 ui-monospace,Menlo,monospace;color:#d8e2e4;padding-right:70px}
+.cmd button,.go{position:absolute;top:10px;right:10px}
+button.btn{font:inherit;font-weight:600;border:0;border-radius:8px;padding:8px 12px;cursor:pointer;background:var(--accent);color:#1a0f07}
+button.ghost{background:#26323a;color:var(--text)}
+.note{color:var(--dim);font-size:13px}
+.advanced{display:none}.adv .advanced{display:block}
+.tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.tabs button{font:inherit;font-size:13px;border:1px solid var(--line);background:#121a1f;color:var(--dim);border-radius:999px;padding:6px 12px;cursor:pointer}
+.tabs button[aria-selected=true]{color:var(--text);border-color:var(--teal)}
+.scroll{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line)}th{color:var(--dim);font-weight:500}
+td.t{font-variant-numeric:tabular-nums;font-weight:600}
+.empty{color:var(--dim);padding:10px 0}
+.keys{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.keys span{font-size:13px;color:var(--dim)}kbd{font:12px ui-monospace,monospace;background:#26323a;border:1px solid #3a4a54;border-radius:5px;padding:2px 6px;color:var(--text)}
+@media(max-width:820px){.steps,.modes,.row{grid-template-columns:1fr}h1{font-size:34px}main{padding:24px 16px}}
+</style>
+<main id="app">
+<header>
+  <small>ROVERLOOM / EXPERIMENTAL RACE</small>
+  <h1>Build a rover. Race it on Mars.</h1>
+  <p class="lead">Choose a mode, set up your six-wheeler, pick a course, then start the race on this Mac. Your finished runs go on the local leaderboard and come back as ghosts.</p>
+</header>
+<div class="steps">
+  <section class="panel wide" aria-labelledby="h-mode">
+    <h2 id="h-mode"><b>1</b>Mode</h2>
+    <div class="modes" role="group" aria-label="Race mode">
+      <button class="mode" data-mode="grandprix" aria-pressed="true"><strong>Grand Prix</strong><span>You drive against NPC rovers in real time.</span></button>
+      <button class="mode" data-mode="timeattack" aria-pressed="false"><strong>Time Attack</strong><span>Race the ghosts of the best saved runs, yours or shared.</span></button>
+      <button class="mode" data-mode="advanced" aria-pressed="false"><strong>Advanced</strong><span>An autonomous agent drives: built-in, CaP, or your own.</span></button>
+    </div>
+  </section>
+  <section class="panel" aria-labelledby="h-rover">
+    <h2 id="h-rover"><b>2</b>Rover</h2>
+    <svg viewBox="0 0 600 300" role="img" aria-label="Schematic rover preview">
+      <path d="M20 270L220 190 580 240 370 300Z" fill="#7d4628"/>
+      <g stroke="#59727a" stroke-width="8"><path d="M145 220L420 265M195 188L470 230M170 188L145 220M300 212L275 250M450 233L420 265"/></g>
+      <g id="wheels" fill="#202a30" stroke="#78939f" stroke-width="4"><ellipse cx="145" cy="230" rx="25" ry="36"/><ellipse cx="280" cy="255" rx="25" ry="36"/><ellipse cx="420" cy="276" rx="25" ry="36"/><ellipse cx="200" cy="198" rx="25" ry="36"/><ellipse cx="330" cy="222" rx="25" ry="36"/><ellipse cx="470" cy="242" rx="25" ry="36"/></g>
+      <path id="body" d="M155 135L270 95 475 145 360 190 155 155Z" fill="#c8c2a0" stroke="#e1e6db" stroke-width="3"/>
+      <path d="M200 124L275 100 420 135 350 160Z" fill="#162d49" stroke="#638baf"/>
+      <path d="M300 110V45M300 45L340 32 368 42 325 60 300 55Z" fill="#a3b9c1" stroke="#bed0d9" stroke-width="5"/>
+      <g id="scout"><path d="M395 137V55M380 55H410" stroke="#5fd0d2" stroke-width="5"/></g>
+      <rect id="battery" x="180" y="131" width="42" height="20" fill="#e5b459"/>
+    </svg>
+    <div class="row">
+      <label>Tires<select id="tires"><option value="allround">All-round: fast on firm ground</option><option value="sand">Sand: keeps pace in soft sand</option></select></label>
+      <label>Battery<select id="battery-sel"><option value="standard">Standard: lighter, quicker</option><option value="endurance">Endurance: more reserve, slower</option></select></label>
+      <label>Sensor<select id="sensor"><option value="basic">Basic: low idle drain</option><option value="scout">Scout: earlier dust warning</option></select></label>
+      <label>Paint<select id="paint"></select></label>
+    </div>
+    <div id="stats" aria-live="polite"></div>
+    <p class="note">Game balance values, not hardware measurements. Six wheels and the chassis are fixed.</p>
+  </section>
+  <section class="panel" aria-labelledby="h-race">
+    <h2 id="h-race"><b>3</b>Race</h2>
+    <svg id="map" viewBox="0 0 400 220" role="img" aria-label="Course map"></svg>
+    <div class="row">
+      <label>Course<select id="course"></select></label>
+      <label>Laps<select id="laps"></select></label>
+      <label>Rivals (NPC)<select id="npcs"></select></label>
+      <label>Difficulty<select id="difficulty"></select></label>
+      <label>Ghosts<select id="ghosts"><option>0</option><option>1</option><option>2</option><option>3</option></select></label>
+      <label>Ground<select id="map-sel"><option value="generated">Generated crater floor</option><option value="gale">Gale site (if installed)</option></select></label>
+      <label>Light<select id="light"><option value="afternoon">Afternoon</option><option value="noon">Noon</option><option value="sunset">Sunset</option></select></label>
+      <label>Your name<input id="name" value="You" maxlength="24"></label>
+    </div>
+    <div class="advanced">
+      <label>Driver<select id="agent"></select></label>
+      <p class="note" id="agent-note"></p>
+    </div>
+  </section>
+  <section class="panel wide" aria-labelledby="h-start">
+    <h2 id="h-start"><b>4</b>Start</h2>
+    <p class="note">Save the rover file, then run the command from the repository root in Terminal. The game window opens; click it once to drive.</p>
+    <button class="btn" id="save">Save garage.json</button>
+    <div class="cmd"><pre id="command"></pre><button class="btn ghost" data-copy="command">Copy</button></div>
+    <div class="cmd advanced" id="agent-cmd-box"><pre id="agent-command"></pre><button class="btn ghost" data-copy="agent-command">Copy</button></div>
+    <div class="keys"><span><kbd>W</kbd><kbd>S</kbd> drive</span><span><kbd>A</kbd><kbd>D</kbd> turn</span><span><kbd>Space</kbd> boost</span><span><kbd>C</kbd> camera</span><span><kbd>R</kbd> rescue (+30 s)</span></div>
+    <p class="note">Boost pads on the track give one boost. Sand slows all-round tires. The supply pad recharges the battery. Dust storms slow everyone; the scout sensor warns earlier.</p>
+  </section>
+  <section class="panel wide" aria-labelledby="h-board">
+    <h2 id="h-board">Leaderboard</h2>
+    <div class="tabs" role="tablist" id="tabs"></div>
+    <div id="board" class="scroll"></div>
+    <p class="note">Local file <code>runs/race/leaderboard.json</code>. Share a run with <code>race_cli export &lt;id&gt;</code>; the other player adds it with <code>race_cli import</code>. Unreal and headless results, and human and agent drivers, are ranked separately. Entries are not verified.</p>
+  </section>
+</div>
+</main>
+<script>
+const DATA=/*RACE_DATA*/null||{courses:{crater_loop:{name:"Crater Loop",checkpoints:[[9,0],[14,5],[9,11],[1,11],[-4,5.5],[0,0]],sand:[[10.5,1.5,16,8.5]],pads:[[5,0],[5,11]],supply:[-3.5,8.5],laps:2,lap_length_m:43}},npcs:["Dune Runner","Long Haul","Scout-7","Regolith","Kestrel"],difficulties:["easy","standard","hard"],boards:{},agents:["pursuit","cap","external"]};
+const $=id=>document.getElementById(id);
+const PAINT={ivory:"#ccc29e",cyan:"#1fa6bf",orange:"#e64d14",slate:"#525c66",gold:"#d99e2e",teal:"#1a736b"};
+const AGENT_NOTES={pursuit:"A classical pure-pursuit controller. A baseline to beat.",cap:"Code-as-policy: a plan of typed race skills, checked as data and run by a fixed executor. The plan comes from a rule-based stand-in for a language model; no model is called.",external:"Your own program, in any language, on 127.0.0.1:8101 (protocol race-agent-1). Start the race first, then your agent. See docs/race.md."};
+let mode="grandprix";
+function fill(sel,items){$(sel).innerHTML=items.map(([v,t])=>`<option value="${v}">${t}</option>`).join("")}
+fill("paint",Object.keys(PAINT).map(k=>[k,k[0].toUpperCase()+k.slice(1)]));
+fill("course",Object.entries(DATA.courses).map(([k,c])=>[k,`${c.name} (${Math.round(c.lap_length_m)} m)`]));
+fill("npcs",[0,1,2,3,4,5].map(n=>[n,n?`${n}: ${DATA.npcs.slice(0,n).join(", ")}`:"None"]));
+$("npcs").value="3";
+fill("difficulty",DATA.difficulties.map(d=>[d,d[0].toUpperCase()+d.slice(1)]));$("difficulty").value="standard";
+fill("agent",DATA.agents.map(a=>[a,{pursuit:"Pursuit (built-in)",cap:"CaP planner (built-in)",external:"My own agent (TCP)"}[a]||a]));
+function design(){return{ruleset:"rally-0.1",tires:$("tires").value,battery:$("battery-sel").value,sensor:$("sensor").value,paint:$("paint").value}}
+function stats(d){return{pace:(d.tires==="sand"?.9:1)*(d.battery==="endurance"?.9:1),sand:d.tires==="sand"?.95:.55,battery:d.battery==="endurance"?120:100,warning:d.sensor==="scout"?8:4}}
+function rover(){const d=design(),s=stats(d);$("body").setAttribute("fill",PAINT[d.paint]);$("scout").style.display=d.sensor==="scout"?"":"none";$("battery").setAttribute("width",d.battery==="endurance"?75:42);
+ $("wheels").setAttribute("stroke",d.tires==="sand"?"#d7a46b":"#78939f");
+ const rows=[["Cruise pace",s.pace,1,`${Math.round(s.pace*100)}%`],["Pace in sand",s.sand,1,`${Math.round(s.sand*100)}%`],["Battery",s.battery,120,s.battery],["Dust warning",s.warning,8,`${s.warning} s`]];
+ $("stats").innerHTML=rows.map(([n,v,m,t])=>`<div class="stat"><span>${n}</span><div class="bar"><i style="width:${v/m*100}%"></i></div><span>${t}</span></div>`).join("")}
+function course(reset){const c=DATA.courses[$("course").value];const laps=reset?"":$("laps").value;fill("laps",[1,2,3,4,5].map(n=>[n,`${n}${n==c.laps?" (default)":""}`]));$("laps").value=laps&&+laps?laps:c.laps;
+ const pts=c.checkpoints;const xs=pts.map(p=>p[0]).concat(c.supply?[c.supply[0]]:[]),ys=pts.map(p=>p[1]).concat(c.supply?[c.supply[1]]:[]);
+ const minx=Math.min(...xs)-3,maxx=Math.max(...xs)+3,miny=Math.min(...ys)-3,maxy=Math.max(...ys)+3;const k=Math.min(400/(maxx-minx),220/(maxy-miny));
+ const ox=(400-(maxx-minx)*k)/2,oy=(220-(maxy-miny)*k)/2;const X=x=>ox+(x-minx)*k,Y=y=>220-oy-(y-miny)*k;
+ let svg=`<rect width="400" height="220" rx="12" fill="#2a1a12"/>`;
+ for(const [a,b,cc,d] of c.sand)svg+=`<rect x="${X(a)}" y="${Y(d)}" width="${(cc-a)*k}" height="${(d-b)*k}" fill="${getComputedStyle(document.body).getPropertyValue('--sand')}" opacity=".55" rx="4"/>`;
+ const loop=[pts[pts.length-1],...pts];svg+=`<polyline points="${loop.map(p=>X(p[0])+","+Y(p[1])).join(" ")}" fill="none" stroke="#eee6d8" stroke-width="10" stroke-linejoin="round" opacity=".18"/>`;
+ svg+=`<polyline points="${loop.map(p=>X(p[0])+","+Y(p[1])).join(" ")}" fill="none" stroke="#eee6d8" stroke-width="2.5" stroke-dasharray="6 5" stroke-linejoin="round"/>`;
+ pts.forEach((p,i)=>{const fin=i===pts.length-1;svg+=`<circle cx="${X(p[0])}" cy="${Y(p[1])}" r="${fin?8:6}" fill="${fin?"#f08c3a":"#0f1418"}" stroke="#f08c3a" stroke-width="2"/>`;if(!fin)svg+=`<text x="${X(p[0])}" y="${Y(p[1])+4}" font-size="9" text-anchor="middle" fill="#f08c3a">${i+1}</text>`});
+ for(const p of c.pads)svg+=`<rect x="${X(p[0])-5}" y="${Y(p[1])-5}" width="10" height="10" fill="#5fd0d2" transform="rotate(45 ${X(p[0])} ${Y(p[1])})"/>`;
+ if(c.supply)svg+=`<rect x="${X(c.supply[0])-7}" y="${Y(c.supply[1])-7}" width="14" height="14" fill="#f2b23a" rx="3"/>`;
+ svg+=`<text x="12" y="210" font-size="11" fill="#9aa7ad">● start/finish   ◆ boost pad   ■ supply   ▭ sand</text>`;$("map").innerHTML=svg}
+function q(v){return /^[\w./~-]+$/.test(v)?v:`"${v.replace(/(["\\$`])/g,"\\$1")}"`}
+function command(){const agent=mode==="advanced"?$("agent").value:"none";const ghosts=mode==="timeattack"?Math.max(1,+$("ghosts").value):+$("ghosts").value;
+ const parts=["uv run --project python python scripts/play_3d.py --race","--garage ~/Downloads/garage.json",`--course ${$("course").value}`,`--laps ${$("laps").value}`,`--npcs ${mode==="timeattack"?0:$("npcs").value}`,`--ghosts ${ghosts}`,`--difficulty ${$("difficulty").value}`,`--name ${q($("name").value||"You")}`];
+ if(agent!=="none")parts.push(`--agent ${agent}`);if($("map-sel").value!=="generated")parts.push(`--map ${$("map-sel").value}`);if($("light").value!=="afternoon")parts.push(`--light ${$("light").value}`);
+ parts.push(`--ue-root "/Users/Shared/Epic Games/UE_5.8" --build`);$("command").textContent=parts.join(" \\\n  ");
+ $("agent-command").textContent=agent==="external"?"# In a second Terminal, once the race is waiting for your agent:\nuv run --project python python -m roverloom.race_agent_example --name \"My Agent\"":"# Or race this agent without Unreal, on the race model:\nuv run --project python python -m roverloom.race_cli headless --agent "+agent+" --course "+$("course").value+" --npcs "+$("npcs").value;
+ $("agent-note").textContent=AGENT_NOTES[$("agent").value]||"";document.body.classList.toggle("adv",mode==="advanced")}
+function board(key){const boards=DATA.boards||{};const keys=Object.keys(boards);if(!keys.length){$("tabs").innerHTML="";$("board").innerHTML='<p class="empty">No finished races yet. Finish one and run <code>race_cli lobby</code> again to see it here.</p>';return}
+ key=key||keys[0];$("tabs").innerHTML=keys.map(k=>`<button role="tab" aria-selected="${k===key}" data-board="${k}">${k.replaceAll("/"," · ")}</button>`).join("");
+ $("board").innerHTML=`<table><thead><tr><th>#</th><th>Player</th><th>Time</th><th>Driver</th><th>Rover</th><th>Id</th></tr></thead><tbody>${boards[key].map(r=>`<tr><td>${r.rank}</td><td>${esc(r.player)}</td><td class="t">${r.total}</td><td>${esc(r.controller)}</td><td><span style="color:${PAINT[r.design.paint]||"#ccc"}">■</span> ${r.design.tires} / ${r.design.battery} / ${r.design.sensor}</td><td><code>${r.entry_id.slice(0,8)}</code></td></tr>`).join("")}</tbody></table>`}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+document.querySelectorAll(".mode").forEach(b=>b.addEventListener("click",()=>{mode=b.dataset.mode;document.querySelectorAll(".mode").forEach(o=>o.setAttribute("aria-pressed",o===b));if(mode==="timeattack"&&+$("ghosts").value===0)$("ghosts").value="1";command()}));
+document.querySelectorAll("select,input").forEach(e=>e.addEventListener("input",()=>{if(e.id==="course")course(true);rover();command()}));
+document.querySelectorAll("[data-copy]").forEach(b=>b.addEventListener("click",async()=>{try{await navigator.clipboard.writeText($(b.dataset.copy).textContent);b.textContent="Copied"}catch{b.textContent="Select and copy"}setTimeout(()=>b.textContent="Copy",1500)}));
+$("tabs").addEventListener("click",e=>{if(e.target.dataset.board)board(e.target.dataset.board)});
+$("save").addEventListener("click",()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(design(),null,2)+"\n"],{type:"application/json"}));a.download="garage.json";a.click();URL.revokeObjectURL(a.href)});
+course();rover();command();board();
+</script>
+</html>

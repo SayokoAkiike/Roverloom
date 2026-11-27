@@ -32,6 +32,10 @@ private:
 	void SpawnRover();
 	AActor* SpawnBlock(const FVector& Center, const FRotator& Rotation, const FVector& SizeCm, const FLinearColor& Color,
 		const TCHAR* MeshPath = TEXT("/Engine/BasicShapes/Cube.Cube"));
+	void SpawnRaceCourse();
+	double GroundAtCm(const FVector2D& SiteM) const;
+	AActor* SpawnProp(const FVector2D& SiteM, double LiftCm, double YawDeg, const FVector& SizeCm, const FLinearColor& Color,
+		const TCHAR* MeshPath = TEXT("/Engine/BasicShapes/Cube.Cube"));
 	void SpawnRamp(double StartXCm, double LaneYCm, double SlopeDeg, double LengthCm, double WidthCm, const FLinearColor& Color);
 
 	UPROPERTY()
