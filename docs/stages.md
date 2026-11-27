@@ -50,7 +50,7 @@ What the HiRISE team and NASA wrote about these places, which the stage looks fo
 | Distant relief, 200 km | MOLA 463 m DEM, as for Gale (`mola_far.py --site`) | Interpolated map; not yet made for these stages |
 | Light and dark pattern on the ground | HiRISE RED orthoimage, with its shading divided out (`hirise_albedo.py`) | A relative brightness from one greyscale photo. The sun direction is fitted to the DTM's shading; see `albedo.json`. Not a measured albedo or colour |
 | Colours, layering bands on rock, sky, haze, rocks | `build_gale_material.py` (`LOOKS`), the game's light presets | Chosen by eye, `mars_inspired` |
-| Where frost lies (Lyot, Olympia) | Rules in `LOOKS`: frost on pole-facing slopes and on dune sand except steep slip faces (Lyot); frost over the ground except where dark sand has cleared, but kept on slip faces (Olympia) | The rules follow the HiRISE captions above; where the dune sand is comes from the measured brightness map. The amounts and colours are chosen by eye. No frost is measured |
+| Where frost lies (Lyot, Olympia) | Rules in `LOOKS`: frost on dune sand except steep slip faces, the north half whiter (Lyot); frost over the ground except where dark dune sand has cleared in spots, kept on slip faces (Olympia) | The rules follow the HiRISE captions above; where the dune sand is comes from the measured brightness map. The amounts and colours are chosen by eye. No frost is measured |
 | Dark streaks (Olympia), floor streaks (Lyot) | Noise stretched along one direction in `LOOKS`. The Olympia direction (downslope 135°, north-west) is the commonest facing of the site's steep slopes, measured on its heightfield | Their places and sizes are generated, not measured |
 | Low winter and polar sun | Light presets `winter` (7° up, from the south-west, as in ESP_074942_2295) and `polar` (13° up) | The sun's height for Lyot follows the image; colours are chosen by eye |
 
@@ -64,6 +64,10 @@ square cut there would stretch 1.5 times east to west) and polar stereographic. 
 stereographic frame centred on the site (`scripts/terrain/local_frame.py`), where a metre is a metre in every direction.
 On both, the dark ground is the dunes themselves, so nothing is set to the mean as a shadow (`albedo_shadow_cut` 0); the
 shading fit is weak (R² 0.39 and 0.12). 19 % of the Olympia horizon square is outside the strip and filled.
+
+The first look check on the Mac (2026-11-28, `scripts/look_check.py`) showed white blotches all over the Lyot floor:
+frost on every north-facing facet caught the floor's small slopes, much of them stereo noise. Frost now follows the dune
+sand only. On Olympia the cleared dune sand was one flat dark surface; it now clears in spots.
 
 ## Courses
 

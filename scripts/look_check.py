@@ -64,7 +64,12 @@ def main() -> int:
     parser.add_argument("--ue-root", required=True)
     parser.add_argument("--build", action="store_true", help="build the C++ before the first race")
     parser.add_argument("--courses", nargs="+", default=DEFAULT_COURSES)
-    parser.add_argument("--seconds", type=int, default=70, help="race time per course")
+    parser.add_argument(
+        "--seconds",
+        type=int,
+        default=150,
+        help="race time per course (the courses take 10 min or more)",
+    )
     args = parser.parse_args()
     try:
         import PIL  # noqa: F401

@@ -93,13 +93,15 @@ LOOKS = {
         # facing: north-facing share of the normal where frost starts, and how fast it gets full (a 20 degree slope is 0.34)
         "frost": {
             "pole": "north",
-            "facing_from": 0.03,
-            "facing_gain": 8.0,
-            "slope_cover": 1.0,
-            "flat_cover": 0.05,
+            "facing_from": 0.05,
+            "facing_gain": 5.0,
+            # 0: the floor's own small slopes (much of them stereo noise) never frost; on the dunes, the north-facing
+            # half is whiter (dune frost below). 1 frosted every north-facing facet, which spotted the floor white.
+            "slope_cover": 0.0,
+            "flat_cover": 0.0,
             # Dune sand (dark in the brightness map) loses its heat fastest at night and frosts over first, all but
             # its steep slip face; the crater floor stays bare apart from thin frosted streaks (ESP_074942_2295)
-            "dune_frost": 0.85,
+            "dune_frost": 0.72,  # clearly dark ground only: the floor's dark specks stay bare (Mac look check)
             "color": (0.86, 0.86, 0.88),
             "strength": 0.92,
         },
@@ -108,9 +110,9 @@ LOOKS = {
             "surface": "flat",
             "downslope_deg": 80.0,
             "spacing_cm": 300.0,
-            "thin": 0.62,
+            "thin": 0.75,
             "color": (0.86, 0.86, 0.88),
-            "strength": 0.55,
+            "strength": 0.3,
         },
     },
     # North polar dunes, 80 N (Olympia Undae), in spring: the seasonal CO2 frost still covers the ground; the dark dune sand,
@@ -470,14 +472,23 @@ def main() -> int:
         )
         frost_cover = saturate(add(mul(pole_slope, const(f["slope_cover"])), patches))
         if measured is not None and f.get("dune_frost"):
-            dune = saturate(mul(sub(const(f["dune_frost"]), measured), const(2.5)))
+            dune = saturate(mul(sub(const(f["dune_frost"]), measured), const(2.0)))
             not_slip = sub(const(1.0), saturate(mul(sub(steep, const(0.10)), const(20.0))))
-            frost_cover = saturate(add(frost_cover, mul(dune, not_slip)))
+            pole_whiter = add(
+                const(0.6), mul(pole_slope, const(0.4))
+            )  # the north half of each dune whiter
+            frost_cover = saturate(add(frost_cover, mul(mul(dune, not_slip), pole_whiter)))
         if measured is not None and f.get("dark_clears"):
             # Dark sand warms first: where the measured ground is dark, the frost has gone
             cleared = saturate(mul(sub(const(f["dark_clears"]), measured), const(2.5)))
             slip_face = saturate(mul(sub(steep, const(0.03)), const(15.0)))
             cleared = mul(cleared, sub(const(1.0), slip_face))
+            # Defrosting starts in discrete spots, metres across (HiRISE ESP_081492_1215, "Spotted Dunes"), so the dune
+            # sand shows through the frost in dark spots rather than all at once
+            spots = saturate(
+                mul(sub(noise(shifted(1300.0, 5200.0), 0.003), const(0.4)), const(3.0))
+            )
+            cleared = mul(cleared, spots)
             frost_cover = mul(frost_cover, sub(const(1.0), cleared))
         frost_color = mul(const3(*f["color"]), add(const(0.92), mul(fine_noise, const(0.16))))
         base = lerp(base, frost_color, mul(frost_cover, const(f["strength"])))

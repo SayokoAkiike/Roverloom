@@ -129,11 +129,11 @@ STAGES["lyot"] = {
     },
     "rocks": 160,
     "frost": {
-        "facing_from": 0.03,
-        "facing_gain": 8.0,
-        "slope_cover": 1.0,
-        "flat_cover": 0.05,
-        "dune_frost": 0.85,
+        "facing_from": 0.05,
+        "facing_gain": 5.0,
+        "slope_cover": 0.0,
+        "flat_cover": 0.0,
+        "dune_frost": 0.72,
         "color": [0.78, 0.78, 0.80],
         "strength": 0.92,
     },
@@ -141,9 +141,9 @@ STAGES["lyot"] = {
         "surface": "flat",
         "downslope_deg": 80.0,
         "spacing_m": 3.0,
-        "thin": 0.62,
+        "thin": 0.75,
         "color": [0.78, 0.78, 0.80],
-        "strength": 0.55,
+        "strength": 0.3,
     },
     "shots": {
         "lyot_slalom": {
@@ -384,13 +384,14 @@ def ground_functions(
             )
             cover = min(1.0, pole * f["slope_cover"] + patches)
             if "dune_frost" in f:
-                dune = min(1.0, max(0.0, (f["dune_frost"] - a) * 2.5))
+                dune = min(1.0, max(0.0, (f["dune_frost"] - a) * 2.0))
                 not_slip = 1.0 - min(1.0, max(0.0, (steep - 0.10) * 20.0))
-                cover = min(1.0, cover + dune * not_slip)
+                cover = min(1.0, cover + dune * not_slip * (0.6 + 0.4 * pole))
             if "dark_clears" in f:
                 cleared = min(1.0, max(0.0, (f["dark_clears"] - a) * 2.5))
                 slip_face = min(1.0, max(0.0, (steep - 0.03) * 15.0))
-                cover *= 1.0 - cleared * (1.0 - slip_face)
+                spots = min(1.0, max(0.0, (noise(x / 3.3 + 29.0, z / 3.3) - 0.4) * 3.0))
+                cover *= 1.0 - cleared * (1.0 - slip_face) * spots
             amount = cover * f["strength"]
             rgb = [rgb[k] * (1.0 - amount) + f["color"][k] * fine * amount for k in range(3)]
         if "streaks" in stage:

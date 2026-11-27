@@ -150,12 +150,24 @@ def main() -> int:
     parser.add_argument("--site", choices=[*SITES, "all"], default="gale")
     parser.add_argument("--force", action="store_true", help="redo steps whose output exists")
     parser.add_argument("--no-rover", action="store_true", help="skip the V2 rover (needs Blender)")
+    parser.add_argument(
+        "--materials-only",
+        action="store_true",
+        help="rebuild only the sites' ground materials (after a change to build_gale_material.py)",
+    )
     args = parser.parse_args()
     if not args.ue_root:
         print("Pass --ue-root with your UE 5.8 directory.", file=sys.stderr)
         return 2
     ue_root = Path(args.ue_root).expanduser()
     sites = list(SITES) if args.site == "all" else [args.site]
+    if args.materials_only:
+        for site in sites:
+            editor(
+                ue_root, "build_gale_material", site
+            )  # rebuilt in place; the levels keep using it
+        print(f"Ready: {', '.join(sites)} materials rebuilt.")
+        return 0
     try:
         python = gdal_python()
         if not python:
