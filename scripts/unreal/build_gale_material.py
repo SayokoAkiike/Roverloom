@@ -3,7 +3,7 @@
     UnrealEditor unreal/Roverloom.uproject -run=pythonscript -script="scripts/unreal/build_gale_material.py" -unattended -nullrhi
     UnrealEditor unreal/Roverloom.uproject -run=pythonscript -script="scripts/unreal/build_gale_material.py noctis" -unattended -nullrhi
 
-Without a site argument it builds M_GaleLandscape exactly as before. For another site of scripts/terrain/sites.json it builds
+Without a site argument it builds Gale's M_GaleLandscape. For another site of scripts/terrain/sites.json it builds
 that site's material with its own look (LOOKS below) and, when hirise_albedo.py has run, multiplies the colour by the ground
 brightness from the HiRISE orthoimage: the real pattern of light and dark ground, from one greyscale photo.
 
@@ -14,6 +14,9 @@ layers: the weights come from the surface itself, so the same material fits any 
     sand      dense_sand           wind-drifted fine sand on gentle ground, smooth, with ripples
     bedrock   rock_boulder_cracked steep slopes
     gravel    rocks_ground_03      patches of gravelly ground, and stones scattered in the edges of the drifts
+
+These are the defaults (Poly Haven, CC0). Gale, Noctis and Amazonis use ambientCG materials (CC0) instead, named in their
+LOOKS "layers"; the frosted stages keep the defaults under their frost.
 
 What makes it read as one surface and not a tiled texture:
   * a fine tile (2.2 m) and a coarse tile (52 m) with unrelated scales, the coarse one fading in with distance;
@@ -38,8 +41,15 @@ import unreal  # type: ignore[import-not-found]
 mel = unreal.MaterialEditingLibrary
 tools = unreal.AssetToolsHelpers.get_asset_tools()
 FOLDER = "/Game/Licensed/Gale"
-TEX = "/Game/Licensed/PolyHaven"
-LAYERS = ["dry_ground_01", "dense_sand", "rock_boulder_cracked", "rocks_ground_03"]
+TEX = "/Game/Licensed"
+# Each layer is "<source>/<asset>" under /Game/Licensed. A site's LOOK may name its own (key "layers", same order:
+# regolith, sand, bedrock, gravel); a layer whose textures were not imported falls back to these.
+LAYERS = [
+    "PolyHaven/dry_ground_01",
+    "PolyHaven/dense_sand",
+    "PolyHaven/rock_boulder_cracked",
+    "PolyHaven/rocks_ground_03",
+]
 # Per-layer tint after desaturation, toward red-brown and ochre
 TINTS = [
     (1.10, 0.62, 0.40),
@@ -53,6 +63,13 @@ TINTS = [
 #  HiRISE brightness map (0..1).
 LOOKS = {
     "gale": {
+        # ambientCG (CC0): layered red-orange rock for the mudstone outcrops, rippled sand, sandy gravel, dark grit
+        "layers": [
+            "AmbientCG/Ground079S",
+            "AmbientCG/Ground098",
+            "AmbientCG/Rock029",
+            "AmbientCG/Ground110",
+        ],
         "tints": TINTS,
         "patch": ((1.12, 0.78, 0.60), (1.0, 0.98, 0.84)),
         "drift_bias": 0.0,
@@ -63,6 +80,13 @@ LOOKS = {
     # Noctis Labyrinthus: light-toned layered deposits (pale buff to yellowish) exposed on slopes, darker basaltic sand on the
     # floor, and wind-blown ridges. HiRISE captions: PSP_005400_1685, ESP_014353_1685, ESP_027526_1685.
     "noctis": {
+        # ambientCG (CC0): layered brown rock for the layered floor, rippled sand, sandy gravel, dark basaltic grit
+        "layers": [
+            "AmbientCG/Ground079S",
+            "AmbientCG/Ground098",
+            "AmbientCG/Rock061",
+            "AmbientCG/Ground110",
+        ],
         "tints": [(1.05, 0.70, 0.48), (0.62, 0.50, 0.44), (1.30, 1.06, 0.78), (0.80, 0.58, 0.44)],
         "patch": ((1.10, 0.84, 0.66), (1.04, 1.0, 0.86)),
         "drift_bias": 0.05,
@@ -73,6 +97,13 @@ LOOKS = {
     # Amazonis Planitia: smooth, dust-mantled lava plains, bright and uniform butterscotch, few rocks; the pit walls darker.
     # HiRISE captions: ESP_025893_2025, ESP_026249_2025.
     "amazonis": {
+        # ambientCG (CC0): fine dust over lava plains, cracked grey bedrock
+        "layers": [
+            "AmbientCG/Ground099",
+            "AmbientCG/Ground098",
+            "AmbientCG/Rock062",
+            "AmbientCG/Ground079S",
+        ],
         "tints": [(1.22, 0.80, 0.52), (1.34, 0.92, 0.60), (0.66, 0.46, 0.36), (0.86, 0.60, 0.44)],
         "patch": ((1.08, 0.84, 0.64), (1.02, 0.96, 0.82)),
         "drift_bias": 0.18,
@@ -157,6 +188,32 @@ SITE_INFO = json.loads(
 )[SITE]
 FOLDER, NAME = SITE_INFO["material"].rsplit("/", 1)
 TINTS = LOOK["tints"]
+
+
+def texture_path(layer: str, kind: str) -> str:
+    name = layer.rsplit("/", 1)[1]
+    return f"{TEX}/{layer}/{name}_{kind}_2k"
+
+
+def site_layers() -> list:
+    """The site's own layers where their textures exist, else the default for that slot."""
+    chosen = []
+    for default, wanted in zip(LAYERS, LOOK.get("layers", LAYERS), strict=True):
+        if all(
+            unreal.EditorAssetLibrary.does_asset_exist(texture_path(wanted, k))
+            for k in ("diff", "nor_gl", "arm")
+        ):
+            chosen.append(wanted)
+        else:
+            unreal.log_warning(
+                f"Layer {wanted} is not imported; using {default}. Run scripts/setup_gale.py"
+            )
+            chosen.append(default)
+    unreal.log(f"LAYERS {SITE}: {', '.join(chosen)}")
+    return chosen
+
+
+LAYERS = site_layers()
 NEAR_CM = 220.0  # One fine tile
 FAR_CM = 5200.0  # One coarse tile, unrelated to the fine one
 MICRO_CM = 37.0  # Micro relief, for the first few meters
@@ -262,7 +319,7 @@ def sample(texture_name, uv, kind):
     n = node(unreal.MaterialExpressionTextureSample)
     n.set_editor_property(
         "texture",
-        unreal.EditorAssetLibrary.load_asset(f"{TEX}/{texture_name}/{texture_name}_{kind}_2k"),
+        unreal.EditorAssetLibrary.load_asset(texture_path(texture_name, kind)),
     )
     n.set_editor_property(
         "sampler_source", unreal.SamplerSourceMode.SSM_WRAP_WORLD_GROUP_SETTINGS

@@ -1,13 +1,15 @@
-"""Import the Poly Haven textures and rocks fetched by scripts/assets/polyhaven_fetch.py. Unreal Editor Python.
+"""Import the Poly Haven textures and rocks fetched by scripts/assets/polyhaven_fetch.py, and the ambientCG materials
+fetched by scripts/assets/ambientcg_fetch.py, if any. Unreal Editor Python.
 
     UnrealEditor unreal/Roverloom.uproject -run=pythonscript -script="scripts/unreal/import_polyhaven.py" -unattended -nullrhi
 
-Everything goes under /Game/Licensed/PolyHaven/, which Git ignores. Rocks are imported without collision: they are visual
+Everything goes under /Game/Licensed/PolyHaven/ and /Game/Licensed/AmbientCG/, which Git ignores. Rocks are imported without collision: they are visual
 only, and the rover's physics never sees them.
 """
 
 # ruff: noqa: E501  (long prose lines in the docstring and log messages; wrapping them would not help the reader)
 
+import json
 import os
 import sys
 
@@ -112,8 +114,39 @@ def main() -> int:
         unreal.log(
             f"IMPORTED rock {asset}: size {box.max - box.min} cm, collision {mesh.get_editor_property('body_setup').get_editor_property('collision_trace_flag')}"
         )
+    failed += import_ambientcg()
     unreal.log(f"IMPORT_POLYHAVEN_DONE failed={failed}")
     return 1 if failed else 0
+
+
+def import_ambientcg() -> int:
+    """The ambientCG materials listed in its downloaded.json, laid out as the Poly Haven textures are."""
+    source = os.path.join(unreal.Paths.project_dir(), "Content/Licensed/AmbientCG")
+    log = os.path.join(source, "downloaded.json")
+    if not os.path.exists(log):
+        unreal.log("ambientCG: nothing downloaded, skipped")
+        return 0
+    with open(log, encoding="utf-8") as handle:
+        assets = sorted({entry["asset"] for entry in json.load(handle)})
+    dest = "/Game/Licensed/AmbientCG"
+    tools.import_asset_tasks(
+        [
+            task(os.path.join(source, a, f"{a}_{kind}_2k.jpg"), f"{dest}/{a}")
+            for a in assets
+            for kind in ("diff", "nor_gl", "arm")
+        ]
+    )
+    failed = 0
+    for a in assets:
+        configure(f"{dest}/{a}/{a}_diff_2k.{a}_diff_2k")
+        configure(f"{dest}/{a}/{a}_nor_gl_2k.{a}_nor_gl_2k", normal=True)
+        configure(f"{dest}/{a}/{a}_arm_2k.{a}_arm_2k", linear=True)
+        for kind in ("diff", "nor_gl", "arm"):
+            if not unreal.EditorAssetLibrary.does_asset_exist(f"{dest}/{a}/{a}_{kind}_2k"):
+                unreal.log_error(f"Import failed: ambientCG {a} {kind}")
+                failed += 1
+    unreal.log(f"IMPORTED ambientCG {', '.join(assets)}")
+    return failed
 
 
 if __name__ == "__main__":

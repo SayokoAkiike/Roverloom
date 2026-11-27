@@ -70,6 +70,28 @@ site's terms prohibit scraping, so the list is fixed and short. Credit is given 
 These are Earth rocks and soil used as stand-ins for Martian surfaces. They are not Martian materials and their look says
 nothing about regolith properties. No Poly Haven HDRI is used: the sky is Unreal's Sky Atmosphere, tuned by hand.
 
+## ambientCG materials, downloaded 2026-11-27, outside Git
+
+[`scripts/assets/ambientcg_fetch.py`](../scripts/assets/ambientcg_fetch.py) downloads a fixed list of 2K-JPG materials
+into `unreal/Content/Licensed/AmbientCG/`, which Git ignores, and packs each material's ambient occlusion and roughness
+into one ARM map, as Poly Haven's are. License, read 2026-11-27 at https://docs.ambientcg.com/license/: "All ambientCG
+assets are provided under the Creative Commons CC0 1.0 Universal License", including in a video game; credit is not
+required. Credit is given anyway: "Created using <asset> from ambientCG.com, licensed under CC0 1.0".
+
+| Asset | Source | Use |
+| --- | --- | --- |
+| `Ground079S` | https://ambientcg.com/a/Ground079S | Landscape regolith (Gale, Noctis); gravel (Amazonis) |
+| `Ground098` | https://ambientcg.com/a/Ground098 | Landscape sand: wind-rippled drifts (Gale, Noctis, Amazonis) |
+| `Ground099` | https://ambientcg.com/a/Ground099 | Landscape regolith: fine dust (Amazonis) |
+| `Ground110` | https://ambientcg.com/a/Ground110 | Landscape gravel: dark grit (Gale, Noctis) |
+| `Rock029` | https://ambientcg.com/a/Rock029 | Landscape bedrock: layered red-orange rock (Gale) |
+| `Rock061` | https://ambientcg.com/a/Rock061 | Landscape bedrock: layered brown rock (Noctis) |
+| `Rock062` | https://ambientcg.com/a/Rock062 | Landscape bedrock: cracked grey rock (Amazonis) |
+
+Chosen by eye from the previews; like the Poly Haven files, they are Earth materials standing in for Martian ground.
+`build_gale_material.py` names them per site (`layers` in `LOOKS`) and falls back to the Poly Haven layer for any that
+was not imported. Lyot and the polar dunes keep the Poly Haven layers under their frost.
+
 **HiRISE-derived heightfields, outside Git** (source: the HiRISE DTM above, CC0-1.0, credit "NASA/JPL/University of Arizona"; DTM distributed
 by USGS): `gale_site.r16` (1 km, 1 m posts) and `gale_horizon.r16` (5.6 km, 5.55 m posts, 18.2% interpolated), made by
 [`hirise_site.py`](../scripts/terrain/hirise_site.py) and [`hirise_horizon.py`](../scripts/terrain/hirise_horizon.py), in

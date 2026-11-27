@@ -120,6 +120,18 @@ def polyhaven_complete() -> bool:
     return all(f'"{name}/' in text for name in [*polyhaven_fetch.MODELS, *polyhaven_fetch.TEXTURES])
 
 
+def ambientcg_complete() -> bool:
+    """True when downloaded.json lists every material ambientcg_fetch.py asks for."""
+    log = CONTENT / "AmbientCG" / "downloaded.json"
+    if not log.exists():
+        return False
+    sys.path.insert(0, str(ROOT / "scripts" / "assets"))
+    import ambientcg_fetch
+
+    have = {entry["asset"] for entry in json.loads(log.read_text(encoding="utf-8"))}
+    return set(ambientcg_fetch.MATERIALS) <= have
+
+
 def editor(ue_root: Path, script: str, *extra: str) -> None:
     exe = ue_root / "Engine/Binaries/Mac/UnrealEditor.app/Contents/MacOS/UnrealEditor"
     target = " ".join([str(ROOT / "scripts" / "unreal" / f"{script}.py"), *extra])
@@ -223,6 +235,27 @@ def main() -> int:
             fetched = True
         else:
             print("== Poly Haven: every listed asset is downloaded, skipped")
+        if args.force or not ambientcg_complete():
+            uv = shutil.which("uv")
+            if not uv:
+                print("uv is missing: https://docs.astral.sh/uv/", file=sys.stderr)
+                return 2
+            run(
+                [
+                    uv,
+                    "run",
+                    "--project",
+                    "python",
+                    "--with",
+                    "pillow",
+                    "python",
+                    "scripts/assets/ambientcg_fetch.py",
+                ],
+                "ambientCG ground and rock materials",
+            )
+            fetched = True
+        else:
+            print("== ambientCG: every listed material is downloaded, skipped")
         # Once a step runs, every later Unreal step runs too: its output may have been built from
         # missing or older inputs (a material made before its textures were imported, for example).
         rerun = args.force or fetched
