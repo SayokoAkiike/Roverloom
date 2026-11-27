@@ -390,7 +390,7 @@ def ground_functions(
             if "dark_clears" in f:
                 cleared = min(1.0, max(0.0, (f["dark_clears"] - a) * 2.5))
                 slip_face = min(1.0, max(0.0, (steep - 0.03) * 15.0))
-                spots = min(1.0, max(0.0, (noise(x / 3.3 + 29.0, z / 3.3) - 0.4) * 3.0))
+                spots = min(1.0, max(0.0, (noise(x / 1.7 + 29.0, z / 1.7) - 0.62) * 4.0))
                 cover *= 1.0 - cleared * (1.0 - slip_face) * spots
             amount = cover * f["strength"]
             rgb = [rgb[k] * (1.0 - amount) + f["color"][k] * fine * amount for k in range(3)]

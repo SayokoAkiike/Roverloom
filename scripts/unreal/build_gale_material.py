@@ -89,7 +89,9 @@ LOOKS = {
         "drift_bias": 0.0,
         "gravel_bias": -0.1,
         "bands_cm": 0.0,
-        "albedo": 1.0,
+        # 0.55, not 1: the floor's bright knobs (up to 1.9 times the mean) turned the orange floor white in patches
+        # (second Mac look check). The dune mask below still reads the full measured brightness.
+        "albedo": 0.55,
         # facing: north-facing share of the normal where frost starts, and how fast it gets full (a 20 degree slope is 0.34)
         "frost": {
             "pole": "north",
@@ -485,8 +487,9 @@ def main() -> int:
             cleared = mul(cleared, sub(const(1.0), slip_face))
             # Defrosting starts in discrete spots, metres across (HiRISE ESP_081492_1215, "Spotted Dunes"), so the dune
             # sand shows through the frost in dark spots rather than all at once
+            # Sparse and small: at 0.003 and 0.4 half the dune went dark, a cow-hide pattern (second Mac look check)
             spots = saturate(
-                mul(sub(noise(shifted(1300.0, 5200.0), 0.003), const(0.4)), const(3.0))
+                mul(sub(noise(shifted(1300.0, 5200.0), 0.006), const(0.62)), const(4.0))
             )
             cleared = mul(cleared, spots)
             frost_cover = mul(frost_cover, sub(const(1.0), cleared))
