@@ -36,7 +36,12 @@ SITES = {
 }
 # Shared by every stage: rocks, their materials and the dust and rut effects live in the Gale folder
 SHARED_STEPS = [
-    ("import_polyhaven", CONTENT / "PolyHaven" / "rock_09"),
+    # Imported assets, not the downloaded files beside them: polyhaven_fetch.py writes the .jpg and .fbx
+    # into the same folders, so a folder alone does not mean the import ran.
+    (
+        "import_polyhaven",
+        CONTENT / "PolyHaven" / "rocks_ground_03" / "rocks_ground_03_arm_2k.uasset",
+    ),
     ("build_rock_materials", CONTENT / "Gale" / "M_PHRock.uasset"),
     ("build_effect_materials", CONTENT / "Gale" / "M_DustParticle.uasset"),
 ]
@@ -168,20 +173,26 @@ def main() -> int:
             )
         else:
             print("== Poly Haven: downloaded.json exists, skipped")
+        # Once a step runs, every later Unreal step runs too: its output may have been built from
+        # missing or older inputs (a material made before its textures were imported, for example).
+        rerun = args.force
         for script, output in SHARED_STEPS:
-            if output.exists() and not args.force:
+            if output.exists() and not rerun:
                 print(f"== Unreal: {script}: {output.name} exists, skipped")
                 continue
             editor(ue_root, script)
+            rerun = True
         for site in sites:
+            site_rerun = rerun
             for script, output in (
                 ("build_gale_material", asset_file(SITES[site]["material"], ".uasset")),
                 ("build_gale_level", asset_file(SITES[site]["level"], ".umap")),
             ):
-                if output.exists() and not args.force:
+                if output.exists() and not site_rerun:
                     print(f"== Unreal: {script} {site}: {output.name} exists, skipped")
                     continue
                 editor(ue_root, script, site)
+                site_rerun = True
         if not args.no_rover:
             rover(ue_root, args.force)
     except subprocess.CalledProcessError as error:
