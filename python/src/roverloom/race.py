@@ -978,6 +978,7 @@ class Race:
             "rally_line": line,
             "result_time_s": you.finished_s if you.finished_s is not None else t + you.penalty_s,
             "position_m": [you.x, you.y, 0.0],
+            "yaw_rad": round(you.yaw, 4),
             "ruleset": RULESET,
             "model_version": MODEL_VERSION,
             "race": {

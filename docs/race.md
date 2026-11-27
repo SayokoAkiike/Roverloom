@@ -187,6 +187,21 @@ uv run --project python python scripts/play_3d.py --race --course gale_sprint --
 `--profile capture` uses the higher render settings; it ran at 15.6 fps on the Gale level on the M4 Mac mini, so use
 `dev` (the default) for driving.
 
+## Contact check
+
+If rivals look as if they drive through your rover, one command records a run and checks it:
+
+```shell
+uv run --project python python scripts/play_3d.py --race --course noctis_sprint --diagnose --ue-root "/Users/Shared/Epic Games/UE_5.8" --build
+```
+
+The pursuit agent drives at 35% so that four `hard` rivals overtake from behind. The screen is recorded for 150 s
+(`race.mov`), Unreal saves a screenshot whenever a rival is drawn within 3.2 m (`contact-*.png`), and the race stops
+unranked after 80 s. The report compares the positions Python judged (`states.jsonl`) with where Unreal drew the
+player's body and each rival (`RaceDraw` lines in `unreal.log`), both with the rover rectangles, and lists the closest
+moments. Check an earlier run again with `uv run --project python python -m roverloom.race_cli diagnose [RUN_DIR]`.
+The `RaceDraw` lines and screenshots need the C++ built after 2026-11-27; this has not been run on a Mac yet.
+
 ## On a MacBook Air (Apple M5)
 
 Nothing in Unreal has been run on the MacBook Air yet. What is known:

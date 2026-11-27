@@ -209,6 +209,13 @@ private:
 	UPROPERTY()
 	TMap<FString, TObjectPtr<ARaceOpponent>> Opponents;
 	void ReadRaceState(const TSharedPtr<FJsonObject>& Race, double NowS);
+	// -RoverRaceDiagnose=<dir>: log where the player's body and each close rival are drawn (RaceDraw lines, site
+	// metres), five times a second, and save a screenshot when a rival is drawn close. For race_cli diagnose.
+	void LogRaceDraw(double NowS);
+	FString RaceDiagnoseDir;
+	double RaceDrawLastS = -1.0;
+	double RaceShotLastS = -1.0;
+	int32 RaceShots = 0;
 
 	TUniquePtr<RoverloomCommand::FCommandRouter> Router;
 	FTransform StartTransform;

@@ -470,3 +470,96 @@ def test_rivals_overtaking_from_behind_go_round_the_solar_deck():
                 passed.add(o.id)
     assert len(passed) >= 3
     assert touching == 0
+
+
+def _fake_unreal(port, ready, log):
+    """Stands in for RoverPawn: sends 10 Hz telemetry, moves the rover by the agent's actions, and
+    writes RaceDraw lines from the states it receives."""
+    with socket.socket() as srv:
+        srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        srv.bind(("127.0.0.1", port))
+        srv.listen(1)
+        ready.set()
+        conn, _ = srv.accept()
+    course = COURSES["noctis_sprint"]
+    x, y = course.start_point
+    yaw = math.atan2(course.path[1][1] - y, course.path[1][0] - x)
+    v = w = 0.0
+    buf = b""
+    with conn:
+        conn.settimeout(5)
+        for tick in range(2000):
+            t = tick * 0.1
+            body = {"time_s": t, "position_m": [x, y, 0.0], "yaw_rad": yaw, "forward_mps": v}
+            try:
+                conn.sendall((json.dumps({"type": "telemetry", "body": body}) + "\n").encode())
+                state = None
+                # The reply is one mission_state line, then an action line when the agent acted
+                while state is None or (b"\n" not in buf and _more(conn)):
+                    while b"\n" not in buf:
+                        chunk = conn.recv(65536)
+                        if not chunk:
+                            return
+                        buf += chunk
+                    line, buf = buf.split(b"\n", 1)
+                    msg = json.loads(line)
+                    if msg["type"] == "mission_state":
+                        state = msg["body"]
+                    elif msg["type"] == "action":
+                        v, w = msg["body"]["linear_velocity_mps"], msg["body"]["yaw_rate_radps"]
+                while b"\n" in buf:  # an action that arrived with the state
+                    line, buf = buf.split(b"\n", 1)
+                    msg = json.loads(line)
+                    if msg["type"] == "action":
+                        v, w = msg["body"]["linear_velocity_mps"], msg["body"]["yaw_rate_radps"]
+            except OSError:
+                return
+            rivals = " ".join(
+                f"{o['id']}@{o['position_m'][0]:.3f},{o['position_m'][1]:.3f},{o['yaw_rad']:.4f}"
+                for o in state["race"]["opponents"]
+                if math.dist(o["position_m"][:2], (x, y)) < 6
+            )
+            if rivals:
+                log.append(f"RaceDraw t={t:.2f} you={x:.3f},{y:.3f},{yaw:.4f} {rivals}")
+            yaw += w * 0.1
+            x += v * math.cos(yaw) * 0.1
+            y += v * math.sin(yaw) * 0.1
+
+
+def _more(conn):
+    import select
+
+    return bool(select.select([conn], [], [], 0.02)[0])
+
+
+def test_diagnostic_link_run_reports_contacts(tmp_path):
+    """The --diagnose path end to end, with a stand-in for Unreal: a slow agent, rivals overtaking,
+    the race stopped unranked, and a report that tells Python's view from the drawn one."""
+    from roverloom.race_diagnose import report
+
+    port, ready, log = _free_port(), threading.Event(), []
+    thread = threading.Thread(target=_fake_unreal, args=(port, ready, log), daemon=True)
+    thread.start()
+    ready.wait(5)
+    out = tmp_path / "run-x"
+    board = tmp_path / "board.json"
+    code = race_cli.main(
+        ["link", "--out", str(out), "--port", str(port), "--course", "noctis_sprint"]
+        + ["--npcs", "4", "--difficulty", "hard", "--agent", "pursuit", "--agent-speed", "0.35"]
+        + ["--stop-after", "60", "--wait", "5", "--linger", "0.3", "--board", str(board)]
+    )
+    thread.join(10)
+    assert code == 0
+    final = json.loads((out / "final_state.json").read_text())
+    assert final["outcome"] == "stopped" and not board.exists()  # not ranked
+    assert log, "rivals came close"
+    (out / "unreal.log").write_text("Rover model: V2. Body X -175.0..113.5 cm\n" + "\n".join(log))
+    text = report(out)
+    assert "rovers overlap in 0." in text and "Verdict: no overlap in Python or in Unreal" in text
+    # A rival drawn on the solar deck is found, and blamed on the Unreal side
+    x, y, yaw = (float(v) for v in log[-1].split("you=")[1].split()[0].split(","))
+    bx, by = x - 2.0 * math.cos(yaw), y - 2.0 * math.sin(yaw)
+    log.append(f"RaceDraw t=99.00 you={x},{y},{yaw} npc1@{bx:.3f},{by:.3f},{yaw:.4f}")
+    (out / "unreal.log").write_text("\n".join(log))
+    text = report(out)
+    assert "behind (2.0 m back" in text and "Unreal drew them overlapping" in text

@@ -189,6 +189,8 @@ def print_result(result: JsonDict, rank: int | None) -> None:
 
 def link(args: argparse.Namespace) -> int:
     """Same-Mac real-time link: Unreal moves the rover; Python judges and drives the rivals."""
+    if not 0.1 <= args.agent_speed <= 1.0:
+        raise ValueError("--agent-speed must be between 0.1 and 1")
     controller = "human" if args.agent == "none" else f"agent:{args.agent}"
     race = build_race(args, "unreal", controller)
     out = Path(args.out)
@@ -226,7 +228,20 @@ def link(args: argparse.Namespace) -> int:
                         if now >= next_action:
                             next_action = now + TICK_S
                             action = agent.act(race.observation())
+                            if args.agent_speed < 1.0:
+                                action = RaceAction(
+                                    action.linear_velocity_mps * args.agent_speed,
+                                    action.yaw_rate_radps,
+                                    False,
+                                )
                     state = race.step(message["body"], boost=action.boost if action else None)
+                    if (
+                        args.stop_after
+                        and race.outcome == "running"
+                        and race.time_s >= args.stop_after
+                    ):
+                        race.outcome = "stopped"  # a diagnostic run: ends unranked
+                        state = race.state()
                     states.write(dump_json(state) + "\n")
                     reply = dump_json({"type": "mission_state", "body": state}) + "\n"
                     if action:
@@ -336,6 +351,14 @@ def lobby(args: argparse.Namespace) -> int:
     return 0
 
 
+def diagnose(args: argparse.Namespace) -> int:
+    from roverloom.race_diagnose import newest_run, report
+
+    run = Path(args.run) if args.run else newest_run(Path("runs") / "first-3d")
+    print(report(run))
+    return 0
+
+
 def add_race_options(p: argparse.ArgumentParser) -> None:
     p.add_argument("--course", choices=tuple(COURSES), default="crater_loop")
     p.add_argument("--laps", type=int)
@@ -362,7 +385,17 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--offset", help="shift the course to x,y metres (for other start points)")
     p.add_argument("--wait", type=float, default=180)
     p.add_argument("--linger", type=float, default=10)
+    p.add_argument(
+        "--agent-speed",
+        type=float,
+        default=1.0,
+        help="scale the agent's speed, 0.1 to 1 (slow driving lets rivals overtake)",
+    )
+    p.add_argument("--stop-after", type=float, help="end the race unranked after this many seconds")
     p.set_defaults(run=link)
+    p = sub.add_parser("diagnose", help="check a run for rovers that overlap")
+    p.add_argument("run", nargs="?", help="run directory (default: the newest under runs/first-3d)")
+    p.set_defaults(run=diagnose)
     p = sub.add_parser("headless", help="race an agent without Unreal, on the race model")
     add_race_options(p)
     p.add_argument("--agent", default="pursuit", help="pursuit, cap or external")

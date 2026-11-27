@@ -145,6 +145,15 @@ def start_recording(out: Path, seconds: int) -> subprocess.Popen[bytes]:
     return subprocess.Popen(["screencapture", "-v", "-V", str(seconds), "-x", str(movie)])
 
 
+def print_diagnosis(out: Path) -> None:
+    from roverloom.race_diagnose import report
+
+    try:
+        print("\n===== Contact report (paste this) =====\n" + report(out), flush=True)
+    except (OSError, ValueError) as error:
+        print(f"No contact report: {error}", flush=True)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--ue-root", type=Path, default=os.environ.get("UE_ROOT"))
@@ -173,7 +182,18 @@ def main(argv: list[str] | None = None) -> int:
     race.add_argument("--profile", choices=("dev", "capture"), default="dev")
     race.add_argument("--demo", action="store_true", help="hands-free: the pursuit agent drives")
     race.add_argument("--record", type=int, metavar="SECONDS", help="record the screen (macOS)")
+    race.add_argument(
+        "--diagnose",
+        action="store_true",
+        help="contact check: the agent drives at 35%% so rivals overtake, the screen is "
+        "recorded, the race stops after 80 s, and a report is printed",
+    )
     args = parser.parse_args(argv)
+    if args.diagnose:
+        args.race = args.demo = True
+        args.difficulty = "hard"
+        args.npcs = max(args.npcs, 4)
+        args.record = args.record or 150
     if args.demo and args.agent == "none":
         args.agent = "pursuit"
     try:
@@ -313,6 +333,9 @@ def main(argv: list[str] | None = None) -> int:
             ]
             if args.laps:
                 link += ["--laps", str(args.laps)]
+            if args.diagnose:
+                link += ["--agent-speed", "0.35", "--stop-after", "80"]
+                game += [f"-RoverRaceDiagnose={out}"]
             if args.garage:
                 link += ["--garage", str(args.garage.resolve())]
             write_course(out, args.course)
@@ -345,6 +368,8 @@ def main(argv: list[str] | None = None) -> int:
         finally:
             if recorder:
                 stop(recorder)
+            if args.diagnose:
+                print_diagnosis(out)
     except KeyboardInterrupt:
         print("Cancelled.", file=sys.stderr)
         return 130

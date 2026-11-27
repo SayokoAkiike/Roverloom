@@ -211,6 +211,7 @@ void ARoverPawn::BeginPlay()
 	Status.bRace = FParse::Param(FCommandLine::Get(), TEXT("RoverRace"));
 	StartTransform = FTransform(GetActorQuat(), GetActorLocation());
 	FParse::Value(FCommandLine::Get(), TEXT("RoverShotDir="), ShotDir);
+	FParse::Value(FCommandLine::Get(), TEXT("RoverRaceDiagnose="), RaceDiagnoseDir);
 	FParse::Value(FCommandLine::Get(), TEXT("RoverBench="), BenchSeconds);
 	FString DrivePreset;
 	if (FParse::Value(FCommandLine::Get(), TEXT("RoverDrive="), DrivePreset))
@@ -533,6 +534,40 @@ void ARoverPawn::Tick(float DeltaSeconds)
 	}
 	DriveScriptSample(NowS, StepDt);
 	LogAndCapture(NowS);
+	LogRaceDraw(NowS);
+}
+
+void ARoverPawn::LogRaceDraw(double NowS)
+{
+	if (RaceDiagnoseDir.IsEmpty() || !Status.bRace || MissionClockStartS < 0.0 || NowS - RaceDrawLastS < 0.2)
+	{
+		return;
+	}
+	RaceDrawLastS = NowS;
+	const FVector You = Status.SitePositionM;
+	FString Line = FString::Printf(TEXT("RaceDraw t=%.2f you=%.3f,%.3f,%.4f"), NowS - MissionClockStartS, You.X, You.Y, Status.YawRad);
+	double Nearest = 1e9;
+	for (const TPair<FString, TObjectPtr<ARaceOpponent>>& Pair : Opponents)
+	{
+		const ARaceOpponent* Actor = Pair.Value;
+		if (!Actor || Actor->bIsGhost) continue;
+		const FVector At = RoverloomFrames::UnrealToSitePosition(Actor->GetActorLocation());
+		const double D = FVector2D::Distance(FVector2D(At.X, At.Y), FVector2D(You.X, You.Y));
+		if (D > 6.0) continue;
+		Nearest = FMath::Min(Nearest, D);
+		const double Yaw = -FMath::DegreesToRadians(Actor->GetActorRotation().Yaw); // Unreal's Y is the site's -Y
+		Line += FString::Printf(TEXT(" %s@%.3f,%.3f,%.4f"), *Pair.Key, At.X, At.Y, Yaw);
+	}
+	if (Nearest > 6.0) return;
+	UE_LOG(LogRoverloom, Display, TEXT("%s"), *Line);
+	if (Nearest < 3.2 && RaceShots < 12 && NowS - RaceShotLastS >= 1.5)
+	{
+		RaceShotLastS = NowS;
+		++RaceShots;
+		const FString Name = FString::Printf(TEXT("contact-%02d-t%.0f.png"), RaceShots, NowS - MissionClockStartS);
+		FScreenshotRequest::RequestScreenshot(FPaths::Combine(RaceDiagnoseDir, Name), true, false);
+		UE_LOG(LogRoverloom, Display, TEXT("RaceDraw screenshot %s"), *Name);
+	}
 }
 
 void ARoverPawn::MissionLinkStart()
