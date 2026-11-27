@@ -303,6 +303,12 @@ void ARoverHud::DrawRace(const ARoverPawn* Rover, float Ui)
 	}
 	if (S.bRaceBoosting) Text(TEXT("BOOSTING"), Accent, BarX + 90 * Ui, BY + 31 * Ui, 1.0f * Ui);
 	Text(FString::Printf(TEXT("%.2f m/s"), FMath::Abs(S.ForwardMps)), White, M + 12 * Ui, BY + 56 * Ui, 1.25f * Ui);
+	// Speed level (Q/E or 1-3): three bars beside the speed
+	for (int32 I = 0; I < 3; ++I)
+	{
+		const float BarH = (8.0f + 5.0f * I) * Ui;
+		DrawRect(I < S.Gear ? White : FLinearColor(1, 1, 1, 0.18f), M + 92 * Ui + I * 9 * Ui, BY + 76 * Ui - BarH, 6 * Ui, BarH);
+	}
 	FString Tags;
 	if (S.bRaceSand) Tags += TEXT("SAND  ");
 	if (S.bRaceDust) Tags += TEXT("DUST STORM  ");
@@ -385,7 +391,55 @@ void ARoverHud::DrawRace(const ARoverPawn* Rover, float Ui)
 	}
 
 	// Bottom centre: controls and the model label, small but always present (model P is provisional)
-	Text(TEXT("W/S drive   A/D turn   SPACE boost   C camera   R rescue (+30 s)"), Dim, W / 2, H - M - 34 * Ui, 0.9f * Ui, false, true);
+	// Controls as key caps, small, bottom centre: always there, never in the way
+	{
+		struct FKeyHint { const TCHAR* Keys; const TCHAR* Label; };
+		const FKeyHint Hints[] = {
+			{TEXT("W S"), TEXT("drive")}, {TEXT("A D"), TEXT("turn")}, {TEXT("Q E"), TEXT("speed")},
+			{TEXT("SPACE"), TEXT("boost")}, {TEXT("C"), TEXT("camera")}, {TEXT("R"), TEXT("rescue")},
+		};
+		const float KeyScale = 0.85f * Ui;
+		const float CapH = 18 * Ui;
+		const float Gap = 14 * Ui;
+		float Total = 0.0f;
+		TArray<float> Widths;
+		for (const FKeyHint& Hint : Hints)
+		{
+			float KeyW = 0.0f, KeyH = 0.0f, LabelW = 0.0f, LabelH = 0.0f;
+			TArray<FString> Keys;
+			FString(Hint.Keys).ParseIntoArray(Keys, TEXT(" "));
+			float CapsW = 0.0f;
+			for (const FString& Key : Keys)
+			{
+				GetTextSize(Key, KeyW, KeyH, nullptr, KeyScale);
+				CapsW += FMath::Max(KeyW + 10 * Ui, CapH) + 3 * Ui;
+			}
+			GetTextSize(Hint.Label, LabelW, LabelH, nullptr, KeyScale);
+			Widths.Add(CapsW + 4 * Ui + LabelW);
+			Total += Widths.Last() + Gap;
+		}
+		float X = W / 2 - (Total - Gap) / 2;
+		const float Y = H - M - 40 * Ui;
+		Panel(X - 10 * Ui, Y - 5 * Ui, Total - Gap + 20 * Ui, CapH + 10 * Ui, 0.45f);
+		for (int32 I = 0; I < Widths.Num(); ++I)
+		{
+			TArray<FString> Keys;
+			FString(Hints[I].Keys).ParseIntoArray(Keys, TEXT(" "));
+			float CX = X;
+			for (const FString& Key : Keys)
+			{
+				float KeyW = 0.0f, KeyH = 0.0f;
+				GetTextSize(Key, KeyW, KeyH, nullptr, KeyScale);
+				const float CapW = FMath::Max(KeyW + 10 * Ui, CapH);
+				DrawRect(FLinearColor(1, 1, 1, 0.16f), CX, Y, CapW, CapH);
+				DrawRect(FLinearColor(1, 1, 1, 0.35f), CX, Y + CapH - 2 * Ui, CapW, 2 * Ui); // a key's lower edge
+				Text(Key, White, CX + CapW / 2, Y + 1 * Ui, KeyScale, false, true);
+				CX += CapW + 3 * Ui;
+			}
+			Text(Hints[I].Label, Dim, CX + 4 * Ui, Y + 1 * Ui, KeyScale);
+			X += Widths[I] + Gap;
+		}
+	}
 	Text(TEXT("Experimental game rules on provisional drive model P. Not a validated rover model; real-time runs are not benchmarks."),
 		Dim.CopyWithNewOpacity(0.8f), W / 2, H - M - 16 * Ui, 0.8f * Ui, false, true);
 }

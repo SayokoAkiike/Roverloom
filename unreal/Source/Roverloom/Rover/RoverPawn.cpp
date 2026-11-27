@@ -479,7 +479,7 @@ void ARoverPawn::Tick(float DeltaSeconds)
 	if (bKeyboardHeld)
 	{
 		FAction Requested;
-		Requested.LinearVelocityMps = DriveInput * MaxSpeedMps;
+		Requested.LinearVelocityMps = DriveInput * GearScale(Status.Gear) * MaxSpeedMps;
 		Requested.YawRateRadps = TurnInput * MaxYawRateRadps;
 		Router->SetActive(KeyboardSource); // A held key takes the rover back from an agent, starting from a stop
 		Status.bClamped = Router->Submit(KeyboardSource, Requested, NowS).bClamped;
@@ -1191,6 +1191,13 @@ void ARoverPawn::CreateInput()
 	Map(FreeMoveAction, EKeys::Left, true, false);
 	Map(FreeLiftAction, EKeys::PageUp, false, false);
 	Map(FreeLiftAction, EKeys::PageDown, true, false);
+	const FKey GearKeys[] = {EKeys::E, EKeys::Q, EKeys::One, EKeys::Two, EKeys::Three};
+	for (const FKey& Key : GearKeys)
+	{
+		UInputAction* Action = MakeAction(*FString::Printf(TEXT("Gear%s"), *Key.ToString()), EInputActionValueType::Boolean);
+		GearActions.Add(Action);
+		Map(Action, Key, false, false);
+	}
 }
 
 void ARoverPawn::AddMappingContext()
@@ -1233,6 +1240,14 @@ void ARoverPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent
 	Input->BindAction(TurnAction, ETriggerEvent::Completed, this, &ARoverPawn::OnTurnReleased);
 	Input->BindAction(CameraAction, ETriggerEvent::Started, this, &ARoverPawn::OnNextCamera);
 	Input->BindAction(ResetAction, ETriggerEvent::Started, this, &ARoverPawn::OnReset);
+	if (GearActions.Num() == 5)
+	{
+		Input->BindAction(GearActions[0], ETriggerEvent::Started, this, &ARoverPawn::OnGearUp);
+		Input->BindAction(GearActions[1], ETriggerEvent::Started, this, &ARoverPawn::OnGearDown);
+		Input->BindAction(GearActions[2], ETriggerEvent::Started, this, &ARoverPawn::OnGear1);
+		Input->BindAction(GearActions[3], ETriggerEvent::Started, this, &ARoverPawn::OnGear2);
+		Input->BindAction(GearActions[4], ETriggerEvent::Started, this, &ARoverPawn::OnGear3);
+	}
 	Input->BindAction(LookAction, ETriggerEvent::Triggered, this, &ARoverPawn::OnLook);
 	Input->BindAction(FreeMoveAction, ETriggerEvent::Triggered, this, &ARoverPawn::OnFreeMove);
 	Input->BindAction(FreeMoveAction, ETriggerEvent::Completed, this, &ARoverPawn::OnFreeMoveReleased);
@@ -1276,6 +1291,22 @@ void ARoverPawn::OnTurnReleased(const FInputActionValue& Value)
 void ARoverPawn::OnNextCamera(const FInputActionValue& Value)
 {
 	SetCamera(static_cast<ERoverCamera>((static_cast<uint8>(Camera) + 1) % 4));
+}
+
+void ARoverPawn::OnGearUp(const FInputActionValue& Value)
+{
+	SetGear(Status.Gear + 1);
+}
+
+void ARoverPawn::OnGearDown(const FInputActionValue& Value)
+{
+	SetGear(Status.Gear - 1);
+}
+
+void ARoverPawn::SetGear(int32 NewGear)
+{
+	Status.Gear = FMath::Clamp(NewGear, 1, 3);
+	UE_LOG(LogRoverloom, Display, TEXT("Rover speed level %d (%.0f%%)"), Status.Gear, 100.0 * GearScale(Status.Gear));
 }
 
 void ARoverPawn::OnReset(const FInputActionValue& Value)

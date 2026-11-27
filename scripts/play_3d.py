@@ -332,7 +332,10 @@ def main(argv: list[str] | None = None) -> int:
             print(
                 f"RACE: {args.course}, {args.npcs} NPCs, {args.ghosts} ghosts, {mode}.", flush=True
             )
-            print("W/S drive, A/D turn, SPACE boost, C camera, R rescue (+30 s).", flush=True)
+            print(
+                "W/S drive, A/D turn, Q/E speed level, SPACE boost, C camera, R rescue (+30 s).",
+                flush=True,
+            )
             if args.agent == "external":
                 print("Start your agent now: python -m roverloom.race_agent_example", flush=True)
         recorder = start_recording(out, args.record) if args.record else None

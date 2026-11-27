@@ -33,6 +33,7 @@ uv run --project python python scripts/play_3d.py --race --garage ~/Downloads/ga
 | --- | --- |
 | W / S | Drive forward and back |
 | A / D | Turn |
+| Q / E, or 1 2 3 | Speed level: 35%, 70% or 100% of the top speed for W and S (starts at 100%) |
 | SPACE | Boost: 1.5 times speed for 3 seconds, 8 charge units |
 | C | Change camera |
 | R | Rescue to the start pose, +30 seconds |
@@ -47,7 +48,10 @@ uv run --project python python scripts/play_3d.py --race --garage ~/Downloads/ga
 - **Supply pad** (amber, beside the hut) recharges the battery while you are on it.
 - **Dust storms** come in the last four seconds of some 20-second slots, chosen by the seed. Everyone slows to 75%.
   The scout sensor warns eight seconds ahead instead of four.
-- **Rivals do not collide** with you or each other. They are drawn where Python's race model puts them.
+- **Rivals do not pass through you or each other.** Rovers count as discs 3 m across. A rival overtakes a slower rover
+  on the side with more room; when two touch, the rival is pushed clear, and if you drove into it you slow to 60% for
+  0.8 s ("Bump!"). A rover parked on a gate cannot block it: touching it counts as passing. Ghosts still pass through.
+  This is race logic in Python, not Unreal physics: your rover's physics body does not touch the rivals' models.
 
 ## Modes
 
@@ -198,5 +202,5 @@ Nothing in Unreal has been run on the MacBook Air yet. What is known:
 ## What this is not
 
 - Not a benchmark: real-time Unreal runs are not reproducible, and the drive model is provisional.
-- Not a model of rover racing on Mars. Rivals are kinematic and pass through each other.
+- Not a model of rover racing on Mars. Rivals are kinematic; contact between rovers is a game rule, not physics.
 - Not an online game: the leaderboard is a local file, and the agent port is loopback only.

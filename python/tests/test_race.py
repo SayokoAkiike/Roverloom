@@ -354,3 +354,62 @@ def test_stage_levels_resolve_from_sites_json():
         level, umap = module.stage_level(site)
         assert level.startswith("/Game/Licensed/") and umap.suffix == ".umap"
     assert {c.ground for c in COURSES.values()} <= {"generated", "gale", "noctis", "amazonis"}
+
+
+def test_rivals_never_overlap_the_player_or_each_other():
+    from roverloom.race import CONTACT_M
+
+    r = Race(garage(), LOOP, npcs=5, difficulty="hard", laps=1, backend="headless")
+    agent = BUILTIN_AGENTS["pursuit"]()
+    agent.reset(r.brief())
+    r.step({"time_s": 0.0, "position_m": [r.you.x, r.you.y, 0.0], "yaw_rad": r.you.yaw})
+    t, worst = 0.0, 1e9
+    while r.outcome == "running" and t < 300:
+        act = agent.act(r.observation()) if r.time_s >= 0 else RaceAction(0.0, 0.0)
+        r._move(r.you, act, 0.1)
+        t = round(t + 0.1, 6)
+        r.step(
+            {
+                "time_s": t,
+                "position_m": [r.you.x, r.you.y, 0.0],
+                "yaw_rad": r.you.yaw,
+                "forward_mps": r.you.speed,
+            },
+            boost=act.boost,
+        )
+        solid = [x for x in r.racers if x.kind != "ghost"]
+        for i, a in enumerate(solid):
+            for b in solid[i + 1 :]:
+                worst = min(worst, math.dist((a.x, a.y), (b.x, b.y)))
+    assert worst >= CONTACT_M - 0.05
+
+
+def test_driving_into_a_rival_bumps_and_pushes_it():
+    r = Race(garage(), LOOP, npcs=1, laps=1)
+    r.step({"time_s": 0.0, "position_m": [0, 0, 0]})
+    for t in (3.1, 3.2):
+        r.step({"time_s": t, "position_m": [0, 0, 0]})
+    npc = r.racers[1]
+    # Drive straight onto the rival's spot, moving towards it
+    s = r.step(
+        {
+            "time_s": 3.3,
+            "position_m": [npc.x, npc.y, 0],
+            "yaw_rad": math.atan2(npc.y, npc.x) + math.pi,
+            "forward_mps": 0.5,
+        }
+    )
+    assert math.dist((npc.x, npc.y), (r.you.x, r.you.y)) >= 2.99
+    assert "Bump!" in s["race"]["message"] and s["drive_scale"] < 0.7
+
+
+def test_older_rule_entries_are_kept_but_not_ranked(tmp_path):
+    path = tmp_path / "b.json"
+    _, a = headless("pursuit")
+    old = dict(a, ruleset="race-0.1", player="Old")
+    path.write_text(json.dumps({"ruleset": "race-0.1", "entries": [old]}))
+    board = Leaderboard(path)
+    assert board.entries == [] and len(board.other_rules) == 1
+    board.add(a)
+    saved = json.loads(path.read_text())
+    assert {e["player"] for e in saved["entries"]} == {"Old", a["player"]}

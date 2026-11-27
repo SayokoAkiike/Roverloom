@@ -81,6 +81,7 @@ struct FRoverStatus
 	int32 RaceBoosts = 0;
 	int32 RaceFlag = 0;  // The next gate, from 1
 	int32 RaceFlags = 0;
+	int32 Gear = 3; // Keyboard speed level: 1 slow, 2 medium, 3 full
 	bool bRaceBoosting = false;
 	bool bRaceSand = false;
 	bool bRaceDust = false;
@@ -141,6 +142,12 @@ private:
 	void OnTurnReleased(const FInputActionValue& Value);
 	void OnNextCamera(const FInputActionValue& Value);
 	void OnReset(const FInputActionValue& Value);
+	void OnGearUp(const FInputActionValue& Value);
+	void OnGearDown(const FInputActionValue& Value);
+	void OnGear1(const FInputActionValue& Value) { SetGear(1); }
+	void OnGear2(const FInputActionValue& Value) { SetGear(2); }
+	void OnGear3(const FInputActionValue& Value) { SetGear(3); }
+	void SetGear(int32 NewGear);
 	void OnLook(const FInputActionValue& Value);
 	void OnFreeMove(const FInputActionValue& Value);
 	void OnFreeMoveReleased(const FInputActionValue& Value);
@@ -196,6 +203,8 @@ private:
 	TObjectPtr<UInputAction> FreeMoveAction;
 	UPROPERTY()
 	TObjectPtr<UInputAction> FreeLiftAction;
+	UPROPERTY()
+	TArray<TObjectPtr<UInputAction>> GearActions; // Up (E), down (Q), then 1, 2, 3
 
 	UPROPERTY()
 	TMap<FString, TObjectPtr<ARaceOpponent>> Opponents;
@@ -210,6 +219,8 @@ private:
 	double MissionClockStartS = -1.0;
 	double DriveInput = 0.0; // -1..1, W positive
 	double TurnInput = 0.0;  // -1..1, A positive (left, as the contract)
+	// The keyboard's speed level scales W and S only, within the same command limits: a command, not a physics change.
+	static double GearScale(int32 InGear) { return InGear <= 1 ? 0.35 : InGear == 2 ? 0.7 : 1.0; }
 	bool bKeyboardHeld = false;
 	FVector2D FreeMove = FVector2D::ZeroVector;
 	double FreeLift = 0.0;

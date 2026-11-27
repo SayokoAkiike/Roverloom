@@ -21,3 +21,8 @@ change pinned scenarios, scoring, `MODEL_VERSION` or `SCORING_VERSION`.
 Consequences: race times are game results, not league scores. NPC pace is tuned to the race model, not to people driving
 the Unreal rover. Collisions between racers are not modeled. The C++ must be compiled and played on a Mac before the race
 is called playable.
+
+Update, 2026-11-27: `race-0.2` keeps rovers from overlapping (rivals give way and are pushed clear, the player is
+slowed briefly by a bump, and a rover parked on a gate cannot block it). This is race logic in Python; the Unreal rover's
+physics body still does not touch the rivals' models. Leaderboard entries from `race-0.1` stay in the file and are
+neither ranked nor raced as ghosts.

@@ -17,8 +17,8 @@ from typing import Any, Protocol
 from roverloom.contract import ContractError, JsonDict, dump_json, load_json_file
 from roverloom.rally import PAINTS, garage, stats
 
-RULESET = "race-0.1"
-MODEL_VERSION = "race-drive-0.1"  # NPC and headless kinematics, not Unreal physics
+RULESET = "race-0.2"  # 0.2: rovers do not overlap; bumps; blocked gates
+MODEL_VERSION = "race-drive-0.2"  # NPC and headless kinematics, not Unreal physics
 AGENT_PROTOCOL = "race-agent-1"
 MAX_SPEED_MPS = 0.5  # pathfinder_6w limits, as RoverDrive.h
 MAX_YAW_RADPS = 0.4918
@@ -29,6 +29,11 @@ BOOST_S = 3.0
 BOOST_SCALE = 1.5
 MAX_BOOSTS = 3
 PAD_COOLDOWN_S = 6.0
+# Rovers as discs for contact: about 3 m long and 2.3 m wide, so centres closer than this touch.
+# Ghosts are records of earlier runs and pass through; NPCs and the player do not.
+CONTACT_M = 3.0
+BUMP_S = 0.8  # the player's slow-down after running into a rival
+BUMP_SCALE = 0.6
 DIFFICULTIES = {"easy": (0.0, 0.78), "standard": (0.2, 0.9), "hard": (0.4, 0.98)}
 COLORS = {
     "ivory": (0.8, 0.76, 0.62),
@@ -329,6 +334,7 @@ class Racer:
     penalty_s: float = 0.0
     message: str = ""
     message_until: float = 0.0
+    bump_until: float = -1.0
     samples: list[list[float]] = field(default_factory=list)
     ghost_total: float | None = None
     path_i: int = 1
@@ -601,7 +607,7 @@ class Race:
         yaw0 = math.atan2(aim[1] - sy, aim[0] - sx)
         self.you = Racer("you", player[:24] or "You", "you", design, sx, sy, yaw0)
         self.racers = [self.you]
-        grid = ((-2.5, 1.8), (-2.5, -1.8), (-5.0, 0.0), (-7.5, 1.8), (-7.5, -1.8))
+        grid = ((-3.4, 2.0), (-3.4, -2.0), (-6.8, 0.0), (-10.2, 2.0), (-10.2, -2.0))
         cos, sin = math.cos(yaw0), math.sin(yaw0)
         self.profiles: dict[str, NpcProfile] = {}
         for i in range(npcs):
@@ -646,6 +652,7 @@ class Race:
         s = spec["cruise_scale"] * (spec["sand_scale"] if self.course.in_sand(r.x, r.y) else 1.0)
         s *= BOOST_SCALE if self.time_s < r.boost_until else 1.0
         s *= 0.75 if self.dust(self.time_s) else 1.0
+        s *= BUMP_SCALE if self.time_s < r.bump_until else 1.0
         return 0.0 if r.charge <= 0 else min(1.5, s)
 
     def _say(self, r: Racer, text: str) -> None:
@@ -676,10 +683,26 @@ class Race:
                 self._say(r, "Recharging")
         self._checkpoint(r)
 
+    def _at_gate(self, r: Racer, cp: tuple[float, float]) -> bool:
+        """Inside the gate's radius; or, when another rover sits in the gate, touching that rover,
+        so that a rover parked on a gate cannot block it."""
+        radius = self.course.gate_radius_m
+        d = math.dist((r.x, r.y), cp)
+        if d <= radius:
+            return True
+        if r.kind == "ghost" or d > radius + CONTACT_M + 0.1:
+            return False
+        return any(
+            o is not r
+            and math.dist((o.x, o.y), cp) <= radius
+            and math.dist((o.x, o.y), (r.x, r.y)) <= CONTACT_M + 0.1
+            for o in self._solid()
+        )
+
     def _checkpoint(self, r: Racer) -> None:
         t = self.time_s
         cp = self.course.checkpoints[r.next_cp]
-        if r.finished_s is None and math.dist((r.x, r.y), cp) <= self.course.gate_radius_m:
+        if r.finished_s is None and self._at_gate(r, cp):
             r.next_cp += 1
             if r.next_cp == len(self.course.checkpoints):
                 r.next_cp = 0
@@ -725,12 +748,67 @@ class Race:
         norm = math.hypot(dx, dy) or 1.0
         side = prof.line_m * (0.5 if self.course.style == "flags" else 1.0)
         target = (b[0] - dy / norm * side, b[1] + dx / norm * side)
+        pace = DIFFICULTIES[self.difficulty][1] * prof.pace
+        # Overtaking: a slower rover (or the player) close ahead is passed on the side with more
+        # room. Not near a gate, so that rivals still pass through it; rovers abreast at the same
+        # speed keep their lines.
+        hx, hy = math.cos(r.yaw), math.sin(r.yaw)
+        if math.dist((r.x, r.y), b) > 5.0:
+            for o in self._solid():
+                if o is r or (o is not self.you and o.speed > r.speed - 0.05):
+                    continue
+                ox, oy = o.x - r.x, o.y - r.y
+                ahead, lateral = ox * hx + oy * hy, -ox * hy + oy * hx
+                if 1.0 < ahead < 6.0 and abs(lateral) < CONTACT_M:
+                    away = -1.0 if lateral > 0 else 1.0  # rival on the left: go right
+                    clear = CONTACT_M + 0.4
+                    target = (o.x + hx - hy * away * clear, o.y + hy + hx * away * clear)
+                    break
         obs = {"position_m": [r.x, r.y], "yaw_rad": r.yaw}
         wobble = 0.12 * (_draw(self.seed, r.id, int(self.time_s // 2)) - 0.5)
-        act = steer(obs, target, DIFFICULTIES[self.difficulty][1] * prof.pace)
+        act = steer(obs, target, pace)
         far = math.dist((r.x, r.y), b) > 5
         boost = far and abs(act.yaw_rate_radps) < 0.1 and r.charge > prof.boost_charge
         return RaceAction(act.linear_velocity_mps, act.yaw_rate_radps + wobble, boost)
+
+    def _solid(self) -> list[Racer]:
+        return [r for r in self.racers if r.kind != "ghost"]
+
+    def _separate(self) -> None:
+        """No rover overlaps another. The player's position comes from Unreal, so rivals give way;
+        two rivals share the push. Running into a rival slows the player briefly."""
+        solid = self._solid()
+        for i, a in enumerate(solid):
+            for b in solid[i + 1 :]:
+                dx, dy = b.x - a.x, b.y - a.y
+                d = math.hypot(dx, dy)
+                if d >= CONTACT_M:
+                    continue
+                if d < 1e-6:
+                    dx, dy, d = math.cos(a.yaw), math.sin(a.yaw), 1.0
+                    dx, dy = -dx, -dy
+                ux, uy = dx / d, dy / d
+                overlap = CONTACT_M - d
+                if a is self.you or b is self.you:
+                    other, sign = (b, 1.0) if a is self.you else (a, -1.0)
+                    other.x += ux * overlap * sign
+                    other.y += uy * overlap * sign
+                    # Only the part of its motion towards the player is lost
+                    toward = -(math.cos(other.yaw) * ux + math.sin(other.yaw) * uy) * sign
+                    if toward > 0.3:
+                        other.speed *= 0.6
+                    closing = self.you.speed * (
+                        math.cos(self.you.yaw) * ux * sign + math.sin(self.you.yaw) * uy * sign
+                    )
+                    if closing > 0.05 and self.time_s >= self.you.bump_until:
+                        self.you.bump_until = self.time_s + BUMP_S
+                        self._say(self.you, f"Bump! {other.name}")
+                else:
+                    a.x, a.y = a.x - ux * overlap / 2, a.y - uy * overlap / 2
+                    b.x, b.y = b.x + ux * overlap / 2, b.y + uy * overlap / 2
+                    for r, sgn in ((a, 1.0), (b, -1.0)):
+                        if (math.cos(r.yaw) * ux + math.sin(r.yaw) * uy) * sgn > 0.3:
+                            r.speed *= 0.8
 
     def _move(self, r: Racer, act: RaceAction, dt: float) -> None:
         target = act.linear_velocity_mps * self.scale(r)
@@ -786,6 +864,7 @@ class Race:
                         act = self._npc_action(r)
                         self._move(r, act, h)
                         self._rules(r, h, act.boost)
+                self._separate()
             for g in self.ghosts:
                 g.update(t)
                 self._checkpoint(g.racer)
@@ -1102,13 +1181,19 @@ class Leaderboard:
     def __init__(self, path: Path):
         self.path = path
         self.entries: list[JsonDict] = []
+        self.other_rules: list[JsonDict] = []
         if path.exists():
             if path.stat().st_size > 50_000_000:
                 raise ContractError("leaderboard file too large")
             doc = load_json_file(path)
-            if doc.get("ruleset") != RULESET or not isinstance(doc.get("entries"), list):
+            if not isinstance(doc.get("entries"), list):
                 raise ContractError("unsupported leaderboard file")
-            self.entries = [check_entry(e) for e in doc["entries"]]
+            # Runs under other rule versions are kept in the file but neither ranked nor raced,
+            # since their times were made under different rules.
+            self.other_rules = [
+                e for e in doc["entries"] if isinstance(e, dict) and e.get("ruleset") != RULESET
+            ]
+            self.entries = [check_entry(e) for e in doc["entries"] if e not in self.other_rules]
 
     def add(self, entry: JsonDict) -> tuple[JsonDict, int]:
         clean = check_entry(entry)
@@ -1139,7 +1224,7 @@ class Leaderboard:
 
     def save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        doc = {"ruleset": RULESET, "entries": self.entries}
+        doc = {"ruleset": RULESET, "entries": [*self.other_rules, *self.entries]}
         self.path.write_text(dump_json(doc) + "\n", encoding="utf-8")
 
 
