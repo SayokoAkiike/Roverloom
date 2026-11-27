@@ -69,6 +69,10 @@ too slow for you, change the difficulty.
 | --- | --- | --- | --- | --- |
 | `gale_links` | 289 m loop | 1 | Gale | Six pin flags round an outcrop knoll, a 7 m climb, two boost pads, a supply pad at flag 3 |
 | `gale_sprint` | 122 m, point to point | 1 | Gale | The first three flags of Gale Links; finish at flag 3. For short runs and demo videos |
+| `noctis_spur` | 333 m, point to point | 1 | Noctis Labyrinthus | Round a layered spur on a trough floor, a trough wall to the east; climbs 8 m |
+| `noctis_sprint` | 157 m, point to point | 1 | Noctis Labyrinthus | The first two flags of Noctis Spur |
+| `amazonis_rim` | 351 m, point to point | 1 | Amazonis Planitia | Smooth dusty plains past a channel to the rim of a deep pit |
+| `amazonis_sprint` | 160 m, point to point | 1 | Amazonis Planitia | The last two flags of Amazonis Rim |
 | `crater_loop` | 46 m | 2 | Generated | Sand on the east turn, two boost pads, a supply pad |
 | `dune_sprint` | 32 m | 3 | Generated | A short rectangle with a sand patch and one boost pad |
 
@@ -81,6 +85,9 @@ course is as detailed as at the start. Rivals follow the routed path; they do no
 
 The rover's top speed is 0.5 m/s, as the drive model's limit: Gale Links takes about nine minutes and Gale Sprint about
 four in the race model. Long courses use 70% of the battery drain of the short ones, so that they can be finished.
+
+The Noctis Labyrinthus and Amazonis Planitia stages, their sources and what is measured, are described in
+[stages.md](stages.md). Build them with `setup_gale.py --site all`.
 
 ### The Gale level on a new Mac
 

@@ -32,7 +32,7 @@ For the experimental source-build 3D tutorial, see [First 3D mission](docs/first
 
 ## Experimental race
 
-The [race guide](docs/race.md) covers a lap race against NPC rovers, ghosts of saved runs, a local leaderboard you can share by file, and an Advanced mode where a built-in, CaP, or your own agent drives over a local socket. Python rules, agents and the lobby page are tested; the Unreal C++ for the race has not been compiled or played yet.
+The [race guide](docs/race.md) covers a lap race against NPC rovers, ghosts of saved runs, a local leaderboard you can share by file, and an Advanced mode where a built-in, CaP, or your own agent drives over a local socket. Python rules, agents and the lobby page are tested; the race built and ran on a MacBook Air on the generated ground. Stages on real HiRISE terrain of Gale crater, Noctis Labyrinthus and Amazonis Planitia are described in [stages.md](docs/stages.md); the Noctis and Amazonis levels have not been built in Unreal yet.
 
 ## Experimental rally and garage
 

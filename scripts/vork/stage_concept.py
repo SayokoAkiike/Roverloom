@@ -263,6 +263,16 @@ def ground_functions(
     return height, far_height, colour
 
 
+def vork_version(vork: str) -> tuple[int, int]:
+    """(major, minor) of the installed vork; scenes for 0.5.1 and 0.6 differ in one field."""
+    import re
+    import subprocess
+
+    out = subprocess.run([vork, "--version"], capture_output=True, text=True).stdout
+    match = re.search(r"vork (\d+)\.(\d+)", out)
+    return (int(match.group(1)), int(match.group(2))) if match else (0, 6)
+
+
 def far_lines(half: float, step: float, x0: float) -> list[float]:
     out, v = [], -half - x0
     while v <= half - x0:
@@ -312,13 +322,16 @@ def scene(
     geometry: dict[str, Any] = {"near": near_mesh, "far": far_mesh}
     for i in range(rc.ROCK_SHAPES):
         geometry[f"rock{i}"] = rc.rock_shape(seed * 100 + i)
+    view = {"program": "std/agx", "inputs": {"exposure": exposure}}
+    render: dict[str, Any] = {"resolution": list(resolution), "background": "environment"}
+    layout: dict[str, Any] = {"render": render}
+    if vork_version(vork) >= (0, 6):
+        layout["composition"] = {"space": "3d", "view": view}  # vork 0.6: render.display moved here
+    else:
+        render["display"] = view
     return {
         "version": 2,
-        "render": {
-            "resolution": list(resolution),
-            "background": "environment",
-            "display": {"program": "std/agx", "inputs": {"exposure": exposure}},
-        },
+        **layout,
         "programs": programs,
         "materials": materials,
         "geometry": geometry,
