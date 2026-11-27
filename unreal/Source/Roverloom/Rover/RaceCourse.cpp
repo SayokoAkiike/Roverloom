@@ -75,10 +75,50 @@ namespace RoverloomRace
 				}
 			}
 		}
+		if (Root->TryGetArrayField(TEXT("line"), List))
+		{
+			for (const TSharedPtr<FJsonValue>& V : *List)
+			{
+				FVector2D P;
+				if (Point(V, P)) Out.Line.Add(P);
+			}
+		}
+		Root->TryGetStringField(TEXT("ground"), Out.Ground);
+		Root->TryGetStringField(TEXT("style"), Out.Style);
+		if (Out.Checkpoints.Num() > 0)
+		{
+			Out.Start = Out.Checkpoints.Last();
+		}
+		FVector2D Start;
+		if (Point(Root->TryGetField(TEXT("start")), Start))
+		{
+			Out.Start = Start;
+		}
+		Out.bLoop = Out.Checkpoints.Num() > 0 && FVector2D::Distance(Out.Start, Out.Checkpoints.Last()) < 0.5;
+		if (Out.Line.Num() < 2)
+		{
+			Out.Line.Reset();
+			Out.Line.Add(Out.Start);
+			Out.Line.Append(Out.Checkpoints);
+		}
 		const TSharedPtr<FJsonValue> Supply = Root->TryGetField(TEXT("supply"));
 		Out.bHasSupply = Point(Supply, Out.Supply);
-		UE_LOG(LogRoverloom, Display, TEXT("Race course '%s': %d checkpoints, %d sand, %d pads"), *Out.Name, Out.Checkpoints.Num(), Out.Sand.Num(), Out.Pads.Num());
+		UE_LOG(LogRoverloom, Display, TEXT("Race course '%s': %d checkpoints, %d path points, %d sand, %d pads, style %s, ground %s"), *Out.Name,
+			Out.Checkpoints.Num(), Out.Line.Num(), Out.Sand.Num(), Out.Pads.Num(), *Out.Style, *Out.Ground);
 		return Out.IsValid();
+	}
+
+	double DistanceToLineM(const FRaceCourse& Course, const FVector2D& P)
+	{
+		double Best = TNumericLimits<double>::Max();
+		for (int32 I = 0; I + 1 < Course.Line.Num(); ++I)
+		{
+			const FVector2D A = Course.Line[I];
+			const FVector2D AB = Course.Line[I + 1] - A;
+			const double T = FMath::Clamp(FVector2D::DotProduct(P - A, AB) / FMath::Max(AB.SizeSquared(), 1e-6), 0.0, 1.0);
+			Best = FMath::Min(Best, FVector2D::Distance(P, A + AB * T));
+		}
+		return Best;
 	}
 
 	const FRaceCourse& Course()

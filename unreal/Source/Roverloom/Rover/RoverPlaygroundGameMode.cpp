@@ -224,8 +224,17 @@ void ARoverPlaygroundGameMode::SpawnScatter()
 		return Component;
 	};
 
-	auto Forbidden = [](double X, double Y)
+	// In a race, the corridor along the course path is kept clear instead of the test lane, so no stone sits in the way or
+	// pokes through a wheel, and stones are added along the whole course (the zones below are centred on the start).
+	const bool bRace = FParse::Param(FCommandLine::Get(), TEXT("RoverRace")) && RoverloomRace::Course().IsValid();
+	const FRaceCourse* RaceCourse = bRace ? &RoverloomRace::Course() : nullptr;
+	auto Forbidden = [RaceCourse](double X, double Y)
 	{
+		if (RaceCourse)
+		{
+			const FVector Site = RoverloomFrames::UnrealToSitePosition(FVector(X, Y, 0.0));
+			return RoverloomRace::DistanceToLineM(*RaceCourse, FVector2D(Site.X, Site.Y)) < 3.2;
+		}
 		const bool bLane = X > -300.0 && X < 4200.0 && FMath::Abs(Y) < 250.0; // The straight lane: 3 m behind to 42 m ahead, 5 m wide
 		const bool bStart = X * X + Y * Y < 300.0 * 300.0;                      // And 3 m around the start
 		return bLane || bStart;
@@ -233,11 +242,31 @@ void ARoverPlaygroundGameMode::SpawnScatter()
 
 	constexpr double Alpha = 1.9;     // Cumulative number larger than r falls as r^-Alpha
 	constexpr double MaxRadiusM = 1.5;
-	const struct { int32 Count; double MinR; double MaxR; double MinRadiusM; } Zones[] = {
-		{12000, 300.0, 1200.0, 0.03},     // Near: 3 to 12 m around the start, down to 3 cm
-		{14000, 1200.0, 6000.0, 0.06},    // Mid: 12 to 60 m
-		{8000, 6000.0, 42000.0, 0.15},    // Far: to 420 m, small stones would not show
+	struct FZone { int32 Count; double MinR; double MaxR; double MinRadiusM; FVector2D CenterCm; };
+	TArray<FZone> Zones = {
+		{12000, 300.0, 1200.0, 0.03, FVector2D::ZeroVector},     // Near: 3 to 12 m around the start, down to 3 cm
+		{14000, 1200.0, 6000.0, 0.06, FVector2D::ZeroVector},    // Mid: 12 to 60 m
+		{8000, 6000.0, 42000.0, 0.15, FVector2D::ZeroVector},    // Far: to 420 m, small stones would not show
 	};
+	if (RaceCourse)
+	{
+		// A near zone every 12 m along the path, so the ground beside the course is as detailed as at the start
+		double Walked = 0.0;
+		for (int32 I = 0; I + 1 < RaceCourse->Line.Num(); ++I)
+		{
+			const FVector2D A = RaceCourse->Line[I];
+			const FVector2D B = RaceCourse->Line[I + 1];
+			const double Len = FVector2D::Distance(A, B);
+			for (double D = 12.0 - FMath::Fmod(Walked, 12.0); D < Len; D += 12.0)
+			{
+				const FVector2D C = A + (B - A).GetSafeNormal() * D;
+				if (C.Size() < 15.0) continue; // the start already has its own
+				const FVector Cm = RoverloomFrames::SiteToUnrealPosition(FVector(C.X, C.Y, 0.0));
+				Zones.Add({700, 300.0, 1400.0, 0.04, FVector2D(Cm.X, Cm.Y)});
+			}
+			Walked += Len;
+		}
+	}
 	FRandomStream Random(ScatterSeed);
 	int32 Total = 0;
 	int32 BySize[ClassCount] = {};
@@ -259,8 +288,8 @@ void ARoverPlaygroundGameMode::SpawnScatter()
 			const double Roll = Random.FRandRange(-15.0, 15.0);
 			const double Squash = Random.FRandRange(0.5, 0.95);
 			const double Stretch = Random.FRandRange(0.8, 1.3);
-			const double X = Ring * FMath::Cos(Angle);
-			const double Y = Ring * FMath::Sin(Angle);
+			const double X = Zone.CenterCm.X + Ring * FMath::Cos(Angle);
+			const double Y = Zone.CenterCm.Y + Ring * FMath::Sin(Angle);
 			if (Forbidden(X, Y))
 			{
 				continue;
@@ -589,61 +618,121 @@ void ARoverPlaygroundGameMode::SpawnRaceCourse()
 		UE_LOG(LogRoverloom, Error, TEXT("Race: no valid -RoverCourseFile; the course is not drawn"));
 		return;
 	}
-	// Expedition-style markers in a restrained palette: pale composite posts with an orange band, so they read against the
-	// regolith without looking like a neon kart track. Sizes are in centimetres.
+	if (Course.Ground == TEXT("gale") && !bHasLandscape)
+	{
+		UE_LOG(LogRoverloom, Warning, TEXT("Race: course '%s' was routed on the Gale level, which is not loaded"), *Course.Name);
+	}
+	// Expedition-style markers in a restrained palette, so they read against the regolith without looking like a neon kart
+	// track. Every marker has no collision. Sizes are in centimetres.
 	const FLinearColor Post(0.78f, 0.76f, 0.70f);
 	const FLinearColor Band(0.92f, 0.38f, 0.10f);
 	const FLinearColor Dark(0.07f, 0.07f, 0.08f);
 	const FLinearColor Pad(0.10f, 0.52f, 0.58f);
 	const FLinearColor SandColor(0.66f, 0.46f, 0.27f);
 	const FLinearColor Amber(0.95f, 0.66f, 0.18f);
+	const FLinearColor Cairn(0.30f, 0.24f, 0.20f);
 	const TCHAR* Cylinder = TEXT("/Engine/BasicShapes/Cylinder.Cylinder");
 	const TCHAR* Cone = TEXT("/Engine/BasicShapes/Cone.Cone");
+	const TCHAR* Sphere = TEXT("/Engine/BasicShapes/Sphere.Sphere");
+	const bool bFlags = Course.Style == TEXT("flags");
 	const int32 N = Course.Checkpoints.Num();
 	const double HalfM = FMath::Max(1.5, Course.GateRadiusM * 0.85);
 	auto Side = [](const FVector2D& Dir) { return FVector2D(-Dir.Y, Dir.X); };
+	auto Banner = [&](const FVector2D& P, const FVector2D& Left, double YawDeg)
+	{
+		// Two posts and a beam of alternating squares, with the same squares on the ground: the finish (and a start).
+		for (const double S : {-1.0, 1.0})
+		{
+			SpawnProp(P + Left * HalfM * S, 125.0, YawDeg, FVector(16, 16, 250), Post, Cylinder);
+		}
+		const int32 Squares = 12;
+		for (int32 K = 0; K < Squares; ++K)
+		{
+			const double F = (K + 0.5) / Squares * 2.0 - 1.0;
+			SpawnProp(P + Left * HalfM * F, 240.0, YawDeg, FVector(10, HalfM * 200.0 / Squares, 24), K % 2 ? Dark : Post);
+			SpawnProp(P + Left * HalfM * F, 0.6, YawDeg, FVector(30, HalfM * 200.0 / Squares, 1), K % 2 ? Dark : Post);
+		}
+	};
 	for (int32 I = 0; I < N; ++I)
 	{
 		const FVector2D P = Course.Checkpoints[I];
-		const FVector2D Prev = Course.Checkpoints[(I + N - 1) % N];
-		const FVector2D Next = Course.Checkpoints[(I + 1) % N];
+		const FVector2D Prev = I > 0 ? Course.Checkpoints[I - 1] : Course.Start;
+		const FVector2D Next = I + 1 < N ? Course.Checkpoints[I + 1] : (Course.bLoop ? Course.Checkpoints[0] : P + (P - Prev));
 		const FVector2D Dir = ((P - Prev).GetSafeNormal() + (Next - P).GetSafeNormal()).GetSafeNormal();
 		const FVector2D Left = Side(Dir);
 		const double YawDeg = -FMath::RadiansToDegrees(FMath::Atan2(Dir.Y, Dir.X));
 		const bool bFinish = I == N - 1;
+		if (bFinish)
+		{
+			Banner(P, Left, YawDeg);
+			continue;
+		}
+		if (bFlags)
+		{
+			// A golf-style pin: a slim pole with a high-visibility pennant, seen from far off, and a ring of small pale
+			// stones on the ground the size of the arrival radius.
+			SpawnProp(P, 200.0, 0.0, FVector(6, 6, 400), Post, Cylinder);
+			SpawnProp(P + FVector2D(0.0, 0.0), 402.0, 0.0, FVector(10, 10, 6), Dark, Cylinder);
+			const FVector2D Cloth = P + Left * 0.55;
+			SpawnProp(Cloth, 350.0, YawDeg + 90.0, FVector(110, 3, 70), Band);
+			SpawnProp(Cloth + Left * 0.28, 350.0, YawDeg + 90.0, FVector(52, 4, 18), Post); // a pale stripe
+			for (int32 K = 0; K < 16; ++K)
+			{
+				const double A = K * 2.0 * PI / 16.0;
+				SpawnProp(P + FVector2D(FMath::Cos(A), FMath::Sin(A)) * Course.GateRadiusM, 4.0, K * 22.5, FVector(22, 16, 10), Post, Sphere);
+			}
+			continue;
+		}
 		for (const double S : {-1.0, 1.0})
 		{
 			const FVector2D Foot = P + Left * HalfM * S;
 			SpawnProp(Foot, 110.0, YawDeg, FVector(18, 18, 220), Post, Cylinder);
 			SpawnProp(Foot, 200.0, YawDeg, FVector(21, 21, 30), Band, Cylinder);
 		}
-		if (bFinish)
+	}
+	if (!Course.bLoop)
+	{
+		const FVector2D First = Course.Line.Num() > 1 ? Course.Line[1] : Course.Checkpoints[0];
+		const FVector2D Dir = (First - Course.Start).GetSafeNormal();
+		Banner(Course.Start, Side(Dir), -FMath::RadiansToDegrees(FMath::Atan2(Dir.Y, Dir.X)));
+	}
+	// Along the path: small cairns on the flags courses, low cones on the short ones, so the way on is readable from the chase
+	// camera without painting a road on the ground.
+	const double Spacing = bFlags ? 9.0 : 3.0;
+	double Carry = Spacing * 0.5;
+	int32 Markers = 0;
+	for (int32 I = 0; I + 1 < Course.Line.Num(); ++I)
+	{
+		const FVector2D A = Course.Line[I];
+		const FVector2D B = Course.Line[I + 1];
+		const double Len = FVector2D::Distance(A, B);
+		const FVector2D Dir = (B - A).GetSafeNormal();
+		const FVector2D Left = Side(Dir);
+		for (double D = Carry; D < Len; D += Spacing)
 		{
-			// A banner beam of alternating squares over the finish line
-			const int32 Squares = 12;
-			for (int32 K = 0; K < Squares; ++K)
+			const FVector2D C = A + Dir * D;
+			bool bNearGate = FVector2D::Distance(C, Course.Start) < 4.0;
+			for (const FVector2D& G : Course.Checkpoints) bNearGate |= FVector2D::Distance(C, G) < 4.0;
+			if (bNearGate) continue;
+			if (bFlags)
 			{
-				const double F = (K + 0.5) / Squares * 2.0 - 1.0;
-				SpawnProp(P + Left * HalfM * F, 235.0, YawDeg, FVector(12, HalfM * 200.0 / Squares, 26), K % 2 ? Dark : Post);
+				// Alternate sides, as a trail of cairns would be built
+				const FVector2D Foot = C + Left * ((Markers % 2) ? -2.4 : 2.4);
+				SpawnProp(Foot, 12.0, Markers * 37.0, FVector(46, 40, 26), Cairn, Sphere);
+				SpawnProp(Foot, 32.0, Markers * 53.0, FVector(30, 26, 20), Cairn * 1.15f, Sphere);
+				SpawnProp(Foot, 46.0, Markers * 71.0, FVector(18, 16, 14), Post * 0.8f, Sphere);
 			}
-			for (int32 K = 0; K < 10; ++K)
+			else
 			{
-				const double F = (K + 0.5) / 10 * 2.0 - 1.0;
-				SpawnProp(P + Left * HalfM * F, 0.6, YawDeg, FVector(30, HalfM * 200.0 / 10, 1), K % 2 ? Dark : Post);
+				for (const double S : {-1.0, 1.0})
+				{
+					SpawnProp(C + Left * (HalfM + 0.6) * S, 15.0, 0.0, FVector(18, 18, 30), Markers % 2 ? Band : Post, Cone);
+				}
 			}
+			++Markers;
 		}
-		// Low cones along each leg mark the lane edge, so the next turn can be seen from the chase camera.
-		const FVector2D Leg = Next - P;
-		const int32 Cones = FMath::FloorToInt32(Leg.Size() / 3.0);
-		const FVector2D LegLeft = Side(Leg.GetSafeNormal());
-		for (int32 K = 1; K < Cones; ++K)
-		{
-			const FVector2D C = P + Leg * (double(K) / Cones);
-			for (const double S : {-1.0, 1.0})
-			{
-				SpawnProp(C + LegLeft * (HalfM + 0.6) * S, 15.0, 0.0, FVector(18, 18, 30), K % 2 ? Band : Post, Cone);
-			}
-		}
+		Carry = FMath::Fmod(Carry - Len, Spacing);
+		if (Carry < 0.0) Carry += Spacing;
 	}
 	for (const FBox2D& Box : Course.Sand)
 	{
@@ -666,14 +755,14 @@ void ARoverPlaygroundGameMode::SpawnRaceCourse()
 	}
 	if (Course.bHasSupply)
 	{
-		SpawnProp(Course.Supply, 1.5, 0.0, FVector(260, 260, 2), Amber);
-		const FVector2D Hut = Course.Supply + FVector2D(-2.6, 0.0);
+		SpawnProp(Course.Supply, 1.5, 0.0, FVector(600, 600, 2), Amber); // Python recharges within 3 m
+		const FVector2D Hut = Course.Supply + FVector2D(-4.0, 1.5);
 		SpawnProp(Hut, 140.0, 20.0, FVector(260, 200, 280), Post);
 		SpawnProp(Hut, 330.0, 20.0, FVector(14, 14, 120), Dark, Cylinder);
 		SpawnProp(Hut + FVector2D(0.0, 1.2), 70.0, 20.0, FVector(120, 6, 90), Pad);
 	}
-	UE_LOG(LogRoverloom, Display, TEXT("Race course drawn: %d gates, %d sand, %d pads, supply %s"), N, Course.Sand.Num(), Course.Pads.Num(),
-		Course.bHasSupply ? TEXT("yes") : TEXT("no"));
+	UE_LOG(LogRoverloom, Display, TEXT("Race course drawn: %d gates (%s), %d path markers, %d sand, %d pads, supply %s"), N, *Course.Style, Markers,
+		Course.Sand.Num(), Course.Pads.Num(), Course.bHasSupply ? TEXT("yes") : TEXT("no"));
 }
 
 void ARoverPlaygroundGameMode::SpawnLights()

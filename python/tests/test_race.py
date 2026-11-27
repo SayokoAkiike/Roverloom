@@ -1,6 +1,7 @@
 """Race rules: laps, standings, NPCs, ghosts, agents and the leaderboard stay explicit and checked."""
 
 import json
+import math
 import socket
 import threading
 import time
@@ -286,3 +287,38 @@ def _free_port():
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
         return s.getsockname()[1]
+
+
+@pytest.mark.parametrize("name", ["gale_sprint", "gale_links"])
+def test_gale_courses_finish_on_their_path(name):
+    course = COURSES[name]
+    assert course.ground == "gale" and course.style == "flags"
+    path = course.path
+    for flag in course.checkpoints:  # every flag is on the routed path
+        assert min(math.dist(flag, p) for p in path) < 0.01
+    r = Race(garage(), course, npcs=2, backend="headless", controller="agent:pursuit")
+    result = simulate(r, BUILTIN_AGENTS["pursuit"]())
+    assert result["outcome"] == "success"
+    # The rover stayed near the routed path the whole way
+    worst = max(_distance_to_path(path, s[1:3]) for s in result["samples"])
+    assert worst < 3.0
+
+
+def test_point_to_point_starts_at_its_start_and_ends_at_the_last_flag():
+    course = COURSES["gale_sprint"]
+    r = Race(garage(), course, npcs=0)
+    assert (r.you.x, r.you.y) == course.start_point
+    state = r.step({"time_s": 0.0, "position_m": [0, 0, 0]})
+    assert state["race"]["flag"] == 1 and state["race"]["flags"] == 3
+    doc = course.document()
+    assert doc["start"] == [0.0, 0.0] and doc["line"][-1] == list(course.checkpoints[-1])
+
+
+def _distance_to_path(path, p):
+    best = 1e9
+    for a, b in zip(path, path[1:], strict=False):
+        ax, ay = a
+        dx, dy = b[0] - ax, b[1] - ay
+        t = max(0.0, min(1.0, ((p[0] - ax) * dx + (p[1] - ay) * dy) / max(dx * dx + dy * dy, 1e-9)))
+        best = min(best, math.dist(p, (ax + dx * t, ay + dy * t)))
+    return best

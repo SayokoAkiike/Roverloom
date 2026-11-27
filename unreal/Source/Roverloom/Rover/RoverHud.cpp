@@ -2,6 +2,7 @@
 
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
+#include "Engine/World.h"
 #include "Engine/Font.h"
 #include "GameFramework/PlayerController.h"
 #include "Misc/CommandLine.h"
@@ -210,6 +211,30 @@ void ARoverHud::DrawRace(const ARoverPawn* Rover, float Ui)
 			Panel(Screen.X - TW / 2 - 6 * Ui, Screen.Y - 3 * Ui, TW + 12 * Ui, TH + 6 * Ui, 0.45f * A);
 			Text(Tag, (O->bIsGhost ? Teal : White).CopyWithNewOpacity(A), Screen.X, Screen.Y, 0.95f * Ui, false, true);
 		}
+		// Flag numbers over the pins within 80 m, as on a golf course
+		const FRaceCourse& Pins = RoverloomRace::Course();
+		if (Pins.Style == TEXT("flags"))
+		{
+			for (int32 I = 0; I + 1 < Pins.Checkpoints.Num(); ++I) // The last gate is the finish banner
+			{
+				const FVector2D G = Pins.Checkpoints[I];
+				const double D = FVector2D::Distance(G, FVector2D(S.SitePositionM.X, S.SitePositionM.Y));
+				FVector2D Screen;
+				if (D > 80.0 || D < 3.0) continue;
+				const FVector Foot = RoverloomFrames::SiteToUnrealPosition(FVector(G.X, G.Y, 0.0));
+				FHitResult Hit;
+				double GroundZ = Me.Z - 70.0;
+				if (GetWorld()->LineTraceSingleByObjectType(Hit, FVector(Foot.X, Foot.Y, Me.Z + 5000.0), FVector(Foot.X, Foot.Y, Me.Z - 5000.0),
+						FCollisionObjectQueryParams(ECC_WorldStatic)))
+				{
+					GroundZ = Hit.ImpactPoint.Z;
+				}
+				if (!PC->ProjectWorldLocationToScreen(FVector(Foot.X, Foot.Y, GroundZ + 450.0), Screen, true)) continue;
+				const bool bNext = I + 1 == S.RaceFlag;
+				Text(FString::Printf(TEXT("%d"), I + 1), (bNext ? Accent : White).CopyWithNewOpacity(bNext ? 1.0f : 0.6f), Screen.X, Screen.Y,
+					(bNext ? 1.4f : 1.0f) * Ui, false, true);
+			}
+		}
 		// The next gate: a marker and its distance, so the route is never in doubt
 		if (S.bHasNextCheckpoint && S.RaceBanner.IsEmpty())
 		{
@@ -223,7 +248,9 @@ void ARoverHud::DrawRace(const ARoverPawn* Rover, float Ui)
 				const float Y = FMath::Clamp(static_cast<float>(Screen.Y), M, H * 0.7f);
 				DrawLine(X - 10 * Ui, Y - 8 * Ui, X, Y + 4 * Ui, Accent, 3.0f * Ui);
 				DrawLine(X, Y + 4 * Ui, X + 10 * Ui, Y - 8 * Ui, Accent, 3.0f * Ui);
-				Text(FString::Printf(TEXT("NEXT  %.0f m"), Dist), Accent, X, Y + 8 * Ui, 0.9f * Ui, false, true);
+				const FString What = S.RaceFlags > 0 && S.RaceFlag == S.RaceFlags ? FString(TEXT("FINISH"))
+					: S.RaceFlags > 0 ? FString::Printf(TEXT("FLAG %d/%d"), S.RaceFlag, S.RaceFlags) : FString(TEXT("NEXT"));
+				Text(FString::Printf(TEXT("%s  %.0f m"), *What, Dist), Accent, X, Y + 8 * Ui, 0.9f * Ui, false, true);
 			}
 		}
 	}
@@ -288,7 +315,7 @@ void ARoverHud::DrawRace(const ARoverPawn* Rover, float Ui)
 	if (Course.IsValid())
 	{
 		FBox2D Bounds(ForceInit);
-		for (const FVector2D& P : Course.Checkpoints) Bounds += P;
+		for (const FVector2D& P : Course.Line) Bounds += P;
 		Bounds = Bounds.ExpandBy(3.0);
 		const float MapW = 210 * Ui;
 		const float MapH = 170 * Ui;
@@ -308,12 +335,16 @@ void ARoverHud::DrawRace(const ARoverPawn* Rover, float Ui)
 			const FVector2D C = ToMap(FVector2D(B.Max.X, B.Min.Y));
 			DrawRect(FLinearColor(0.8f, 0.55f, 0.3f, 0.35f), A.X, A.Y, C.X - A.X, C.Y - A.Y);
 		}
-		const int32 N = Course.Checkpoints.Num();
-		for (int32 I = 0; I < N; ++I)
+		for (int32 I = 0; I + 1 < Course.Line.Num(); ++I)
 		{
-			const FVector2D A = ToMap(Course.Checkpoints[I]);
-			const FVector2D B = ToMap(Course.Checkpoints[(I + 1) % N]);
+			const FVector2D A = ToMap(Course.Line[I]);
+			const FVector2D B = ToMap(Course.Line[I + 1]);
 			DrawLine(A.X, A.Y, B.X, B.Y, FLinearColor(1, 1, 1, 0.55f), 3.0f * Ui);
+		}
+		for (const FVector2D& G : Course.Checkpoints)
+		{
+			const FVector2D A = ToMap(G);
+			DrawRect(FLinearColor(0.92f, 0.38f, 0.10f, 0.8f), A.X - 3 * Ui, A.Y - 3 * Ui, 6 * Ui, 6 * Ui);
 		}
 		for (const FVector2D& P : Course.Pads)
 		{

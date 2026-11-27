@@ -42,7 +42,12 @@ COLORS = {
 
 @dataclass(frozen=True)
 class Course:
-    """A closed loop. The last checkpoint is the start and finish line at the origin."""
+    """Gates in order. Without `start_point` it is a loop whose last gate is the start and finish.
+
+    `line` is a drivable path through every gate, for NPCs, the minimap and the markers. On the
+    Gale courses it was routed on the HiRISE heightfield under a 10 degree slope limit
+    (docs/race.md).
+    """
 
     id: str
     name: str
@@ -53,6 +58,11 @@ class Course:
     gate_radius_m: float = 2.5
     laps: int = 2
     limit_s: float = 600.0
+    start_point: tuple[float, float] | None = None
+    line: tuple[tuple[float, float], ...] = ()
+    ground: str = "generated"  # or "gale": needs the Gale level
+    style: str = "gates"  # or "flags": golf-style flags
+    drain_scale: float = 1.0  # battery drain, so that long courses can be finished
 
     def shifted(self, dx: float, dy: float) -> Course:
         def p(v: tuple[float, float]) -> tuple[float, float]:
@@ -68,17 +78,26 @@ class Course:
             self.gate_radius_m,
             self.laps,
             self.limit_s,
+            p(self.start_point) if self.start_point else None,
+            tuple(p(c) for c in self.line),
+            self.ground,
+            self.style,
+            self.drain_scale,
         )
 
     @property
     def start(self) -> tuple[float, float]:
-        return self.checkpoints[-1]
+        return self.start_point or self.checkpoints[-1]
+
+    @property
+    def path(self) -> tuple[tuple[float, float], ...]:
+        return self.line or (self.start, *self.checkpoints)
 
     def in_sand(self, x: float, y: float) -> bool:
         return any(a <= x <= c and b <= y <= d for a, b, c, d in self.sand)
 
     def lap_length_m(self) -> float:
-        pts = (self.start, *self.checkpoints)
+        pts = self.path
         return sum(math.dist(a, b) for a, b in zip(pts, pts[1:], strict=False))
 
     def document(self) -> JsonDict:
@@ -92,6 +111,10 @@ class Course:
             "gate_radius_m": self.gate_radius_m,
             "laps": self.laps,
             "lap_length_m": round(self.lap_length_m(), 2),
+            "start": list(self.start),
+            "line": [list(c) for c in self.path],
+            "ground": self.ground,
+            "style": self.style,
         }
 
 
@@ -111,6 +134,88 @@ COURSES = {
         sand=((3.0, 4.0, 7.0, 8.0),),
         pads=((5.0, 0.0),),
         laps=3,
+    ),
+    # Routed on the Gale heightfield: 4 m baseline slope under 10 degrees, with 3 m clearance.
+    # Flags sit on the path. The loop rounds the outcrop knoll north-east of the start and
+    # climbs about 7 m.
+    "gale_links": Course(
+        "gale_links",
+        "Gale Links",
+        (
+            (41.0, -6.0),
+            (78.0, 6.0),
+            (77.0, 42.0),
+            (62.0, 67.0),
+            (33.0, 74.0),
+            (9.0, 51.0),
+            (0.0, 0.0),
+        ),
+        pads=((59.5, 0.0), (9.0, 44.0)),
+        supply=(77.0, 42.0),
+        laps=1,
+        limit_s=1500.0,
+        drain_scale=0.7,
+        line=(
+            (0.0, 0.0),
+            (22.0, 8.0),
+            (24.0, 8.0),
+            (26.0, 6.0),
+            (28.0, 4.0),
+            (30.0, 2.0),
+            (41.0, -6.0),
+            (78.0, 6.0),
+            (77.0, 42.0),
+            (81.0, 58.0),
+            (81.0, 64.0),
+            (79.0, 66.0),
+            (62.0, 67.0),
+            (50.0, 61.0),
+            (48.0, 61.0),
+            (46.0, 61.0),
+            (44.0, 63.0),
+            (42.0, 65.0),
+            (40.0, 67.0),
+            (38.0, 69.0),
+            (36.0, 71.0),
+            (33.0, 74.0),
+            (25.0, 70.0),
+            (23.0, 68.0),
+            (21.0, 66.0),
+            (19.0, 64.0),
+            (17.0, 64.0),
+            (13.0, 62.0),
+            (11.0, 60.0),
+            (9.0, 58.0),
+            (9.0, 51.0),
+            (9.0, 37.0),
+            (3.0, 24.0),
+            (0.0, 0.0),
+        ),
+        ground="gale",
+        style="flags",
+    ),
+    "gale_sprint": Course(
+        "gale_sprint",
+        "Gale Sprint",
+        ((41.0, -6.0), (78.0, 6.0), (77.0, 42.0)),
+        pads=((59.5, 0.0),),
+        laps=1,
+        limit_s=900.0,
+        drain_scale=0.7,
+        start_point=(0.0, 0.0),
+        line=(
+            (0.0, 0.0),
+            (22.0, 8.0),
+            (24.0, 8.0),
+            (26.0, 6.0),
+            (28.0, 4.0),
+            (30.0, 2.0),
+            (41.0, -6.0),
+            (78.0, 6.0),
+            (77.0, 42.0),
+        ),
+        ground="gale",
+        style="flags",
     ),
 }
 
@@ -161,6 +266,7 @@ class Racer:
     message_until: float = 0.0
     samples: list[list[float]] = field(default_factory=list)
     ghost_total: float | None = None
+    path_i: int = 1
 
     @property
     def color(self) -> list[float]:
@@ -248,7 +354,8 @@ class PursuitAgent:
         self.brief = brief
 
     def act(self, observation: JsonDict) -> RaceAction:
-        nxt = observation["next_checkpoints"][0]
+        ahead: list[list[float]] = observation.get("path_ahead") or observation["next_checkpoints"]
+        nxt = ahead[0]
         a = steer(observation, nxt)
         far = math.dist(observation["position_m"][:2], nxt) > 4.5
         straight = abs(a.yaw_rate_radps) < 0.1
@@ -337,7 +444,8 @@ class CapAgent:
             with contextlib.suppress(ContractError):
                 self.plan = validate_plan(self.source.plan(self.brief, report))
         follow = self._skill("follow_checkpoints") or {}
-        target = list(obs["next_checkpoints"][0])
+        ahead: list[list[float]] = obs.get("path_ahead") or obs["next_checkpoints"]
+        target = list(ahead[0])
         p = obs["position_m"][:2]
         supply = self._skill("visit_supply")
         if supply and self.brief["course"]["supply"] and obs["charge"] < supply["below_charge"]:
@@ -346,8 +454,8 @@ class CapAgent:
         if sand is not None:
             target = self._around_sand(p, target, sand.get("margin_m", 1.0))
         look = follow.get("lookahead_m", 1.5)
-        if look and len(obs["next_checkpoints"]) > 1 and math.dist(p, target) < look:
-            target = list(obs["next_checkpoints"][1])
+        if look and len(ahead) > 1 and math.dist(p, target) < look:
+            target = list(ahead[1])
         a = steer(obs, target, follow.get("speed_share", 1.0))
         boost = self._skill("boost_on_straights")
         go = bool(
@@ -424,7 +532,8 @@ class Race:
         self.outcome = "running"
         design = garage(design["tires"], design["battery"], design["sensor"], design["paint"])
         sx, sy = course.start
-        yaw0 = math.atan2(course.checkpoints[0][1] - sy, course.checkpoints[0][0] - sx)
+        aim = course.path[1] if len(course.path) > 1 else course.checkpoints[0]
+        yaw0 = math.atan2(aim[1] - sy, aim[0] - sx)
         self.you = Racer("you", player[:24] or "You", "you", design, sx, sy, yaw0)
         self.racers = [self.you]
         grid = ((-2.5, 1.8), (-2.5, -1.8), (-5.0, 0.0), (-7.5, 1.8), (-7.5, -1.8))
@@ -481,7 +590,8 @@ class Race:
         """Charge, boost, pads, supply and checkpoints for any racer except ghosts."""
         t = self.time_s
         spec = stats(r.design)
-        r.charge = max(0.0, r.charge - dt * (spec["idle_drain"] + abs(r.speed) * 0.35))
+        drain = (spec["idle_drain"] + abs(r.speed) * 0.35) * self.course.drain_scale
+        r.charge = max(0.0, r.charge - dt * drain)
         if boost and not r.boost_held and r.boosts and r.charge >= 8 and t >= r.boost_until:
             r.boosts -= 1
             r.charge -= 8
@@ -494,9 +604,9 @@ class Race:
                 if r.boosts < MAX_BOOSTS:
                     r.boosts += 1
                     self._say(r, "Boost pad: +1 boost")
-        if self.course.supply and math.dist((r.x, r.y), self.course.supply) <= 2.0:
+        if self.course.supply and math.dist((r.x, r.y), self.course.supply) <= 3.0:
             before = r.charge
-            r.charge = min(spec["capacity"], r.charge + 12 * dt)
+            r.charge = min(spec["capacity"], r.charge + 15 * dt)
             if before < r.charge and t >= r.message_until:
                 self._say(r, "Recharging")
         self._checkpoint(r)
@@ -519,8 +629,8 @@ class Race:
 
     def progress(self, r: Racer) -> float:
         n = len(self.course.checkpoints)
-        cps = (self.course.start, *self.course.checkpoints)
-        a, b = cps[r.next_cp], cps[r.next_cp + 1]
+        cps = (self.course.start if r.next_cp == 0 else self.course.checkpoints[r.next_cp - 1],)
+        a, b = cps[0], self.course.checkpoints[r.next_cp]
         seg = max(0.1, math.dist(a, b))
         part = max(0.0, min(1.0, 1 - math.dist((r.x, r.y), b) / seg))
         done = r.lap * n + r.next_cp
@@ -538,16 +648,19 @@ class Race:
     # -- NPC driver -----------------------------------------------------------------
 
     def _npc_action(self, r: Racer) -> RaceAction:
+        """Follow the course path, a little to one side, with seeded wobble. Ignores the player."""
         prof = self.profiles[r.id]
-        cps = self.course.checkpoints
-        a, b = cps[r.next_cp - 1], cps[r.next_cp]
-        # Aim beside the checkpoint along the racing line, then the next one once close.
+        path = self.course.path
+        while math.dist((r.x, r.y), path[r.path_i]) < 2.0:
+            r.path_i += 1
+            if r.path_i == len(path):
+                r.path_i = 1  # loops start again after the start point
+        a, b = path[r.path_i - 1], path[r.path_i]
         dx, dy = b[0] - a[0], b[1] - a[1]
         norm = math.hypot(dx, dy) or 1.0
-        target = (b[0] - dy / norm * prof.line_m, b[1] + dx / norm * prof.line_m)
+        side = prof.line_m * (0.5 if self.course.style == "flags" else 1.0)
+        target = (b[0] - dy / norm * side, b[1] + dx / norm * side)
         obs = {"position_m": [r.x, r.y], "yaw_rad": r.yaw}
-        if math.dist((r.x, r.y), target) < 1.2:
-            target = cps[(r.next_cp + 1) % len(cps)]
         wobble = 0.12 * (_draw(self.seed, r.id, int(self.time_s // 2)) - 0.5)
         act = steer(obs, target, DIFFICULTIES[self.difficulty][1] * prof.pace)
         far = math.dist((r.x, r.y), b) > 5
@@ -692,6 +805,8 @@ class Race:
                 "best_lap": fmt_time(min(you.lap_times)) if you.lap_times else "",
                 "charge": round(you.charge / stats(you.design)["capacity"], 3),
                 "boosts": you.boosts,
+                "flag": you.next_cp + 1,
+                "flags": len(self.course.checkpoints),
                 "boosting": t < you.boost_until,
                 "in_sand": self.course.in_sand(you.x, you.y),
                 "dust": self.dust(t) if t >= 0 else False,
@@ -745,9 +860,17 @@ class Race:
             for r in self.racers
             if r is not you
         ]
+        path = self.course.path
+        while math.dist((you.x, you.y), path[you.path_i]) < 2.0:
+            you.path_i += 1
+            if you.path_i == len(path):
+                you.path_i = len(path) - 1 if self.course.start_point else 1
+                break
+        ahead = [list(path[min(you.path_i + k, len(path) - 1)]) for k in range(3)]
         return {
             "time_s": round(self.time_s, 3),
             "started": self.time_s >= 0,
+            "path_ahead": ahead,
             "position_m": [you.x, you.y],
             "yaw_rad": you.yaw,
             "speed_mps": you.speed,

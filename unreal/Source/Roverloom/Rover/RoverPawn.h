@@ -79,6 +79,8 @@ struct FRoverStatus
 	FString RaceController;
 	double RaceCharge = 1.0;
 	int32 RaceBoosts = 0;
+	int32 RaceFlag = 0;  // The next gate, from 1
+	int32 RaceFlags = 0;
 	bool bRaceBoosting = false;
 	bool bRaceSand = false;
 	bool bRaceDust = false;

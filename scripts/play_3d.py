@@ -143,7 +143,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--seed", type=int, default=1)
     race = parser.add_argument_group("race (experimental kart-style race, docs/race.md)")
     race.add_argument("--race", action="store_true", help="lap race against NPCs and ghosts")
-    race.add_argument("--course", default="crater_loop")
+    race.add_argument(
+        "--course", default="crater_loop", help="crater_loop, dune_sprint, gale_sprint, gale_links"
+    )
     race.add_argument("--laps", type=int)
     race.add_argument("--npcs", type=int, default=3)
     race.add_argument("--ghosts", type=int, default=0, help="add your best saved runs as ghosts")
@@ -182,8 +184,16 @@ def main(argv: list[str] | None = None) -> int:
 
             if args.course not in COURSES:
                 raise RuntimeError(f"unknown course; choose {', '.join(COURSES)}")
+            if COURSES[args.course].ground == "gale" and args.map != "gale":
+                print(f"{args.course} is routed on the Gale terrain: using --map gale.", flush=True)
+                args.map = "gale"
             if args.map == "gale" and not gale.exists():
-                raise RuntimeError(f"--map gale needs {gale}; it is not in Git (docs/race.md)")
+                raise RuntimeError(
+                    "The Gale level is not built on this Mac yet. Run once (about an hour):\n"
+                    "  uv run --project python python scripts/setup_gale.py"
+                    ' --ue-root "<your UE_5.8>"\n'
+                    "or use --course crater_loop on the generated ground (docs/race.md)."
+                )
             race_design = load_race_garage(args.garage)
         if args.rally:
             from roverloom.rally import Ghost, load_garage
@@ -243,6 +253,8 @@ def main(argv: list[str] | None = None) -> int:
             width, height = args.res.lower().split("x")
             game = [a for a in game if a not in ("-RoverTutorial", "-RoverBench=150")]
             game = [a for a in game if not a.startswith(("-ResX=", "-ResY=", "-RoverProfile="))]
+            # The V2 rover with PBR materials if imported; otherwise the pawn uses greybox.
+            game = [a for a in game if a != "-RoverModel=greybox"]
             if args.map == "gale":
                 game[2] = "/Game/Licensed/Gale/Gale?game=/Script/Roverloom.RoverPlaygroundGameMode"
             game += [

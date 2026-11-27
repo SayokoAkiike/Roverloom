@@ -29,7 +29,7 @@ from typing import Any
 
 def drive(obs: dict[str, Any], limits: dict[str, float], aggression: float) -> dict[str, Any]:
     x, y = obs["position_m"]
-    tx, ty = obs["next_checkpoints"][0]
+    tx, ty = obs["path_ahead"][0]  # the drivable path; next_checkpoints holds the flags
     error = math.atan2(ty - y, tx - x) - obs["yaw_rad"]
     error = (error + math.pi) % (2 * math.pi) - math.pi
     w = max(-limits["max_yaw_rate_radps"], min(limits["max_yaw_rate_radps"], 1.6 * error))

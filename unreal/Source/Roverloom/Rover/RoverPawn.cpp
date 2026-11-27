@@ -753,6 +753,8 @@ void ARoverPawn::ReadRaceState(const TSharedPtr<FJsonObject>& Race, double NowS)
 	Status.RacePosition = Int(TEXT("position"));
 	Status.RaceRacers = Int(TEXT("racers"));
 	Status.RaceBoosts = Int(TEXT("boosts"));
+	Status.RaceFlag = Int(TEXT("flag"));
+	Status.RaceFlags = Int(TEXT("flags"));
 	Race->TryGetStringField(TEXT("time"), Status.RaceTime);
 	Race->TryGetStringField(TEXT("best_lap"), Status.RaceBestLap);
 	Race->TryGetStringField(TEXT("banner"), Status.RaceBanner);

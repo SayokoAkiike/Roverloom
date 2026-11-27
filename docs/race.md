@@ -8,8 +8,9 @@ These are game rules, kept apart from the scored mission benchmark ([ADR 0018](d
 Speeds, boosts, dust, battery and sand values are invented game settings, not rover or Martian measurements.
 
 **Status, 2026-11-27.** The Python rules, NPCs, ghosts, leaderboard, agents and the lobby page have automated tests.
-The Unreal C++ for the race (course markers, rival rovers, race HUD) was written in a cloud session without Unreal and
-**has not been compiled or played yet**. The first build on a Mac is the next step.
+The first race version built and ran on a MacBook Air, on the generated ground, with NPCs and the HUD on screen. The Gale
+courses, flags, cairns, rock corridor and `setup_gale.py` were added afterwards in a cloud session and **have not been
+compiled or played yet**.
 
 ## Quick start
 
@@ -64,14 +65,39 @@ too slow for you, change the difficulty.
 
 ## Courses
 
-| Course | Lap | Default laps | Features |
-| --- | --- | --- | --- |
-| `crater_loop` | 46 m | 2 | Sand on the east turn, two boost pads, a supply pad |
-| `dune_sprint` | 32 m | 3 | A short rectangle with a sand patch and one boost pad |
+| Course | Length | Laps | Ground | Features |
+| --- | --- | --- | --- | --- |
+| `gale_links` | 289 m loop | 1 | Gale | Six pin flags round an outcrop knoll, a 7 m climb, two boost pads, a supply pad at flag 3 |
+| `gale_sprint` | 122 m, point to point | 1 | Gale | The first three flags of Gale Links; finish at flag 3. For short runs and demo videos |
+| `crater_loop` | 46 m | 2 | Generated | Sand on the east turn, two boost pads, a supply pad |
+| `dune_sprint` | 32 m | 3 | Generated | A short rectangle with a sand patch and one boost pad |
 
-The rover's top speed is 0.5 m/s, as the drive model's limit, so a lap takes over a minute. The course is drawn on the
-generated crater floor by default. `--map gale` uses the Gale level if it exists in `unreal/Content/Licensed/Gale/`;
-that level is not in Git, and the course has not been checked for slopes or rocks there.
+The Gale courses are on the real terrain of the Gale level (a HiRISE DTM, [results](results/terrain-gale/README.md)).
+Each was routed on the heightfield so that the 4 m-baseline slope stays under 10 degrees with 3 m of clearance either side
+(the steepest point on the path is 10.0 degrees). Flags are golf-style pins with a ring of pale stones the size of the
+arrival radius (2.5 m); small cairns every 9 m show the way between them, and the HUD shows the flag number, its distance
+and an arrow. Rocks are kept out of a 3.2 m corridor along the path and added beside it, so the ground along the whole
+course is as detailed as at the start. Rivals follow the routed path; they do not slow on slopes as the Unreal rover does.
+
+The rover's top speed is 0.5 m/s, as the drive model's limit: Gale Links takes about nine minutes and Gale Sprint about
+four in the race model. Long courses use 70% of the battery drain of the short ones, so that they can be finished.
+
+### The Gale level on a new Mac
+
+The Gale level, its rocks and ground textures are not in Git. Build them once (about an hour, and a few GB of downloads):
+
+```shell
+brew install gdal
+```
+
+```shell
+uv run --project python python scripts/setup_gale.py --ue-root "/Users/Shared/Epic Games/UE_5.8"
+```
+
+It runs the existing steps in order and skips any whose output exists: HiRISE site and horizon, MOLA far field, Poly Haven
+assets, then the Unreal Editor scripts `import_polyhaven`, `build_gale_material`, `build_rock_materials`,
+`build_effect_materials` and `build_gale_level`, and, if Blender is installed, the V2 rover and its materials. The first
+game start afterwards compiles the ground shaders, which takes minutes. **This script has not been run on a Mac yet.**
 
 ## Leaderboard and ghosts
 
@@ -142,7 +168,7 @@ This port is for your own agents on your own Mac. Never run an agent from someon
 Settings. Neither has been tried on a Mac yet. Without `--record`, Cmd+Shift+5 records the screen.
 
 ```shell
-uv run --project python python scripts/play_3d.py --race --demo --npcs 4 --laps 1 --light afternoon --res 1920x1080 --record 150 --ue-root "/Users/Shared/Epic Games/UE_5.8"
+uv run --project python python scripts/play_3d.py --race --course gale_sprint --demo --npcs 4 --record 300 --ue-root "/Users/Shared/Epic Games/UE_5.8"
 ```
 
 `--profile capture` uses the higher render settings; it ran at 15.6 fps on the Gale level on the M4 Mac mini, so use
@@ -157,8 +183,10 @@ Nothing in Unreal has been run on the MacBook Air yet. What is known:
 - On the Mac mini, the Gale level ran at 34 fps with the `dev` profile at 1280 x 720
   ([results](results/gale-landscape/README.md)). The generated race ground has far fewer objects. A MacBook Air has no
   fan and slows down under long load, so expect lower and falling frame rates. Start at `--res 1280x720`.
-- Installing Unreal and Xcode needs a few tens of gigabytes of disk. The Gale level and Poly Haven rocks are on the Mac
-  mini only; without them, use the generated ground.
+- Installing Unreal and Xcode needs a few tens of gigabytes of disk. Build the Gale level with `setup_gale.py` (above);
+  without it, use the generated ground.
+- On 2026-11-27 the race built and ran on a MacBook Air (Apple M5, 16 GB, Xcode 27.2, UE 5.8 from the Launcher) on the
+  generated ground, with NPCs and the race HUD shown. No frame time was measured.
 
 ## What this is not
 
