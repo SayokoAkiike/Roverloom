@@ -19,6 +19,10 @@ from roverloom.race import COUNTDOWN_S, MODEL_VERSION, RULESET, Racer, overlap
 DRAW = re.compile(r"RaceDraw t=(-?[\d.]+) you=(-?[\d.]+),(-?[\d.]+),(-?[\d.]+)((?: \S+@[-\d.,]+)*)")
 MODEL = re.compile(r"Rover model: (V2|greybox)[^\n]*")
 RESET = re.compile(r"Rover rig reset: ([^\n]*)")
+RIVAL_RESET = re.compile(r"Race: ([^\n]*) reset to the course by Python")
+# Rectangles deeper than this into each other are an overlap. Shallower is two bodies touching: the
+# rectangles include the wheels, and physical rovers meet box to box.
+TOUCH_M = 0.10
 
 
 @dataclass
@@ -87,9 +91,10 @@ def drawn_samples(log: str) -> list[Sample]:
     return out
 
 
-def contacts(samples: Iterable[Sample]) -> Iterator[Contact]:
+def contacts(samples: Iterable[Sample], player_kind: str = "you") -> Iterator[Contact]:
+    """player_kind "npc" measures the player with the look-alike's size: the greybox rover."""
     for s in samples:
-        you = Racer("you", "You", "you", {}, *s.you)
+        you = Racer("you", "You", player_kind, {}, *s.you)
         for rid, (x, y, yaw) in s.rivals.items():
             other = Racer(rid, rid, "npc", {}, x, y, yaw)
             dx, dy = x - you.x, y - you.y
@@ -125,10 +130,15 @@ def where(c: Contact) -> str:
     return place
 
 
-def summarize(label: str, samples: list[Sample], names: dict[str, str]) -> tuple[list[str], int]:
-    found = list(contacts(samples))
-    hits = [c for c in found if c.depth > 0]
-    lines = [f"{label}: {len(samples)} samples, rovers overlap in {len(hits)}."]
+def summarize(
+    label: str, samples: list[Sample], names: dict[str, str], player_kind: str = "you"
+) -> tuple[list[str], int]:
+    found = list(contacts(samples, player_kind))
+    hits = [c for c in found if c.depth > TOUCH_M]
+    touching = sum(1 for c in found if 0 < c.depth <= TOUCH_M)
+    lines = [
+        f"{label}: {len(samples)} samples, rovers overlap in {len(hits)}, touch in {touching}."
+    ]
     picked: list[Contact] = []
     for c in sorted(found, key=lambda c: -c.depth):
         if all(abs(c.t - p.t) > 1.0 or c.rival != p.rival for p in picked):
@@ -153,7 +163,12 @@ def report(run: Path) -> str:
     log = log_path.read_text(encoding="utf-8", errors="replace") if log_path.exists() else ""
     model = MODEL.search(log)
     lines.append(f"Rover model in Unreal: {model.group(0) if model else 'not in unreal.log'}")
-    moved = max((math.dist(samples[0].you[:2], p.you[:2]) for p in samples), default=0.0)
+    kind = "npc" if model and model.group(1) == "greybox" else "you"
+    # From the race start: before the rig is ready, telemetry still holds (0, 0)
+    if not samples:
+        raise ValueError(f"{states} is empty")
+    start = next((p for p in samples if p.t > 0), samples[0])
+    moved = max((math.dist(start.you[:2], p.you[:2]) for p in samples if p.t > 0), default=0.0)
     resets = RESET.findall(log)
     lines.append(
         f"Player: moved up to {moved:.1f} m from the start; "
@@ -161,11 +176,20 @@ def report(run: Path) -> str:
     )
     if resets:
         lines.append(f"  first reset: {resets[0]}")
-    py_lines, py_hits = summarize("Python's positions (states.jsonl)", samples, names)
+    rival_resets = RIVAL_RESET.findall(log)
+    if rival_resets:
+        counts = {n: rival_resets.count(n) for n in dict.fromkeys(rival_resets)}
+        lines.append(
+            "Rivals put back on the course when stuck: "
+            + ", ".join(f"{n} {k}" for n, k in counts.items())
+        )
+    py_lines, py_hits = summarize("Python's positions (states.jsonl)", samples, names, kind)
     lines += py_lines
     drawn = drawn_samples(log)
     if drawn:
-        draw_lines, draw_hits = summarize("Drawn in Unreal (unreal.log RaceDraw)", drawn, names)
+        draw_lines, draw_hits = summarize(
+            "Drawn in Unreal (unreal.log RaceDraw)", drawn, names, kind
+        )
         lines += draw_lines
     else:
         draw_hits = -1

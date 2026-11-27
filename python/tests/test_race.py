@@ -555,7 +555,7 @@ def test_diagnostic_link_run_reports_contacts(tmp_path):
     assert log, "rivals came close"
     (out / "unreal.log").write_text("Rover model: V2. Body X -175.0..113.5 cm\n" + "\n".join(log))
     text = report(out)
-    assert "rovers overlap in 0." in text and "Verdict: no overlap in Python or in Unreal" in text
+    assert "rovers overlap in 0," in text and "Verdict: no overlap in Python or in Unreal" in text
     # A rival drawn on the solar deck is found, and blamed on the Unreal side
     x, y, yaw = (float(v) for v in log[-1].split("you=")[1].split()[0].split(","))
     bx, by = x - 2.0 * math.cos(yaw), y - 2.0 * math.sin(yaw)
@@ -670,3 +670,35 @@ def test_rivals_aim_beside_a_flag_pole():
     # It turns away from the pole: aiming at the pole itself would need no turn at all
     assert abs(act.yaw_rate_radps) > 0.05
     assert course.gate_radius_m > FLAG_POLE_CLEAR_M
+
+
+def test_diagnose_counts_light_contact_as_touching(tmp_path):
+    """Seen on the Mac with physical rivals: rectangles 2 cm into each other is two bodies meeting,
+    not a pass-through. The greybox player is measured at the look-alike's size."""
+    from roverloom.race_diagnose import report
+
+    r = Race(garage(), COURSES["noctis_sprint"], npcs=1, backend="unreal")
+    x0, y0 = r.you.x, r.you.y
+    lines = []
+    for i in range(80):
+        t = i * 0.1
+        body = {
+            "time_s": t,
+            "position_m": [x0 + 0.05 * i, y0, 0.0],
+            "yaw_rad": 0.0,
+            "opponents": [],
+        }
+        state = r.step(body)
+        npc = state["race"]["opponents"][0]
+        # A rival right behind the player, its box 2 cm into the player's (2 x 1.23 m + gap)
+        npc["position_m"] = [x0 + 0.05 * i - 2.44, y0, 0.0]
+        npc["yaw_rad"] = 0.0
+        lines.append(json.dumps(state))
+    (tmp_path / "states.jsonl").write_text("\n".join(lines))
+    (tmp_path / "unreal.log").write_text(
+        "Rover model: greybox (V2 meshes not found under /Game/Rover)\n"
+    )
+    text = report(tmp_path)
+    assert "rovers overlap in 0, touch in" in text and "touch in 0." not in text
+    assert "moved up to 2.4 m" in text
+    assert "a bug in the race rules" not in text

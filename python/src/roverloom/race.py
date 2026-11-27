@@ -882,7 +882,7 @@ class Race:
         a, b = path[max(0, r.path_i - 1)], path[r.path_i]
         yaw = math.atan2(b[1] - a[1], b[0] - a[0])
         x, y = a
-        for shift in (0.0, 3.0, -3.0, 6.0, -6.0):  # beside it if another rover is there
+        for shift in (0.0, 2.5, -2.5, 5.0, -5.0):  # beside it if another rover is there
             x, y = a[0] - math.sin(yaw) * shift, a[1] + math.cos(yaw) * shift
             if all(math.dist((x, y), (o.x, o.y)) > 3.5 for o in self._solid() if o is not r):
                 break

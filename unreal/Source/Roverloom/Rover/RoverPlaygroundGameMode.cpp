@@ -677,18 +677,20 @@ void ARoverPlaygroundGameMode::SpawnRaceCourse()
 	auto Banner = [&](const FVector2D& P, const FVector2D& Left, double YawDeg)
 	{
 		// Two posts and a beam of alternating squares, with the same squares on the ground: the finish (and a start).
+		// 7.2 m wide, so that two rovers abreast (2.3 m each with wheels) pass between the solid posts.
+		const double BannerM = FMath::Max(HalfM, 3.6);
 		for (const double S : {-1.0, 1.0})
 		{
-			SpawnProp(P + Left * HalfM * S, 160.0, YawDeg, FVector(16, 16, 320), Post, Cylinder, true);
+			SpawnProp(P + Left * BannerM * S, 160.0, YawDeg, FVector(16, 16, 320), Post, Cylinder, true);
 		}
 		const int32 Squares = 12;
 		for (int32 K = 0; K < Squares; ++K)
 		{
 			const double F = (K + 0.5) / Squares * 2.0 - 1.0;
 			// The beam is high above every rover's mast (2.3 m), and solid like the posts
-			SpawnProp(P + Left * HalfM * F, 305.0, YawDeg, FVector(10, HalfM * 200.0 / Squares, 24), K % 2 ? Dark : Post,
+			SpawnProp(P + Left * BannerM * F, 305.0, YawDeg, FVector(10, BannerM * 200.0 / Squares, 24), K % 2 ? Dark : Post,
 				TEXT("/Engine/BasicShapes/Cube.Cube"), true);
-			SpawnProp(P + Left * HalfM * F, 0.6, YawDeg, FVector(30, HalfM * 200.0 / Squares, 1), K % 2 ? Dark : Post);
+			SpawnProp(P + Left * BannerM * F, 0.6, YawDeg, FVector(30, BannerM * 200.0 / Squares, 1), K % 2 ? Dark : Post);
 		}
 	};
 	for (int32 I = 0; I < N; ++I)

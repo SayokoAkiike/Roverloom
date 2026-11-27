@@ -20,6 +20,9 @@ Decision, `race-0.4` / `race-drive-0.4`, Unreal backend only:
   objects only, so a wheel never climbs onto another rover.
 - **Stuck rivals.** A rival that is commanded forward but makes no headway for 6 s is reset beside its path by Python.
   Rivals aim 1.6 m beside a flag's pole, inside the 2.5 m arrival radius.
+- **Wide start and finish.** The banners are 7.2 m between their solid posts, so two rovers abreast pass. In the first
+  Mac run (2026-11-27) with 4.25 m banners, rivals starting on the outer grid places hit the start posts and two were
+  reset there again and again.
 - **Ghosts** stay records drawn without collision.
 
 Not changed: missions, pinned scenarios, scoring and the benchmark `MODEL_VERSION`. Outside a race, props have no
