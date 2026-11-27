@@ -20,8 +20,15 @@ From the repository root:
 uv run --project python python -m roverloom.race_cli lobby
 ```
 
-Open `runs/race/lobby.html`. Choose a mode, build the rover, pick the course, press **Save garage.json**, and copy the
-start command. It looks like this:
+Open `runs/race/lobby.html`. Pick a stage on the Mars globe or the map, choose a mode, build the rover, pick the course,
+press **Save garage.json**, and copy the start command.
+
+The globe and map are drawn from the MOLA global elevation model (463 m mosaic by USGS Astrogeology), reduced to a
+0.5-degree grid by `scripts/terrain/mars_relief.py` and stored as `python/src/roverloom/preview/mars_relief.json`.
+Pins mark the centres of the HiRISE terrain models in `scripts/terrain/sites.json`; the stage texts and courses come from
+`python/src/roverloom/stages.py`. The colours are a height scale for the map, not Mars's true colour. A first visit
+opens a short guide; **How to play** opens it again, and **The rules in one minute** summarises the rules below. The page
+has English and Japanese text and remembers the choice in the browser. It looks like this:
 
 ```shell
 uv run --project python python scripts/play_3d.py --race --garage ~/Downloads/garage.json --npcs 3 --ue-root "/Users/Shared/Epic Games/UE_5.8" --build

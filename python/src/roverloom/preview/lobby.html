@@ -4,18 +4,60 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Roverloom Race Lobby</title>
 <style>
-:root{--bg:#0f1418;--panel:#171f25;--line:#2c3a43;--text:#eef0ec;--dim:#9aa7ad;--accent:#f08c3a;--teal:#5fd0d2;--sand:#a86c3f}
+:root{--bg:#0f1418;--panel:#171f25;--line:#2c3a43;--text:#eef0ec;--dim:#9aa7ad;--accent:#f08c3a;--teal:#5fd0d2;--sand:#a86c3f;--ink:#0b1013}
 *{box-sizing:border-box}
-body{margin:0;background:radial-gradient(1200px 500px at 70% -10%,#3a2418 0,transparent 60%),var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,sans-serif}
-main{max-width:1180px;margin:auto;padding:36px 24px 60px}
+body{margin:0;background:radial-gradient(1200px 500px at 70% -10%,#3a2418 0,transparent 60%),var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif}
+main{max-width:1180px;margin:auto;padding:28px 24px 60px}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
 header small{color:var(--accent);letter-spacing:.14em;font-weight:600}
-h1{font-size:46px;line-height:1.05;margin:8px 0 6px}
+h1{font-size:44px;line-height:1.05;margin:8px 0 6px}
 h2{font-size:15px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin:0 0 14px}
 h2 b{color:var(--accent);margin-right:8px}
+h3{margin:0 0 6px;font-size:20px}
 .lead{color:var(--dim);max-width:720px;margin:0}
-.steps{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:30px}
+.tools{display:flex;gap:8px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.seg button{font:inherit;font-size:13px;border:0;background:#121a1f;color:var(--dim);padding:6px 12px;cursor:pointer}
+.seg button[aria-pressed=true]{background:#26323a;color:var(--text)}
+.steps{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:22px}
 .panel{min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px}
 .wide{grid-column:1/-1}
+.guide{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:22px 0 0}
+.guide a{display:flex;gap:12px;align-items:flex-start;text-decoration:none;color:inherit;background:#121a1f;border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.guide a:hover{border-color:var(--accent)}
+.guide i{font-style:normal;flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:#1a0f07;font-weight:700}
+.guide a.done i{background:var(--teal)}
+.guide strong{display:block}.guide span{color:var(--dim);font-size:14px}
+details.rules{margin-top:12px;background:#121a1f;border:1px solid var(--line);border-radius:12px;padding:0 16px}
+details.rules summary{cursor:pointer;padding:12px 0;font-weight:600}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:0 0 16px}
+.card{background:#0f161a;border:1px solid var(--line);border-radius:10px;padding:12px}
+.card b{display:block;margin-bottom:4px}.card span{color:var(--dim);font-size:13px}
+.card em{font-style:normal;font-size:20px;display:block;margin-bottom:2px}
+.where{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:20px;align-items:start}
+.viewer{position:relative;background:var(--ink);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.viewer canvas{display:block;width:100%;touch-action:none;cursor:grab}
+.viewer canvas:active{cursor:grabbing}
+.vbar{position:absolute;left:12px;top:12px;right:12px;display:flex;justify-content:space-between;align-items:center;pointer-events:none}
+.vbar>*{pointer-events:auto}
+.credit{position:absolute;left:8px;right:8px;bottom:6px;font-size:11px;color:#8b989e;background:#0b1013b3;border-radius:6px;padding:2px 6px}
+.hint{font-size:12px;color:#8b989e;background:#0b1013cc;border-radius:6px;padding:3px 8px}
+.list{display:grid;gap:10px}
+.stage{display:grid;grid-template-columns:14px 1fr auto;gap:10px;align-items:center;text-align:left;width:100%;font:inherit;color:inherit;background:#121a1f;border:1px solid var(--line);border-radius:12px;padding:12px 14px;cursor:pointer}
+.stage:hover{border-color:#4a5a63}
+.stage[aria-pressed=true]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:#1d1712}
+.stage .dot{width:12px;height:12px;border-radius:50%;background:var(--accent)}
+.stage.practice .dot{background:var(--teal)}
+.stage strong{display:block}.stage small{color:var(--dim)}
+.badge{font-size:11px;letter-spacing:.06em;border-radius:999px;padding:2px 8px;background:#173436;color:var(--teal);white-space:nowrap}
+.detail{margin-top:14px;background:#0f161a;border:1px solid var(--line);border-radius:12px;padding:16px}
+.detail p{margin:6px 0;color:#cfd6d3}
+.meta{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.chip{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:3px 10px;color:var(--dim)}
+.courses{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.courses button{font:inherit;font-size:13px;border:1px solid var(--line);background:#121a1f;color:var(--text);border-radius:10px;padding:8px 10px;cursor:pointer;text-align:left}
+.courses button small{display:block;color:var(--dim)}
+.courses button[aria-pressed=true]{border-color:var(--teal);box-shadow:0 0 0 1px var(--teal) inset}
 .modes{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
 .mode{border:1px solid var(--line);border-radius:12px;padding:16px;cursor:pointer;background:#121a1f;text-align:left;color:inherit;font:inherit}
 .mode strong{display:block;font-size:18px;margin-bottom:4px}
@@ -27,9 +69,9 @@ select,input{display:block;width:100%;min-width:0;max-width:100%;margin-top:6px;
 .stat{display:grid;grid-template-columns:120px 1fr 52px;align-items:center;gap:10px;font-size:14px;color:var(--dim);margin:6px 0}
 .bar{height:8px;background:#26323a;border-radius:4px;overflow:hidden}.bar i{display:block;height:100%;background:var(--teal)}
 svg{width:100%;height:auto;display:block}
-.cmd{position:relative;background:#0b1013;border:1px solid var(--line);border-radius:10px;padding:14px 14px 14px 14px;margin:10px 0}
+.cmd{position:relative;background:var(--ink);border:1px solid var(--line);border-radius:10px;padding:14px;margin:10px 0}
 .cmd pre{margin:0;white-space:pre-wrap;word-break:break-all;font:13px/1.6 ui-monospace,Menlo,monospace;color:#d8e2e4;padding-right:70px}
-.cmd button,.go{position:absolute;top:10px;right:10px}
+.cmd button{position:absolute;top:10px;right:10px}
 button.btn{font:inherit;font-weight:600;border:0;border-radius:8px;padding:8px 12px;cursor:pointer;background:var(--accent);color:#1a0f07}
 button.ghost{background:#26323a;color:var(--text)}
 .note{color:var(--dim);font-size:13px}
@@ -42,25 +84,68 @@ th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line)}th{col
 td.t{font-variant-numeric:tabular-nums;font-weight:600}
 .empty{color:var(--dim);padding:10px 0}
 .keys{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.keys span{font-size:13px;color:var(--dim)}kbd{font:12px ui-monospace,monospace;background:#26323a;border:1px solid #3a4a54;border-radius:5px;padding:2px 6px;color:var(--text)}
-@media(max-width:820px){.steps,.modes,.row{grid-template-columns:1fr}h1{font-size:34px}main{padding:24px 16px}}
+dialog{max-width:560px;width:calc(100% - 32px);background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:16px;padding:24px}
+dialog::backdrop{background:#000a}
+dialog ol{padding-left:20px;color:#cfd6d3}dialog li{margin:8px 0}
+dialog .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+@media(max-width:900px){.where{grid-template-columns:1fr}.cards{grid-template-columns:1fr 1fr}}
+@media(max-width:820px){.steps,.modes,.row,.guide{grid-template-columns:1fr}h1{font-size:32px}main{padding:22px 16px}}
+@media(max-width:480px){.cards{grid-template-columns:1fr}}
 </style>
 <main id="app">
-<header>
-  <small>ROVERLOOM / EXPERIMENTAL RACE</small>
-  <h1>Build a rover. Race it on Mars.</h1>
-  <p class="lead">Choose a mode, set up your six-wheeler, pick a course, then start the race on this Mac. Your finished runs go on the local leaderboard and come back as ghosts.</p>
-</header>
+<div class="top">
+  <header>
+    <small>ROVERLOOM / EXPERIMENTAL RACE</small>
+    <h1 data-t="title">Build a rover. Race it on Mars.</h1>
+    <p class="lead" data-t="lead">Pick a place on Mars, set up your six-wheeler, and start the race on this Mac. Finished runs go on the local leaderboard and come back as ghosts.</p>
+  </header>
+  <div class="tools">
+    <button class="btn ghost" id="howto" data-t="howto">How to play</button>
+    <div class="seg" role="group" aria-label="Language"><button data-lang="en" aria-pressed="true">EN</button><button data-lang="ja" aria-pressed="false">日本語</button></div>
+  </div>
+</div>
+
+<nav class="guide" aria-label="Getting started">
+  <a href="#h-where" id="g1"><i>1</i><div><strong data-t="g1">Pick a place on Mars</strong><span data-t="g1s">Spin the globe, choose a stage and a course.</span></div></a>
+  <a href="#h-rover" id="g2"><i>2</i><div><strong data-t="g2">Build your rover</strong><span data-t="g2s">Tires, battery, sensor and paint. Save garage.json.</span></div></a>
+  <a href="#h-start" id="g3"><i>3</i><div><strong data-t="g3">Copy the command and race</strong><span data-t="g3s">Paste it in Terminal; click the game window to drive.</span></div></a>
+</nav>
+<details class="rules" id="rules">
+  <summary data-t="rules">The rules in one minute</summary>
+  <div class="cards" id="rule-cards"></div>
+</details>
+
 <div class="steps">
+  <section class="panel wide" aria-labelledby="h-where">
+    <h2 id="h-where"><b>1</b><span data-t="where">Where on Mars</span></h2>
+    <div class="where">
+      <div>
+        <div class="viewer">
+          <canvas id="globe" width="640" height="640" aria-label="Mars globe with the race stages. Drag to turn it; choose a stage from the list."></canvas>
+          <div class="vbar">
+            <div class="seg" role="group" aria-label="View"><button data-view="globe" aria-pressed="true" data-t="globe">Globe</button><button data-view="map" aria-pressed="false" data-t="map">Map</button></div>
+            <span class="hint" id="drag-hint" data-t="drag">Drag to turn</span>
+          </div>
+          <span class="credit">MOLA elevation: NASA/JPL/GSFC, USGS. Stages: HiRISE DTMs, NASA/JPL/University of Arizona.</span>
+        </div>
+      </div>
+      <div>
+        <div class="list" id="stages" role="group" aria-label="Stages"></div>
+        <div class="detail" id="stage-detail" aria-live="polite"></div>
+      </div>
+    </div>
+  </section>
+
   <section class="panel wide" aria-labelledby="h-mode">
-    <h2 id="h-mode"><b>1</b>Mode</h2>
+    <h2 id="h-mode"><b>2</b><span data-t="mode">Mode</span></h2>
     <div class="modes" role="group" aria-label="Race mode">
-      <button class="mode" data-mode="grandprix" aria-pressed="true"><strong>Grand Prix</strong><span>You drive against NPC rovers in real time.</span></button>
-      <button class="mode" data-mode="timeattack" aria-pressed="false"><strong>Time Attack</strong><span>Race the ghosts of the best saved runs, yours or shared.</span></button>
-      <button class="mode" data-mode="advanced" aria-pressed="false"><strong>Advanced</strong><span>An autonomous agent drives: built-in, CaP, or your own.</span></button>
+      <button class="mode" data-mode="grandprix" aria-pressed="true"><strong data-t="gp">Grand Prix</strong><span data-t="gps">You drive against NPC rovers in real time.</span></button>
+      <button class="mode" data-mode="timeattack" aria-pressed="false"><strong data-t="ta">Time Attack</strong><span data-t="tas">Race the ghosts of the best saved runs, yours or shared.</span></button>
+      <button class="mode" data-mode="advanced" aria-pressed="false"><strong data-t="adv">Advanced</strong><span data-t="advs">An autonomous agent drives: built-in, CaP, or your own.</span></button>
     </div>
   </section>
   <section class="panel" aria-labelledby="h-rover">
-    <h2 id="h-rover"><b>2</b>Rover</h2>
+    <h2 id="h-rover"><b>3</b><span data-t="rover">Rover</span></h2>
     <svg viewBox="0 0 600 300" role="img" aria-label="Schematic rover preview">
       <path d="M20 270L220 190 580 240 370 300Z" fill="#7d4628"/>
       <g stroke="#59727a" stroke-width="8"><path d="M145 220L420 265M195 188L470 230M170 188L145 220M300 212L275 250M450 233L420 265"/></g>
@@ -72,59 +157,162 @@ td.t{font-variant-numeric:tabular-nums;font-weight:600}
       <rect id="battery" x="180" y="131" width="42" height="20" fill="#e5b459"/>
     </svg>
     <div class="row">
-      <label>Tires<select id="tires"><option value="allround">All-round: fast on firm ground</option><option value="sand">Sand: keeps pace in soft sand</option></select></label>
-      <label>Battery<select id="battery-sel"><option value="standard">Standard: lighter, quicker</option><option value="endurance">Endurance: more reserve, slower</option></select></label>
-      <label>Sensor<select id="sensor"><option value="basic">Basic: low idle drain</option><option value="scout">Scout: earlier dust warning</option></select></label>
-      <label>Paint<select id="paint"></select></label>
+      <label><span data-t="tires">Tires</span><select id="tires"><option value="allround" data-t="t_all">All-round: fast on firm ground</option><option value="sand" data-t="t_sand">Sand: keeps pace in soft sand</option></select></label>
+      <label><span data-t="battery">Battery</span><select id="battery-sel"><option value="standard" data-t="b_std">Standard: lighter, quicker</option><option value="endurance" data-t="b_end">Endurance: more reserve, slower</option></select></label>
+      <label><span data-t="sensor">Sensor</span><select id="sensor"><option value="basic" data-t="s_basic">Basic: low idle drain</option><option value="scout" data-t="s_scout">Scout: earlier dust warning</option></select></label>
+      <label><span data-t="paint">Paint</span><select id="paint"></select></label>
     </div>
     <div id="stats" aria-live="polite"></div>
-    <p class="note">Game balance values, not hardware measurements. Six wheels and the chassis are fixed.</p>
+    <p class="note" data-t="balance">Game balance values, not hardware measurements. Six wheels and the chassis are fixed.</p>
   </section>
   <section class="panel" aria-labelledby="h-race">
-    <h2 id="h-race"><b>3</b>Race</h2>
+    <h2 id="h-race"><b>4</b><span data-t="race">Race</span></h2>
     <svg id="map" viewBox="0 0 400 220" role="img" aria-label="Course map"></svg>
     <p class="note" id="course-note"></p>
     <div class="row">
-      <label>Course<select id="course"></select></label>
-      <label>Laps<select id="laps"></select></label>
-      <label>Rivals (NPC)<select id="npcs"></select></label>
-      <label>Difficulty<select id="difficulty"></select></label>
-      <label>Ghosts<select id="ghosts"><option>0</option><option>1</option><option>2</option><option>3</option></select></label>
-      <label>Ground<select id="map-sel"><option value="generated">Generated crater floor</option><option value="gale">Gale crater (real terrain)</option><option value="noctis">Noctis Labyrinthus (real terrain)</option><option value="amazonis">Amazonis Planitia (real terrain)</option></select></label>
-      <label>Light<select id="light"><option value="afternoon">Afternoon</option><option value="noon">Noon</option><option value="sunset">Sunset</option></select></label>
-      <label>Your name<input id="name" value="You" maxlength="24"></label>
+      <label><span data-t="course">Course</span><select id="course"></select></label>
+      <label><span data-t="laps">Laps</span><select id="laps"></select></label>
+      <label><span data-t="npcs">Rivals (NPC)</span><select id="npcs"></select></label>
+      <label><span data-t="difficulty">Difficulty</span><select id="difficulty"></select></label>
+      <label><span data-t="ghosts">Ghosts</span><select id="ghosts"><option>0</option><option>1</option><option>2</option><option>3</option></select></label>
+      <label><span data-t="light">Light</span><select id="light"><option value="afternoon">Afternoon</option><option value="noon">Noon</option><option value="sunset">Sunset</option><option value="winter">Winter (low sun)</option><option value="polar">Polar spring</option></select></label>
+      <label><span data-t="name">Your name</span><input id="name" value="You" maxlength="24"></label>
     </div>
     <div class="advanced">
-      <label>Driver<select id="agent"></select></label>
+      <label><span data-t="driver">Driver</span><select id="agent"></select></label>
       <p class="note" id="agent-note"></p>
     </div>
   </section>
   <section class="panel wide" aria-labelledby="h-start">
-    <h2 id="h-start"><b>4</b>Start</h2>
-    <p class="note">Save the rover file, then run the command from the repository root in Terminal. The game window opens; click it once to drive.</p>
+    <h2 id="h-start"><b>5</b><span data-t="start">Start</span></h2>
+    <p class="note" data-t="startnote">Save the rover file, then run the command from the repository root in Terminal. The game window opens; click it once to drive.</p>
     <button class="btn" id="save">Save garage.json</button>
     <div class="cmd"><pre id="command"></pre><button class="btn ghost" data-copy="command">Copy</button></div>
     <div class="cmd advanced" id="agent-cmd-box"><pre id="agent-command"></pre><button class="btn ghost" data-copy="agent-command">Copy</button></div>
-    <div class="keys"><span><kbd>W</kbd><kbd>S</kbd> drive</span><span><kbd>A</kbd><kbd>D</kbd> turn</span><span><kbd>Q</kbd><kbd>E</kbd> speed</span><span><kbd>Space</kbd> boost</span><span><kbd>C</kbd> camera</span><span><kbd>R</kbd> rescue (+30 s)</span></div>
-    <p class="note">Boost pads on the track give one boost. Sand slows all-round tires. The supply pad recharges the battery. Dust storms slow everyone; the scout sensor warns earlier.</p>
+    <div class="keys"><span><kbd>W</kbd><kbd>S</kbd> <i data-t="k_drive">drive</i></span><span><kbd>A</kbd><kbd>D</kbd> <i data-t="k_turn">turn</i></span><span><kbd>Q</kbd><kbd>E</kbd> <i data-t="k_speed">speed</i></span><span><kbd>Space</kbd> <i data-t="k_boost">boost</i></span><span><kbd>C</kbd> <i data-t="k_cam">camera</i></span><span><kbd>R</kbd> <i data-t="k_rescue">rescue (+30 s)</i></span></div>
   </section>
   <section class="panel wide" aria-labelledby="h-board">
-    <h2 id="h-board">Leaderboard</h2>
+    <h2 id="h-board" data-t="board">Leaderboard</h2>
     <div class="tabs" role="tablist" id="tabs"></div>
     <div id="board" class="scroll"></div>
-    <p class="note">Local file <code>runs/race/leaderboard.json</code>. Share a run with <code>race_cli export &lt;id&gt;</code>; the other player adds it with <code>race_cli import</code>. Unreal and headless results, and human and agent drivers, are ranked separately. Entries are not verified.</p>
+    <p class="note" data-t="boardnote">Local file runs/race/leaderboard.json. Share a run with race_cli export &lt;id&gt;; the other player adds it with race_cli import. Unreal and headless results, and human and agent drivers, are ranked separately. Entries are not verified.</p>
   </section>
 </div>
 </main>
+<dialog id="welcome" aria-labelledby="w-title">
+  <h3 id="w-title" data-t="w_title">Welcome to the Mars rover race</h3>
+  <ol>
+    <li data-t="w1">Pick a real place on Mars on the globe. New here? Start with the Practice crater or Gale Crater.</li>
+    <li data-t="w2">Build your rover: tires, battery, sensor and paint. Every choice has a trade-off.</li>
+    <li data-t="w3">Copy the start command into Terminal. Drive through the flags in order; the first to the finish wins.</li>
+  </ol>
+  <p class="note" data-t="w4">The rules are one click away under “The rules in one minute”.</p>
+  <div class="actions"><button class="btn ghost" id="w-rules" data-t="w_rules">Show the rules</button><button class="btn" id="w-ok" data-t="w_ok">Let's go</button></div>
+</dialog>
 <script>
-const DATA=/*RACE_DATA*/null||{courses:{crater_loop:{name:"Crater Loop",checkpoints:[[9,0],[14,5],[9,11],[1,11],[-4,5.5],[0,0]],sand:[[10.5,1.5,16,8.5]],pads:[[5,0],[5,11]],supply:[-3.5,8.5],laps:2,lap_length_m:43}},npcs:["Dune Runner","Long Haul","Scout-7","Regolith","Kestrel"],difficulties:["easy","standard","hard"],boards:{},agents:["pursuit","cap","external"]};
+const DATA=/*RACE_DATA*/null||{courses:{crater_loop:{name:"Crater Loop",checkpoints:[[9,0],[14,5],[9,11],[1,11],[-4,5.5],[0,0]],sand:[[10.5,1.5,16,8.5]],pads:[[5,0],[5,11]],supply:[-3.5,8.5],laps:2,lap_length_m:43,ground:"generated"}},npcs:["Dune Runner","Long Haul","Scout-7","Regolith","Kestrel"],difficulties:["easy","standard","hard"],boards:{},agents:["pursuit","cap","external"],stages:[{id:"generated",name:{en:"Practice crater",ja:"練習用クレーター"},where:{en:"Generated ground",ja:"生成した地面"},season:{en:"Afternoon",ja:"午後"},about:{en:"",ja:""},beginner:true,courses:[{id:"crater_loop",name:"Crater Loop",length_m:86,laps:2,flags:6}]}],landmarks:[],relief:null};
 const $=id=>document.getElementById(id);
 const PAINT={ivory:"#ccc29e",cyan:"#1fa6bf",orange:"#e64d14",slate:"#525c66",gold:"#d99e2e",teal:"#1a736b"};
+// ---------------------------------------------------------------- text
+const T={en:{},ja:{title:"ローバーを作って、火星で走ろう。",lead:"火星の場所を選び、6輪ローバーを組み立てて、このMacでレースを始めます。完走した記録はローカルのランキングに載り、ゴーストとして戻ってきます。",howto:"遊び方",
+g1:"火星の場所を選ぶ",g1s:"火星儀を回して、ステージとコースを選びます。",g2:"ローバーを組み立てる",g2s:"タイヤ、バッテリー、センサー、塗装。garage.json を保存。",g3:"コマンドをコピーして走る",g3s:"ターミナルに貼り付け、ゲーム画面をクリックして運転。",
+rules:"1分でわかるルール",where:"火星のどこで走る？",globe:"火星儀",map:"地図",drag:"ドラッグで回転",mode:"モード",gp:"グランプリ",gps:"NPCのローバーとリアルタイムで競走。",ta:"タイムアタック",tas:"保存した最速記録のゴーストと競走。自分の記録でも、共有された記録でも。",adv:"アドバンスト",advs:"自律エージェントが運転：内蔵、CaP、または自作。",
+rover:"ローバー",tires:"タイヤ",battery:"バッテリー",sensor:"センサー",paint:"塗装",t_all:"オールラウンド：固い地面で速い",t_sand:"砂地用：柔らかい砂でも速度を保つ",b_std:"標準：軽くて速い",b_end:"長距離：余裕が大きいぶん遅い",s_basic:"ベーシック：待機中の消費が少ない",s_scout:"スカウト：砂嵐を早く知らせる",balance:"ゲームのバランス値で、実機の測定値ではありません。6輪と車体は固定です。",
+race:"レース",course:"コース",laps:"周回数",npcs:"ライバル（NPC）",difficulty:"難しさ",ghosts:"ゴースト",light:"光",name:"あなたの名前",driver:"ドライバー",start:"スタート",startnote:"ローバーのファイルを保存し、リポジトリの直下でターミナルからコマンドを実行します。ゲーム画面が開いたら、一度クリックしてから運転します。",
+k_drive:"前進・後退",k_turn:"旋回",k_speed:"速度",k_boost:"ブースト",k_cam:"カメラ",k_rescue:"救助（+30秒）",board:"ランキング",boardnote:"ローカルファイル runs/race/leaderboard.json。race_cli export <id> で記録を共有し、相手は race_cli import で取り込みます。Unrealとheadless、人間とエージェントは別々に順位付け。記録の検証はしていません。",
+w_title:"火星ローバーレースへようこそ",w1:"火星儀で本物の火星の場所を選びます。初めてなら「練習用クレーター」か「ゲール・クレーター」がおすすめ。",w2:"ローバーを組み立てます：タイヤ、バッテリー、センサー、塗装。どれも一長一短です。",w3:"スタートのコマンドをターミナルに貼り付け。旗を順番に通過して、先にゴールした人の勝ち。",w4:"ルールは「1分でわかるルール」をクリックすればいつでも見られます。",w_rules:"ルールを見る",w_ok:"はじめる",
+beginner:"初心者向け",courses:"コース",length:"m",flags:"旗",hirise:"HiRISE画像",selectHint:"コースを選ぶ",practice:"練習"}};
+const EN={beginner:"Beginner",courses:"Courses",length:"m",flags:"flags",hirise:"HiRISE image",selectHint:"Choose a course",practice:"Practice"};
+const RULES=[["🚩",{en:"Flags in order",ja:"旗を順番に"},{en:"Pass every flag or gate in order; the last one is the finish.",ja:"旗（ゲート）をすべて順番に通過。最後の旗がゴール。"}],
+["🏁",{en:"Positions",ja:"順位"},{en:"By laps, then flags, then distance to the next flag.",ja:"周回数→通過した旗の数→次の旗までの距離で決まる。"}],
+["◆",{en:"Boost pads",ja:"ブーストパッド"},{en:"Teal squares give a boost: Space for 1.5× speed for 3 s.",ja:"青緑の四角でブーストを獲得。Spaceで3秒間1.5倍速。"}],
+["▭",{en:"Sand",ja:"砂地"},{en:"Slows all-round tires to 55%; sand tires keep 95%.",ja:"オールラウンドタイヤは55%に減速。砂地用は95%を保つ。"}],
+["■",{en:"Battery",ja:"バッテリー"},{en:"Driving drains it; the amber supply pad recharges it.",ja:"走ると減る。オレンジ色の補給パッドで充電。"}],
+["🌪",{en:"Dust storms",ja:"砂嵐"},{en:"Everyone slows to 75% for a few seconds; the scout sensor warns earlier.",ja:"数秒間、全員が75%に減速。スカウトセンサーは早めに警告。"}],
+["💥",{en:"Collisions",ja:"衝突"},{en:"Rovers, posts and rocks are solid: you bump and stop, never pass through.",ja:"ローバー、柱、岩は固い。ぶつかると止まり、すり抜けない。"}],
+["🛟",{en:"Rescue",ja:"救助"},{en:"Stuck? R puts you back at the start pose, +30 s.",ja:"動けなくなったらRでスタート位置へ。+30秒。"}]];
+let lang=(navigator.language||"en").startsWith("ja")?"ja":"en";
+try{const saved=localStorage.getItem("roverloom.lang");if(saved==="ja"||saved==="en")lang=saved}catch{}
+const t=(k,fallback)=>lang==="ja"?(T.ja[k]??fallback):(EN[k]??fallback);
+const L=o=>o?(o[lang]??o.en):"";
+function applyText(){document.documentElement.lang=lang;document.querySelectorAll("[data-t]").forEach(e=>{const k=e.dataset.t;if(!e.dataset.en)e.dataset.en=e.textContent;e.textContent=lang==="ja"&&T.ja[k]?T.ja[k]:e.dataset.en});
+ document.querySelectorAll("[data-lang]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.lang===lang));
+ $("rule-cards").innerHTML=RULES.map(([i,h,s])=>`<div class="card"><em>${i}</em><b>${L(h)}</b><span>${L(s)}</span></div>`).join("");
+ stageList();stageDetail();course(false);drawView()}
+// ---------------------------------------------------------------- relief texture
+const STAGES=DATA.stages||[];const stageById=Object.fromEntries(STAGES.map(s=>[s.id,s]));
+let stage=STAGES.find(s=>s.id==="gale")?"gale":(STAGES[0]||{}).id;
+const TEX={w:0,h:0,rgb:null};
+(function buildTexture(){const R=DATA.relief;if(!R)return;const w=R.width,h=R.height,bin=atob(R.data),z=new Float32Array(w*h);
+ for(let i=0;i<w*h;i++)z[i]=R.low_m+(bin.charCodeAt(2*i)|bin.charCodeAt(2*i+1)<<8)*R.step_m;
+ const stops=[[-7500,[34,36,48]],[-4000,[66,58,62]],[-2000,[104,64,48]],[0,[150,86,52]],[2000,[190,120,72]],[5000,[222,170,112]],[10000,[240,214,170]],[20000,[255,246,228]]];
+ const col=e=>{for(let i=1;i<stops.length;i++)if(e<=stops[i][0]){const[a,ca]=stops[i-1],[b,cb]=stops[i];const f=Math.max(0,Math.min(1,(e-a)/(b-a)));return ca.map((v,k)=>v+(cb[k]-v)*f)}return stops[stops.length-1][1]};
+ const rgb=new Uint8ClampedArray(w*h*3);
+ for(let y=0;y<h;y++){const lat=(90-(y+.5)*180/h)*Math.PI/180,cx=Math.max(.15,Math.cos(lat));
+  for(let x=0;x<w;x++){const i=y*w+x,e=z[i],ex=z[y*w+(x+1)%w]-z[y*w+(x+w-1)%w],ny=z[Math.min(h-1,y+1)*w+x]-z[Math.max(0,y-1)*w+x];
+   const dx=ex/(2*59000*cx),dy=ny/(2*59000);let s=1+(-dx*0.7+dy*0.7)*14;s=Math.max(.55,Math.min(1.45,s));
+   let c=col(e);if(Math.abs(lat)>1.37&&e>-3500){c=c.map((v,k)=>v+(([236,232,228][k])-v)*.7)}
+   rgb[i*3]=c[0]*s;rgb[i*3+1]=c[1]*s;rgb[i*3+2]=c[2]*s}}
+ TEX.w=w;TEX.h=h;TEX.rgb=rgb})();
+// ---------------------------------------------------------------- globe and map
+const cv=$("globe"),ctx=cv.getContext("2d");let view="globe",yaw=0,pitch=.25,zoom=1,auto=true,drag=null,lastFrame=0;
+const D=Math.PI/180;
+function size(){const css=Math.round(cv.getBoundingClientRect().width)||560;const W=Math.min(css,720);const H=view==="globe"?W:Math.round(W*MY/Math.PI);if(cv.width!==W||cv.height!==H){cv.width=W;cv.height=H}return[W,H]}
+function sample(lat,lon){if(!TEX.rgb)return[120,70,45];let x=Math.floor((lon+180)/360*TEX.w)%TEX.w;if(x<0)x+=TEX.w;const y=Math.max(0,Math.min(TEX.h-1,Math.floor((90-lat)/180*TEX.h)));const i=(y*TEX.w+x)*3;return[TEX.rgb[i],TEX.rgb[i+1],TEX.rgb[i+2]]}
+function globeProject(lat,lon,W){const r=W*.42*zoom;const la=lat*D,lo=lon*D-yaw;let x=Math.cos(la)*Math.sin(lo),y=Math.sin(la),z=Math.cos(la)*Math.cos(lo);
+ const y2=y*Math.cos(pitch)-z*Math.sin(pitch),z2=y*Math.sin(pitch)+z*Math.cos(pitch);return{x:W/2+x*r,y:W/2-y2*r,front:z2>0.05}}
+const MERC=82;const mercY=lat=>Math.log(Math.tan(Math.PI/4+lat*D/2));const MY=mercY(MERC);
+function mapProject(lat,lon,W,H){return{x:(lon+180)/360*W,y:H/2-mercY(Math.max(-MERC,Math.min(MERC,lat)))/MY*(H/2),front:true}}
+function project(lat,lon){const[W,H]=[cv.width,cv.height];return view==="globe"?globeProject(lat,lon,W):mapProject(lat,lon,W,H)}
+function drawView(){const[W,H]=size();const img=ctx.createImageData(W,H),d=img.data;
+ if(view==="globe"){const r=W*.42*zoom,cp=Math.cos(pitch),sp=Math.sin(pitch),lx=-.5,ly=.45,lz=.74;
+  for(let py=0;py<H;py++)for(let px=0;px<W;px++){const o=(py*W+px)*4;const nx=(px-W/2)/r,ny=(W/2-py)/r,rr=nx*nx+ny*ny;
+   if(rr>1){const g=Math.max(0,1-(Math.sqrt(rr)-1)*14);d[o]=11+60*g*g;d[o+1]=16+30*g*g;d[o+2]=19+22*g*g;d[o+3]=255;continue}
+   const nz=Math.sqrt(1-rr);const y=ny*cp+nz*sp,z=-ny*sp+nz*cp;const lat=Math.asin(Math.max(-1,Math.min(1,y)))/D;const lon=((Math.atan2(nx,z)+yaw)/D+540)%360-180;
+   const c=sample(lat,lon);const shade=.35+.75*Math.max(0,nx*lx+ny*ly+nz*lz);const rim=Math.pow(1-nz,3)*.6;
+   d[o]=Math.min(255,c[0]*shade+rim*200);d[o+1]=Math.min(255,c[1]*shade+rim*120);d[o+2]=Math.min(255,c[2]*shade+rim*90);d[o+3]=255}}
+ else{for(let py=0;py<H;py++){const m=(H/2-py)/(H/2)*MY;const lat=(2*Math.atan(Math.exp(m))-Math.PI/2)/D;for(let px=0;px<W;px++){const lon=px/W*360-180;const c=sample(lat,lon);const o=(py*W+px)*4;d[o]=c[0]*.92;d[o+1]=c[1]*.92;d[o+2]=c[2]*.92;d[o+3]=255}}}
+ ctx.putImageData(img,0,0);
+ // graticule
+ ctx.lineWidth=1;ctx.strokeStyle="rgba(255,255,255,.12)";
+ for(let lat=-60;lat<=60;lat+=30){ctx.beginPath();let pen=false;for(let lon=-180;lon<=180;lon+=3){const p=project(lat,lon);if(p.front){pen?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y);pen=true}else pen=false}ctx.stroke()}
+ for(let lon=-180;lon<180;lon+=30){ctx.beginPath();let pen=false;for(let lat=-88;lat<=88;lat+=3){const p=project(lat,lon);if(p.front){pen?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y);pen=true}else pen=false}ctx.stroke()}
+ // landmarks
+ ctx.font="11px system-ui,sans-serif";ctx.textAlign="center";
+ for(const[n,la,lo]of DATA.landmarks||[]){const p=project(la,lo);if(!p.front)continue;ctx.fillStyle="rgba(10,14,16,.55)";const w=ctx.measureText(n).width+8;ctx.fillRect(p.x-w/2,p.y-8,w,15);ctx.fillStyle="rgba(235,226,210,.78)";ctx.fillText(n.toUpperCase(),p.x,p.y+3)}
+ // pins
+ for(const s of STAGES){if(s.lat==null)continue;const p=project(s.lat,s.lon);if(!p.front)continue;const sel=s.id===stage;
+  ctx.beginPath();ctx.arc(p.x,p.y,sel?9:6,0,7);ctx.fillStyle=sel?"#f08c3a":"#0f1418";ctx.fill();ctx.lineWidth=2.5;ctx.strokeStyle="#f08c3a";ctx.stroke();
+  if(sel){ctx.beginPath();ctx.arc(p.x,p.y,15+4*Math.sin(performance.now()/300),0,7);ctx.strokeStyle="rgba(240,140,58,.45)";ctx.stroke()}
+  ctx.font=(sel?"600 13px":"12px")+" system-ui,sans-serif";ctx.textAlign="left";const label=L(s.name);const w=ctx.measureText(label).width+10;
+  const lx=p.x+12+w>cv.width-4?p.x-12-w:p.x+12;ctx.fillStyle="rgba(11,16,19,.82)";ctx.fillRect(lx,p.y-10,w,20);ctx.fillStyle=sel?"#ffd2a8":"#eef0ec";ctx.fillText(label,lx+5,p.y+4)}}
+function animate(ts){if(auto&&view==="globe"&&!drag&&ts-lastFrame>40){yaw+=.004;lastFrame=ts;drawView()}else if(!auto&&ts-lastFrame>60&&view==="globe"){lastFrame=ts;drawView()}target&&flyStep();requestAnimationFrame(animate)}
+let target=null;function flyTo(s){if(s.lat==null||view!=="globe"){drawView();return}target={yaw:s.lon*D,pitch:Math.max(-1.2,Math.min(1.2,s.lat*D))};auto=false}
+function flyStep(){let dy=((target.yaw-yaw+Math.PI*3)%(Math.PI*2))-Math.PI;const dp=target.pitch-pitch;yaw+=dy*.12;pitch+=dp*.12;if(Math.abs(dy)<.002&&Math.abs(dp)<.002)target=null;drawView()}
+function pick(px,py){let best=null,bd=18;for(const s of STAGES){if(s.lat==null)continue;const p=project(s.lat,s.lon);if(!p.front)continue;const dd=Math.hypot(p.x-px,p.y-py);if(dd<bd){bd=dd;best=s}}return best}
+cv.addEventListener("pointerdown",e=>{drag={x:e.clientX,y:e.clientY,moved:false,yaw,pitch};auto=false;target=null;cv.setPointerCapture(e.pointerId)});
+cv.addEventListener("pointermove",e=>{if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(Math.hypot(dx,dy)>3)drag.moved=true;if(view==="globe"&&drag.moved){yaw=drag.yaw-dx/(cv.getBoundingClientRect().width*.42)*1.1;pitch=Math.max(-1.3,Math.min(1.3,drag.pitch+dy/(cv.getBoundingClientRect().width*.42)));drawView()}});
+cv.addEventListener("pointerup",e=>{const r=cv.getBoundingClientRect(),k=cv.width/r.width;if(drag&&!drag.moved){const s=pick((e.clientX-r.left)*k,(e.clientY-r.top)*k);if(s)choose(s.id)}drag=null});
+cv.addEventListener("wheel",e=>{if(view!=="globe")return;e.preventDefault();zoom=Math.max(.8,Math.min(2.4,zoom*(e.deltaY<0?1.1:.9)));drawView()},{passive:false});
+document.querySelectorAll("[data-view]").forEach(b=>b.addEventListener("click",()=>{view=b.dataset.view;document.querySelectorAll("[data-view]").forEach(o=>o.setAttribute("aria-pressed",o===b));$("drag-hint").hidden=view!=="globe";drawView()}));
+addEventListener("resize",()=>drawView());
+// ---------------------------------------------------------------- stages
+function stageList(){$("stages").innerHTML=STAGES.map(s=>`<button class="stage${s.lat==null?" practice":""}" data-stage="${s.id}" aria-pressed="${s.id===stage}"><i class="dot"></i><span><strong>${esc(L(s.name))}</strong><small>${esc(L(s.where))}</small></span>${s.beginner?`<span class="badge">${t("beginner","Beginner")}</span>`:""}</button>`).join("")}
+function stageDetail(){const s=stageById[stage];if(!s){$("stage-detail").innerHTML="";return}const cur=$("course").value;
+ const pos=s.lat!=null?`${Math.abs(s.lat).toFixed(1)}°${s.lat>=0?"N":"S"} ${Math.abs(s.lon).toFixed(1)}°${s.lon>=0?"E":"W"}`:"";
+ $("stage-detail").innerHTML=`<h3>${esc(L(s.name))}</h3><div class="meta">${pos?`<span class="chip">${pos}</span>`:""}<span class="chip">${esc(L(s.season))}</span>${s.product?`<span class="chip">${esc(s.product)}</span>`:""}</div><p>${esc(L(s.about))}</p>${s.hirise?`<p class="note">${t("hirise","HiRISE image")}: <a style="color:var(--teal)" href="https://hirise.lpl.arizona.edu/${s.hirise}" target="_blank" rel="noopener">${s.hirise}</a></p>`:""}
+ <div class="courses" role="group" aria-label="${t("selectHint","Choose a course")}">${s.courses.map(c=>`<button data-pick="${c.id}" aria-pressed="${c.id===cur}">${esc(c.name)}<small>${c.length_m} ${t("length","m")} · ${c.flags} ${t("flags","flags")}${c.laps>1?` · ×${c.laps}`:""}</small></button>`).join("")}</div>`}
+function choose(id,fly=true){stage=id;const s=stageById[id];fillCourses();if(s.light)$("light").value=s.light;else $("light").value="afternoon";course(true);stageList();stageDetail();if(fly)flyTo(s);rover();command();mark(1)}
+function fillCourses(){const s=stageById[stage];const ids=s?s.courses.map(c=>c.id):Object.keys(DATA.courses);const keep=$("course").value;
+ fill("course",ids.filter(k=>DATA.courses[k]).map(k=>{const c=DATA.courses[k];return[k,`${c.name} (${Math.round(c.lap_length_m)} m)`]}));if(ids.includes(keep))$("course").value=keep}
+$("stages").addEventListener("click",e=>{const b=e.target.closest("[data-stage]");if(b)choose(b.dataset.stage)});
+$("stage-detail").addEventListener("click",e=>{const b=e.target.closest("[data-pick]");if(b){$("course").value=b.dataset.pick;course(true);stageDetail();command()}});
+function mark(n){const g=$("g"+n);if(g)g.classList.add("done")}
+// ---------------------------------------------------------------- race settings (as before)
 const AGENT_NOTES={pursuit:"A classical pure-pursuit controller. A baseline to beat.",cap:"Code-as-policy: a plan of typed race skills, checked as data and run by a fixed executor. The plan comes from a rule-based stand-in for a language model; no model is called.",external:"Your own program, in any language, on 127.0.0.1:8101 (protocol race-agent-1). Start the race first, then your agent. See docs/race.md."};
 let mode="grandprix";
-function fill(sel,items){$(sel).innerHTML=items.map(([v,t])=>`<option value="${v}">${t}</option>`).join("")}
+function fill(sel,items){$(sel).innerHTML=items.map(([v,tx])=>`<option value="${v}">${tx}</option>`).join("")}
 fill("paint",Object.keys(PAINT).map(k=>[k,k[0].toUpperCase()+k.slice(1)]));
-fill("course",Object.entries(DATA.courses).map(([k,c])=>[k,`${c.name} (${Math.round(c.lap_length_m)} m${c.ground!=="generated"?", "+({gale:"Gale",noctis:"Noctis",amazonis:"Amazonis"}[c.ground]||c.ground):""})`]));
 fill("npcs",[0,1,2,3,4,5].map(n=>[n,n?`${n}: ${DATA.npcs.slice(0,n).join(", ")}`:"None"]));
 $("npcs").value="3";
 fill("difficulty",DATA.difficulties.map(d=>[d,d[0].toUpperCase()+d.slice(1)]));$("difficulty").value="standard";
@@ -133,39 +321,51 @@ function design(){return{ruleset:"rally-0.1",tires:$("tires").value,battery:$("b
 function stats(d){return{pace:(d.tires==="sand"?.9:1)*(d.battery==="endurance"?.9:1),sand:d.tires==="sand"?.95:.55,battery:d.battery==="endurance"?120:100,warning:d.sensor==="scout"?8:4}}
 function rover(){const d=design(),s=stats(d);$("body").setAttribute("fill",PAINT[d.paint]);$("scout").style.display=d.sensor==="scout"?"":"none";$("battery").setAttribute("width",d.battery==="endurance"?75:42);
  $("wheels").setAttribute("stroke",d.tires==="sand"?"#d7a46b":"#78939f");
- const rows=[["Cruise pace",s.pace,1,`${Math.round(s.pace*100)}%`],["Pace in sand",s.sand,1,`${Math.round(s.sand*100)}%`],["Battery",s.battery,120,s.battery],["Dust warning",s.warning,8,`${s.warning} s`]];
- $("stats").innerHTML=rows.map(([n,v,m,t])=>`<div class="stat"><span>${n}</span><div class="bar"><i style="width:${v/m*100}%"></i></div><span>${t}</span></div>`).join("")}
-function course(reset){const c=DATA.courses[$("course").value];const laps=reset?"":$("laps").value;fill("laps",[1,2,3,4,5].map(n=>[n,`${n}${n==c.laps?" (default)":""}`]));$("laps").value=laps&&+laps?laps:c.laps;
- const gale=c.ground&&c.ground!=="generated";if(gale)$("map-sel").value=c.ground;$("map-sel").disabled=!!gale;
+ const ja=lang==="ja";const rows=[[ja?"巡航速度":"Cruise pace",s.pace,1,`${Math.round(s.pace*100)}%`],[ja?"砂地での速度":"Pace in sand",s.sand,1,`${Math.round(s.sand*100)}%`],[ja?"バッテリー":"Battery",s.battery,120,s.battery],[ja?"砂嵐の警告":"Dust warning",s.warning,8,`${s.warning} s`]];
+ $("stats").innerHTML=rows.map(([n,v,m,tx])=>`<div class="stat"><span>${n}</span><div class="bar"><i style="width:${v/m*100}%"></i></div><span>${tx}</span></div>`).join("")}
+function course(reset){const c=DATA.courses[$("course").value];if(!c)return;const laps=reset?"":$("laps").value;fill("laps",[1,2,3,4,5].map(n=>[n,`${n}${n==c.laps?" (default)":""}`]));$("laps").value=laps&&+laps?laps:c.laps;
+ const real=c.ground&&c.ground!=="generated";
  const pts=c.checkpoints;const line=c.line||[pts[pts.length-1],...pts];const xs=line.map(p=>p[0]).concat(c.supply?[c.supply[0]]:[]),ys=line.map(p=>p[1]).concat(c.supply?[c.supply[1]]:[]);
  const minx=Math.min(...xs)-3,maxx=Math.max(...xs)+3,miny=Math.min(...ys)-3,maxy=Math.max(...ys)+3;const k=Math.min(400/(maxx-minx),220/(maxy-miny));
  const ox=(400-(maxx-minx)*k)/2,oy=(220-(maxy-miny)*k)/2;const X=x=>ox+(x-minx)*k,Y=y=>220-oy-(y-miny)*k;
- let svg=`<rect width="400" height="220" rx="12" fill="${gale?"#3a2417":"#2a1a12"}"/>`;
- for(const [a,b,cc,d] of c.sand)svg+=`<rect x="${X(a)}" y="${Y(d)}" width="${(cc-a)*k}" height="${(d-b)*k}" fill="${getComputedStyle(document.body).getPropertyValue('--sand')}" opacity=".55" rx="4"/>`;
- const loop=line;svg+=`<polyline points="${loop.map(p=>X(p[0])+","+Y(p[1])).join(" ")}" fill="none" stroke="#eee6d8" stroke-width="10" stroke-linejoin="round" opacity=".18"/>`;
- svg+=`<polyline points="${loop.map(p=>X(p[0])+","+Y(p[1])).join(" ")}" fill="none" stroke="#eee6d8" stroke-width="2.5" stroke-dasharray="6 5" stroke-linejoin="round"/>`;
+ let svg=`<rect width="400" height="220" rx="12" fill="${real?"#3a2417":"#2a1a12"}"/>`;
+ for(const [a,b,cc,d] of c.sand)svg+=`<rect x="${X(a)}" y="${Y(d)}" width="${(cc-a)*k}" height="${(d-b)*k}" fill="#a86c3f" opacity=".55" rx="4"/>`;
+ svg+=`<polyline points="${line.map(p=>X(p[0])+","+Y(p[1])).join(" ")}" fill="none" stroke="#eee6d8" stroke-width="10" stroke-linejoin="round" opacity=".18"/>`;
+ svg+=`<polyline points="${line.map(p=>X(p[0])+","+Y(p[1])).join(" ")}" fill="none" stroke="#eee6d8" stroke-width="2.5" stroke-dasharray="6 5" stroke-linejoin="round"/>`;
  if(c.start&&!(c.start[0]===pts[pts.length-1][0]&&c.start[1]===pts[pts.length-1][1]))svg+=`<circle cx="${X(c.start[0])}" cy="${Y(c.start[1])}" r="6" fill="#eee6d8"/>`;
  pts.forEach((p,i)=>{const fin=i===pts.length-1;svg+=`<circle cx="${X(p[0])}" cy="${Y(p[1])}" r="${fin?8:6}" fill="${fin?"#f08c3a":"#0f1418"}" stroke="#f08c3a" stroke-width="2"/>`;if(!fin)svg+=`<text x="${X(p[0])}" y="${Y(p[1])+4}" font-size="9" text-anchor="middle" fill="#f08c3a">${i+1}</text>`});
  for(const p of c.pads)svg+=`<rect x="${X(p[0])-5}" y="${Y(p[1])-5}" width="10" height="10" fill="#5fd0d2" transform="rotate(45 ${X(p[0])} ${Y(p[1])})"/>`;
  if(c.supply)svg+=`<rect x="${X(c.supply[0])-7}" y="${Y(c.supply[1])-7}" width="14" height="14" fill="#f2b23a" rx="3"/>`;
- svg+=`<text x="12" y="210" font-size="11" fill="#9aa7ad">● finish   ①… ${gale?"flags":"gates"}   ◆ boost pad   ■ supply${c.sand.length?"   ▭ sand":""}</text>`;
- $("course-note").textContent=gale?({gale:"Gale crater floor",noctis:"Noctis Labyrinthus: a trough floor with layered rock and wind-blown ridges",amazonis:"Amazonis Planitia: smooth dusty plains to the rim of a deep pit"}[c.ground])+". Real HiRISE terrain; build it once with scripts/setup_gale.py --site "+c.ground+".":"Generated ground: works without any downloads.";$("map").innerHTML=svg}
+ svg+=`<text x="12" y="210" font-size="11" fill="#9aa7ad">● ${lang==="ja"?"ゴール":"finish"}   ①… ${real?(lang==="ja"?"旗":"flags"):(lang==="ja"?"ゲート":"gates")}   ◆ ${lang==="ja"?"ブースト":"boost pad"}   ■ ${lang==="ja"?"補給":"supply"}${c.sand.length?"   ▭ "+(lang==="ja"?"砂地":"sand"):""}</text>`;
+ const s=stageById[c.ground];$("course-note").textContent=real?(lang==="ja"?`${L(s&&s.name)}：本物のHiRISE地形。初回は scripts/setup_gale.py --site ${c.ground} で一度だけ作成します。`:`${L(s&&s.name)}: real HiRISE terrain. Build it once with scripts/setup_gale.py --site ${c.ground}.`):(lang==="ja"?"生成した地面：ダウンロードなしで動きます。":"Generated ground: works without any downloads.");$("map").innerHTML=svg}
 function q(v){return /^[\w./~-]+$/.test(v)?v:`"${v.replace(/(["\\$`])/g,"\\$1")}"`}
 function command(){const agent=mode==="advanced"?$("agent").value:"none";const ghosts=mode==="timeattack"?Math.max(1,+$("ghosts").value):+$("ghosts").value;
  const parts=["uv run --project python python scripts/play_3d.py --race","--garage ~/Downloads/garage.json",`--course ${$("course").value}`,`--laps ${$("laps").value}`,`--npcs ${mode==="timeattack"?0:$("npcs").value}`,`--ghosts ${ghosts}`,`--difficulty ${$("difficulty").value}`,`--name ${q($("name").value||"You")}`];
- if(agent!=="none")parts.push(`--agent ${agent}`);if($("map-sel").value!=="generated"&&DATA.courses[$("course").value].ground==="generated")parts.push(`--map ${$("map-sel").value}`);if($("light").value!=="afternoon")parts.push(`--light ${$("light").value}`);
+ if(agent!=="none")parts.push(`--agent ${agent}`);const st=stageById[stage];const def=(st&&st.light)||"afternoon";if($("light").value!==def)parts.push(`--light ${$("light").value}`);
  parts.push(`--ue-root "/Users/Shared/Epic Games/UE_5.8" --build`);$("command").textContent=parts.join(" \\\n  ");
  $("agent-command").textContent=agent==="external"?"# In a second Terminal, once the race is waiting for your agent:\nuv run --project python python -m roverloom.race_agent_example --name \"My Agent\"":"# Or race this agent without Unreal, on the race model:\nuv run --project python python -m roverloom.race_cli headless --agent "+agent+" --course "+$("course").value+" --npcs "+$("npcs").value;
  $("agent-note").textContent=AGENT_NOTES[$("agent").value]||"";document.body.classList.toggle("adv",mode==="advanced")}
-function board(key){const boards=DATA.boards||{};const keys=Object.keys(boards);if(!keys.length){$("tabs").innerHTML="";$("board").innerHTML='<p class="empty">No finished races yet. Finish one and run <code>race_cli lobby</code> again to see it here.</p>';return}
+function board(key){const boards=DATA.boards||{};const keys=Object.keys(boards);if(!keys.length){$("tabs").innerHTML="";$("board").innerHTML=`<p class="empty">${lang==="ja"?"まだ完走した記録はありません。完走してから race_cli lobby をもう一度実行すると、ここに出ます。":"No finished races yet. Finish one and run <code>race_cli lobby</code> again to see it here."}</p>`;return}
  key=key||keys[0];$("tabs").innerHTML=keys.map(k=>`<button role="tab" aria-selected="${k===key}" data-board="${k}">${k.replaceAll("/"," · ")}</button>`).join("");
  $("board").innerHTML=`<table><thead><tr><th>#</th><th>Player</th><th>Time</th><th>Driver</th><th>Rover</th><th>Id</th></tr></thead><tbody>${boards[key].map(r=>`<tr><td>${r.rank}</td><td>${esc(r.player)}</td><td class="t">${r.total}</td><td>${esc(r.controller)}</td><td><span style="color:${PAINT[r.design.paint]||"#ccc"}">■</span> ${r.design.tires} / ${r.design.battery} / ${r.design.sensor}</td><td><code>${r.entry_id.slice(0,8)}</code></td></tr>`).join("")}</tbody></table>`}
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
 document.querySelectorAll(".mode").forEach(b=>b.addEventListener("click",()=>{mode=b.dataset.mode;document.querySelectorAll(".mode").forEach(o=>o.setAttribute("aria-pressed",o===b));if(mode==="timeattack"&&+$("ghosts").value===0)$("ghosts").value="1";command()}));
-document.querySelectorAll("select,input").forEach(e=>e.addEventListener("input",()=>{if(e.id==="course")course(true);rover();command()}));
-document.querySelectorAll("[data-copy]").forEach(b=>b.addEventListener("click",async()=>{try{await navigator.clipboard.writeText($(b.dataset.copy).textContent);b.textContent="Copied"}catch{b.textContent="Select and copy"}setTimeout(()=>b.textContent="Copy",1500)}));
+document.querySelectorAll("select,input").forEach(e=>e.addEventListener("input",()=>{if(e.id==="course"){course(true);stageDetail()}if(["tires","battery-sel","sensor","paint"].includes(e.id))mark(2);rover();command()}));
+document.querySelectorAll("[data-copy]").forEach(b=>b.addEventListener("click",async()=>{try{await navigator.clipboard.writeText($(b.dataset.copy).textContent);b.textContent="Copied"}catch{b.textContent="Select and copy"}mark(3);setTimeout(()=>b.textContent="Copy",1500)}));
 $("tabs").addEventListener("click",e=>{if(e.target.dataset.board)board(e.target.dataset.board)});
-$("save").addEventListener("click",()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(design(),null,2)+"\n"],{type:"application/json"}));a.download="garage.json";a.click();URL.revokeObjectURL(a.href)});
-course();rover();command();board();
+$("save").addEventListener("click",()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(design(),null,2)+"\n"],{type:"application/json"}));a.download="garage.json";a.click();URL.revokeObjectURL(a.href);mark(2)});
+document.querySelectorAll("[data-lang]").forEach(b=>b.addEventListener("click",()=>{lang=b.dataset.lang;try{localStorage.setItem("roverloom.lang",lang)}catch{}applyText();board();rover()}));
+// ---------------------------------------------------------------- first visit
+const welcome=$("welcome");
+function openWelcome(){if(typeof welcome.showModal==="function")welcome.showModal()}
+$("howto").addEventListener("click",openWelcome);
+$("w-ok").addEventListener("click",()=>welcome.close());
+$("w-rules").addEventListener("click",()=>{welcome.close();$("rules").open=true;$("rules").scrollIntoView({behavior:"smooth"})});
+welcome.addEventListener("close",()=>{try{localStorage.setItem("roverloom.welcomed","1")}catch{}});
+// ---------------------------------------------------------------- start
+fillCourses();
+if(stageById[stage]){const s=stageById[stage];if(s.light)$("light").value=s.light;if(s.lon!=null){yaw=s.lon*D;pitch=Math.max(-1.2,Math.min(1.2,s.lat*D))}}
+applyText();rover();command();board();requestAnimationFrame(animate);
+try{if(!localStorage.getItem("roverloom.welcomed")&&!/[?&]nowelcome/.test(location.search))openWelcome()}catch{}
 </script>
 </html>

@@ -34,7 +34,31 @@ def test_lobby_modes_command_and_mobile_layout(browser, tmp_path):
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.goto(lobby.resolve().as_uri())
+    # A first visit opens the guide; it stays closed after that
+    page.get_by_role("button", name="Let's go").click()
+    page.reload()
+    assert not page.locator("#welcome").is_visible()
     assert "Bot" in page.locator("#board").inner_text()
+    # Choosing a stage offers only its courses and sets its light
+    page.locator("[data-stage=lyot]").click()
+    courses = page.locator("#course option").evaluate_all("o => o.map(e => e.value)")
+    assert courses and all(c.startswith("lyot") for c in courses)
+    assert page.locator("#light").input_value() == "winter"
+    assert "--light" not in page.locator("#command").inner_text()
+    assert page.locator("#stage-detail").inner_text().count("ESP_074942_2295") == 1
+    # The globe is drawn from the relief: not one flat colour
+    colours = page.evaluate(
+        """() => { const c = document.getElementById('globe');
+        const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+        const seen = new Set(); for (let i = 0; i < d.length; i += 4000) seen.add(d[i] >> 4);
+        return seen.size }"""
+    )
+    assert colours > 6
+    page.get_by_role("button", name="Map").click()
+    page.get_by_role("button", name="日本語").click()
+    assert "火星" in page.locator("h1").inner_text()
+    page.get_by_role("button", name="EN").click()
+    page.locator("[data-stage=generated]").click()
     page.locator("#tires").select_option("sand")
     page.locator("#paint").select_option("gold")
     page.locator("#course").select_option("dune_sprint")
