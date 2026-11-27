@@ -31,7 +31,7 @@ private:
 	void SpawnScatter();
 	void SpawnRover();
 	AActor* SpawnBlock(const FVector& Center, const FRotator& Rotation, const FVector& SizeCm, const FLinearColor& Color,
-		const TCHAR* MeshPath = TEXT("/Engine/BasicShapes/Cube.Cube"), bool bSolid = false);
+		const TCHAR* MeshPath = TEXT("/Engine/BasicShapes/Cube.Cube"));
 	void SpawnRaceCourse();
 	double GroundAtCm(const FVector2D& SiteM) const;
 	AActor* SpawnProp(const FVector2D& SiteM, double LiftCm, double YawDeg, const FVector& SizeCm, const FLinearColor& Color,
