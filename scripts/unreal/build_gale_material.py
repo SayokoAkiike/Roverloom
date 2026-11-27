@@ -133,7 +133,7 @@ LOOKS = {
             "facing_from": 0.0,
             "facing_gain": 0.0,
             "slope_cover": 0.0,
-            "flat_cover": 0.9,
+            "flat_cover": 1.0,
             "dark_clears": 0.9,  # where the measured brightness is under this, the dune sand has cleared,
             # except on slip faces steeper than about 15 degrees, which keep their frost longest: the streaks run there
             "color": (0.80, 0.77, 0.77),  # dust-laden CO2 frost: a warm, pinkish grey-white
@@ -469,9 +469,17 @@ def main() -> int:
         nx, ny = mask(vertex_normal, "r"), mask(vertex_normal, "g")
         facing = mul(ny, const(-1.0 if f["pole"] == "north" else 1.0))
         pole_slope = saturate(mul(sub(facing, const(f["facing_from"])), const(f["facing_gain"])))
-        patches = saturate(
-            mul(sub(noise(shifted(700.0, 3300.0), 0.004), const(1.0 - f["flat_cover"])), const(4.0))
-        )
+        if f["flat_cover"] >= 1.0:
+            # Frost over all the ground. The noise below left blotches 2 to 3 m across bare even at 0.9, which read as a
+            # cow-hide pattern on the polar dunes (third Mac look check, 2026-11-28)
+            patches = const(1.0)
+        else:
+            patches = saturate(
+                mul(
+                    sub(noise(shifted(700.0, 3300.0), 0.004), const(1.0 - f["flat_cover"])),
+                    const(4.0),
+                )
+            )
         frost_cover = saturate(add(mul(pole_slope, const(f["slope_cover"])), patches))
         if measured is not None and f.get("dune_frost"):
             dune = saturate(mul(sub(const(f["dune_frost"]), measured), const(2.0)))
@@ -488,8 +496,9 @@ def main() -> int:
             # Defrosting starts in discrete spots, metres across (HiRISE ESP_081492_1215, "Spotted Dunes"), so the dune
             # sand shows through the frost in dark spots rather than all at once
             # Sparse and small: at 0.003 and 0.4 half the dune went dark, a cow-hide pattern (second Mac look check)
+            # Third check: smaller still, under a metre across
             spots = saturate(
-                mul(sub(noise(shifted(1300.0, 5200.0), 0.006), const(0.62)), const(4.0))
+                mul(sub(noise(shifted(1300.0, 5200.0), 0.012), const(0.62)), const(4.0))
             )
             cleared = mul(cleared, spots)
             frost_cover = mul(frost_cover, sub(const(1.0), cleared))

@@ -186,7 +186,7 @@ STAGES["olympia"] = {
         "facing_from": 0.0,
         "facing_gain": 0.0,
         "slope_cover": 0.0,
-        "flat_cover": 0.9,
+        "flat_cover": 1.0,
         "dark_clears": 0.9,
         "color": [0.74, 0.71, 0.71],
         "strength": 0.78,
@@ -379,8 +379,13 @@ def ground_functions(
         if "frost" in stage:
             f = stage["frost"]
             pole = min(1.0, max(0.0, (n_north - f["facing_from"]) * f["facing_gain"]))
-            patches = min(
-                1.0, max(0.0, (noise(x / 25.0 + 41.0, z / 25.0) - (1.0 - f["flat_cover"])) * 4.0)
+            patches = (
+                1.0
+                if f["flat_cover"] >= 1.0
+                else min(
+                    1.0,
+                    max(0.0, (noise(x / 25.0 + 41.0, z / 25.0) - (1.0 - f["flat_cover"])) * 4.0),
+                )
             )
             cover = min(1.0, pole * f["slope_cover"] + patches)
             if "dune_frost" in f:
@@ -390,7 +395,7 @@ def ground_functions(
             if "dark_clears" in f:
                 cleared = min(1.0, max(0.0, (f["dark_clears"] - a) * 2.5))
                 slip_face = min(1.0, max(0.0, (steep - 0.03) * 15.0))
-                spots = min(1.0, max(0.0, (noise(x / 1.7 + 29.0, z / 1.7) - 0.62) * 4.0))
+                spots = min(1.0, max(0.0, (noise(x / 0.85 + 29.0, z / 0.85) - 0.62) * 4.0))
                 cover *= 1.0 - cleared * (1.0 - slip_face) * spots
             amount = cover * f["strength"]
             rgb = [rgb[k] * (1.0 - amount) + f["color"][k] * fine * amount for k in range(3)]
