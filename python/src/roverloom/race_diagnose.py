@@ -18,6 +18,7 @@ from roverloom.race import COUNTDOWN_S, MODEL_VERSION, RULESET, Racer, overlap
 
 DRAW = re.compile(r"RaceDraw t=(-?[\d.]+) you=(-?[\d.]+),(-?[\d.]+),(-?[\d.]+)((?: \S+@[-\d.,]+)*)")
 MODEL = re.compile(r"Rover model: (V2|greybox)[^\n]*")
+RESET = re.compile(r"Rover rig reset: ([^\n]*)")
 
 
 @dataclass
@@ -152,6 +153,14 @@ def report(run: Path) -> str:
     log = log_path.read_text(encoding="utf-8", errors="replace") if log_path.exists() else ""
     model = MODEL.search(log)
     lines.append(f"Rover model in Unreal: {model.group(0) if model else 'not in unreal.log'}")
+    moved = max((math.dist(samples[0].you[:2], p.you[:2]) for p in samples), default=0.0)
+    resets = RESET.findall(log)
+    lines.append(
+        f"Player: moved up to {moved:.1f} m from the start; "
+        f"rover resets in unreal.log: {len(resets)}"
+    )
+    if resets:
+        lines.append(f"  first reset: {resets[0]}")
     py_lines, py_hits = summarize("Python's positions (states.jsonl)", samples, names)
     lines += py_lines
     drawn = drawn_samples(log)
@@ -167,6 +176,13 @@ def report(run: Path) -> str:
     movie = run / "race.mov"
     if movie.exists():
         lines.append(f"Video: {movie} ({movie.stat().st_size / 1e6:.0f} MB)")
+    if len(resets) > 20 or moved < 1.0:
+        lines.append(
+            "Verdict: the player's rover never drove (reset every frame or stuck at the start), "
+            "so Python saw it far from the rivals and they drove through it. "
+            "See the first reset above."
+        )
+        return "\n".join(lines)
     lines.append("Verdict: " + verdict(rules, current, py_hits, draw_hits))
     return "\n".join(lines)
 

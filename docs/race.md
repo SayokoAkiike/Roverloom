@@ -200,7 +200,10 @@ The pursuit agent drives at 35% so that four `hard` rivals overtake from behind.
 unranked after 80 s. The report compares the positions Python judged (`states.jsonl`) with where Unreal drew the
 player's body and each rival (`RaceDraw` lines in `unreal.log`), both with the rover rectangles, and lists the closest
 moments. Check an earlier run again with `uv run --project python python -m roverloom.race_cli diagnose [RUN_DIR]`.
-The `RaceDraw` lines and screenshots need the C++ built after 2026-11-27; this has not been run on a Mac yet.
+The report also counts rover resets in `unreal.log` and how far the player moved. On 2026-11-27 it found the cause of
+rivals driving through the player on Noctis Sprint: the course lies 10 to 15 m below the site origin, and the rover's
+fall check reset it every frame below z = -10 m, so it never left the start and Python saw it far from the rivals. The
+check is now 20 m below the start. The `RaceDraw` lines and screenshots need the C++ built after 2026-11-27.
 
 ## On a MacBook Air (Apple M5)
 

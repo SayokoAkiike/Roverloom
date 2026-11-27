@@ -564,3 +564,20 @@ def test_diagnostic_link_run_reports_contacts(tmp_path):
     text = report(out)
     assert "behind (2.0 m back" in text and "Unreal drew them overlapping" in text
     assert race_cli.main(["diagnose", str(out)]) == 0
+
+
+def test_diagnose_reports_a_rover_that_never_drove(tmp_path):
+    """Seen on the Mac: on Noctis the rover was reset every frame (its fall check used z = -10 m
+    while the course lies 15 m below the site origin), so it stayed at its start values."""
+    from roverloom.race_diagnose import report
+
+    r = Race(garage(), COURSES["noctis_sprint"], npcs=2)
+    lines = []
+    for i in range(60):
+        body = {"time_s": i * 0.1, "position_m": [0.0, 0.0, 0.0], "resets": i}
+        lines.append(json.dumps(r.step(body)))
+    (tmp_path / "states.jsonl").write_text("\n".join(lines))
+    log = "\n".join("Rover rig reset: fell to z -1530 cm, start z -1510 cm" for _ in range(60))
+    (tmp_path / "unreal.log").write_text(log)
+    text = report(tmp_path)
+    assert "rover resets in unreal.log: 60" in text and "never drove" in text

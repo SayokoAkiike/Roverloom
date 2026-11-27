@@ -57,6 +57,9 @@ namespace
 {
 	// Above this speed the rig has diverged, as WheelSpikeGameMode's "diverged" outcome.
 	const double DivergedSpeedCmps = 1000.0;
+	// Below this depth under the start the rover has fallen through the ground. Relative to the start, not to z = 0:
+	// on real terrain the course can lie well below the site origin (Noctis Sprint starts 15 m under it).
+	const double FallenBelowStartCm = 2000.0;
 	const double FreeCameraSpeedCmps = 800.0;
 	const double FreeCameraLiftCmps = 400.0;
 	// V2 visual model: struts run inboard of the wheels, at scripts/blender/build_rover.py's ARM_Y (0.877 m).
@@ -507,9 +510,19 @@ void ARoverPawn::Tick(float DeltaSeconds)
 	const UStaticMeshComponent* Body = Rig->GetBody();
 	const FVector Location = Body->GetComponentLocation();
 	const FVector Velocity = Body->GetPhysicsLinearVelocity();
-	if (Location.ContainsNaN() || Velocity.ContainsNaN() || Velocity.Size() > DivergedSpeedCmps || Location.Z < -1000.0)
+	if (Location.ContainsNaN() || Velocity.ContainsNaN() || Velocity.Size() > DivergedSpeedCmps
+		|| Location.Z < StartTransform.GetLocation().Z - FallenBelowStartCm)
 	{
-		ResetRig(Location.ContainsNaN() || Velocity.ContainsNaN() ? TEXT("nan") : TEXT("diverged"));
+		FString Reason = TEXT("diverged");
+		if (Location.ContainsNaN() || Velocity.ContainsNaN())
+		{
+			Reason = TEXT("nan");
+		}
+		else if (Velocity.Size() <= DivergedSpeedCmps)
+		{
+			Reason = FString::Printf(TEXT("fell to z %.0f cm, start z %.0f cm"), Location.Z, StartTransform.GetLocation().Z);
+		}
+		ResetRig(Reason);
 		return;
 	}
 
