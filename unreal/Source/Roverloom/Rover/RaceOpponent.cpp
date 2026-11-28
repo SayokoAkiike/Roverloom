@@ -70,7 +70,15 @@ void ARaceOpponent::BeginPlay()
 {
 	Super::BeginPlay();
 	RoverloomModelV2::FMeshes Model;
-	if (!RoverloomModelV2::Load(Model))
+	const bool bLoaded = RoverloomModelV2::Load(Model);
+	static bool bLogged = false;
+	if (!bLogged)
+	{
+		bLogged = true;
+		UE_LOG(LogRoverloom, Display, TEXT("Race rival model: %s"),
+			bLoaded ? TEXT("V2") : TEXT("greybox (V2 meshes not found under /Game/Rover, or -RoverModel=greybox)"));
+	}
+	if (!bLoaded)
 	{
 		return;
 	}

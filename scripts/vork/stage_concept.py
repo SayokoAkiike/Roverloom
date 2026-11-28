@@ -187,7 +187,7 @@ STAGES["olympia"] = {
         "facing_gain": 0.0,
         "slope_cover": 0.0,
         "flat_cover": 1.0,
-        "dark_clears": 0.9,
+        "dark_clears": 0.72,
         "color": [0.74, 0.71, 0.71],
         "strength": 0.78,
     },
@@ -395,7 +395,7 @@ def ground_functions(
             if "dark_clears" in f:
                 cleared = min(1.0, max(0.0, (f["dark_clears"] - a) * 2.5))
                 slip_face = min(1.0, max(0.0, (steep - 0.03) * 15.0))
-                spots = min(1.0, max(0.0, (noise(x / 0.85 + 29.0, z / 0.85) - 0.62) * 4.0))
+                spots = min(1.0, max(0.0, (noise(x / 0.85 + 29.0, z / 0.85) - 0.66) * 4.0))
                 cover *= 1.0 - cleared * (1.0 - slip_face) * spots
             amount = cover * f["strength"]
             rgb = [rgb[k] * (1.0 - amount) + f["color"][k] * fine * amount for k in range(3)]

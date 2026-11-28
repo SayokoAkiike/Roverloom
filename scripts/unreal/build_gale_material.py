@@ -70,7 +70,9 @@ LOOKS = {
             "AmbientCG/Rock029",
             "AmbientCG/Ground110",
         ],
-        "tints": TINTS,
+        # The ambientCG layers are warmer than the Poly Haven ones, and TINTS made the ground a vivid orange (Mac look
+        # check, 2026-11-28); these keep it a dusty butterscotch-brown
+        "tints": [(1.0, 0.72, 0.54), (1.14, 0.90, 0.66), (0.72, 0.54, 0.44), (0.74, 0.58, 0.48)],
         "patch": ((1.12, 0.78, 0.60), (1.0, 0.98, 0.84)),
         "drift_bias": 0.0,
         "gravel_bias": 0.0,
@@ -104,7 +106,8 @@ LOOKS = {
             "AmbientCG/Rock062",
             "AmbientCG/Ground079S",
         ],
-        "tints": [(1.22, 0.80, 0.52), (1.34, 0.92, 0.60), (0.66, 0.46, 0.36), (0.86, 0.60, 0.44)],
+        # Less red than before the ambientCG layers, which came out a vivid orange (Mac look check, 2026-11-28)
+        "tints": [(1.10, 0.82, 0.62), (1.20, 0.94, 0.72), (0.72, 0.56, 0.46), (0.86, 0.66, 0.52)],
         "patch": ((1.08, 0.84, 0.64), (1.02, 0.96, 0.82)),
         "drift_bias": 0.18,
         "gravel_bias": -0.2,
@@ -165,7 +168,7 @@ LOOKS = {
             "facing_gain": 0.0,
             "slope_cover": 0.0,
             "flat_cover": 1.0,
-            "dark_clears": 0.9,  # where the measured brightness is under this, the dune sand has cleared,
+            "dark_clears": 0.72,  # where the measured brightness is under this, the dune sand has cleared,
             # except on slip faces steeper than about 15 degrees, which keep their frost longest: the streaks run there
             "color": (0.80, 0.77, 0.77),  # dust-laden CO2 frost: a warm, pinkish grey-white
             "strength": 0.78,
@@ -553,9 +556,10 @@ def main() -> int:
             # Defrosting starts in discrete spots, metres across (HiRISE ESP_081492_1215, "Spotted Dunes"), so the dune
             # sand shows through the frost in dark spots rather than all at once
             # Sparse and small: at 0.003 and 0.4 half the dune went dark, a cow-hide pattern (second Mac look check)
-            # Third check: smaller still, under a metre across
+            # Third check: smaller still, under a metre across. Fourth: at 0.62 and dark_clears 0.9 they covered the
+            # whole ground like a leopard's coat; now only the darkest (dune) sand, and fewer
             spots = saturate(
-                mul(sub(noise(shifted(1300.0, 5200.0), 0.012), const(0.62)), const(4.0))
+                mul(sub(noise(shifted(1300.0, 5200.0), 0.012), const(0.66)), const(4.0))
             )
             cleared = mul(cleared, spots)
             frost_cover = mul(frost_cover, sub(const(1.0), cleared))
